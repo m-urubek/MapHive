@@ -1,0 +1,155 @@
+@model MapHive.Models.MapLocation
+
+@{
+    ViewData["Title"] = "Add New Location";
+}
+
+<div class="container">
+    <h2 class="my-4">@ViewData["Title"]</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <form asp-action="Add" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="control-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Latitude" class="control-label"></label>
+                            <input asp-for="Latitude" class="form-control" id="latitude" />
+                            <span asp-validation-for="Latitude" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Longitude" class="control-label"></label>
+                            <input asp-for="Longitude" class="form-control" id="longitude" />
+                            <span asp-validation-for="Longitude" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="Address" class="control-label"></label>
+                    <input asp-for="Address" class="form-control" />
+                    <span asp-validation-for="Address" class="text-danger"></span>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="Website" class="control-label"></label>
+                    <input asp-for="Website" class="form-control" placeholder="https://example.com" />
+                    <span asp-validation-for="Website" class="text-danger"></span>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="PhoneNumber" class="control-label"></label>
+                    <input asp-for="PhoneNumber" class="form-control" />
+                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                </div>
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Click on the map to set coordinates</h5>
+                </div>
+                <div class="card-body">
+                    <div id="map" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <style>
+        #map {
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize the map
+            var map = L.map('map').setView([40, 0], 2);
+            
+            // Add the OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+            }).addTo(map);
+            
+            // Create a marker variable
+            var marker;
+            
+            // Function to update the marker
+            function updateMarker(lat, lng) {
+                // Remove previous marker if it exists
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                
+                // Add a new marker
+                marker = L.marker([lat, lng]).addTo(map);
+                
+                // Update form fields
+                $('#latitude').val(lat.toFixed(6));
+                $('#longitude').val(lng.toFixed(6));
+            }
+            
+            // Initialize marker if coordinates are already set
+            var initialLat = $('#latitude').val();
+            var initialLng = $('#longitude').val();
+            
+            if (initialLat && initialLng) {
+                updateMarker(parseFloat(initialLat), parseFloat(initialLng));
+                map.setView([initialLat, initialLng], 13);
+            }
+            
+            // Add marker when the map is clicked
+            map.on('click', function(e) {
+                updateMarker(e.latlng.lat, e.latlng.lng);
+            });
+            
+            // Update marker when coordinates are changed manually
+            $('#latitude, #longitude').change(function() {
+                var lat = parseFloat($('#latitude').val());
+                var lng = parseFloat($('#longitude').val());
+                
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    updateMarker(lat, lng);
+                    map.setView([lat, lng], 13);
+                }
+            });
+        });
+    </script>
+} 

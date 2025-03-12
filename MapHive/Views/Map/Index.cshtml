@@ -1,0 +1,105 @@
+@model IEnumerable<MapHive.Models.MapLocation>
+
+@{
+    ViewData["Title"] = "Map View";
+}
+
+<div class="container">
+    <h2 class="my-4">@ViewData["Title"]</h2>
+    
+    <div class="row mb-4">
+        <div class="col">
+            <a asp-action="Add" class="btn btn-primary">Add New Location</a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <div id="map" style="width: 100%; height: 600px;"></div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col">
+            <h3>Locations</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Coordinates</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.Name</td>
+                            <td>@item.Address</td>
+                            <td>@item.Latitude, @item.Longitude</td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-info btn-sm">Details</a>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-warning btn-sm">Edit</a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-danger btn-sm">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <style>
+        #map {
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([40, 0], 2);
+        
+        // Add the OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+        }).addTo(map);
+        
+        // Add markers for each location
+        var locations = @Html.Raw(Json.Serialize(Model));
+        
+        locations.forEach(function(location) {
+            var marker = L.marker([location.latitude, location.longitude]).addTo(map);
+            
+            marker.bindPopup(
+                '<strong>' + location.name + '</strong><br>' +
+                location.description + '<br>' +
+                (location.address ? location.address + '<br>' : '') +
+                (location.website ? '<a href="' + location.website + '" target="_blank">Website</a><br>' : '') +
+                (location.phoneNumber ? 'Phone: ' + location.phoneNumber : '')
+            );
+        });
+        
+        // If we have locations, fit the map to show all markers
+        if (locations.length > 0) {
+            var group = new L.featureGroup(
+                locations.map(function(location) {
+                    return L.marker([location.latitude, location.longitude]);
+                })
+            );
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    </script>
+} 

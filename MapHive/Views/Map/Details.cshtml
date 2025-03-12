@@ -1,0 +1,113 @@
+@model MapHive.Models.MapLocation
+
+@{
+    ViewData["Title"] = "Location Details";
+}
+
+<div class="container">
+    <h2 class="my-4">@Model.Name</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Location Information</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Name</dt>
+                        <dd class="col-sm-8">@Model.Name</dd>
+                        
+                        <dt class="col-sm-4">Description</dt>
+                        <dd class="col-sm-8">@Model.Description</dd>
+                        
+                        <dt class="col-sm-4">Address</dt>
+                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
+                        
+                        <dt class="col-sm-4">Coordinates</dt>
+                        <dd class="col-sm-8">@Model.Latitude, @Model.Longitude</dd>
+                        
+                        <dt class="col-sm-4">Website</dt>
+                        <dd class="col-sm-8">
+                            @if (string.IsNullOrEmpty(Model.Website))
+                            {
+                                <span>N/A</span>
+                            }
+                            else
+                            {
+                                <a href="@Model.Website" target="_blank">@Model.Website</a>
+                            }
+                        </dd>
+                        
+                        <dt class="col-sm-4">Phone Number</dt>
+                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.PhoneNumber) ? "N/A" : Model.PhoneNumber)</dd>
+                        
+                        <dt class="col-sm-4">Created</dt>
+                        <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+                        
+                        <dt class="col-sm-4">Last Updated</dt>
+                        <dd class="col-sm-8">@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+                    </dl>
+                </div>
+                <div class="card-footer">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Delete</a>
+                    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Map Location</h4>
+                </div>
+                <div class="card-body">
+                    <div id="map" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <style>
+        #map {
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize the map
+            var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
+            
+            // Add the OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+            }).addTo(map);
+            
+            // Add a marker for the location
+            var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
+            
+            // Add a popup to the marker
+            marker.bindPopup(
+                '<strong>@Model.Name</strong><br>' +
+                '@Model.Description<br>' +
+                '@(string.IsNullOrEmpty(Model.Address) ? "" : Model.Address + "<br>")' +
+                '@(string.IsNullOrEmpty(Model.Website) ? "" : "<a href=\"" + Model.Website + "\" target=\"_blank\">Website</a><br>")' +
+                '@(string.IsNullOrEmpty(Model.PhoneNumber) ? "" : "Phone: " + Model.PhoneNumber)'
+            ).openPopup();
+        });
+    </script>
+} 
