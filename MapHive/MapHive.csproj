@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Data\**" />
+    <Content Remove="Data\**" />
+    <EmbeddedResource Remove="Data\**" />
+    <None Remove="Data\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -25,10 +32,6 @@
     <None Update="maphive.db">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Data\" />
   </ItemGroup>
 
 </Project> 

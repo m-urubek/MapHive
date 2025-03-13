@@ -1,4 +1,5 @@
-﻿using SuperSmashHoes;
+﻿using MapHive.Services;
+using SuperSmashHoes;
 using System.Data.SQLite;
 
 namespace MapHive
@@ -6,6 +7,7 @@ namespace MapHive
     public static class MainClient
     {
         public static SqlClient SqlClient { get; private set; }
+        public static LogManager LogManager { get; private set; }
 
         public static void Initialize()
         {

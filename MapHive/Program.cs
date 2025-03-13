@@ -1,5 +1,8 @@
 using MapHive;
 using MapHive.Repositories;
+using MapHive.Services;
+using MapHive.Middleware;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,9 +12,18 @@ builder.Services.AddControllersWithViews();
 // Add repository services
 builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
 
+// Add HTTP context accessor for accessing request information in services
+builder.Services.AddHttpContextAccessor();
+
+// Add the LogManager service
+builder.Services.AddScoped<LogManager>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// Add error handling middleware first to catch all exceptions
+app.UseErrorHandling();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
