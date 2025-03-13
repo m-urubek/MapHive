@@ -1,4 +1,4 @@
-namespace MapHive.Models
+namespace MapHive.Models.Exceptions
 {
     /// <summary>
     /// Exception that displays an orange warning message to the user

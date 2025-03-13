@@ -1,4 +1,4 @@
-using MapHive.Models;
+using MapHive.Models.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapHive.ViewComponents

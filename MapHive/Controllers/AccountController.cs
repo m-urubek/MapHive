@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Models.Exceptions;
 using MapHive.Repositories;
 using MapHive.Services;
 using MapHive.Utilities;

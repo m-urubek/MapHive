@@ -1,4 +1,4 @@
-namespace MapHive.Models
+namespace MapHive.Models.Exceptions
 {
     /// <summary>
     /// Base class for exceptions that display user-friendly messages
