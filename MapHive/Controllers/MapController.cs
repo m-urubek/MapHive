@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using MapHive.Models;
 using MapHive.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -11,20 +10,20 @@ namespace MapHive.Controllers
 
         public MapController(IMapLocationRepository repository)
         {
-            _repository = repository;
+            this._repository = repository;
         }
 
         // GET: Map
         public async Task<IActionResult> Index()
         {
-            var locations = await _repository.GetAllLocationsAsync();
-            return View(locations);
+            IEnumerable<MapLocation> locations = await this._repository.GetAllLocationsAsync();
+            return this.View(locations);
         }
 
         // GET: Map/Add
         public IActionResult Add()
         {
-            return View();
+            return this.View();
         }
 
         // POST: Map/Add
@@ -32,23 +31,19 @@ namespace MapHive.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(MapLocation location)
         {
-            if (ModelState.IsValid)
+            if (this.ModelState.IsValid)
             {
-                await _repository.AddLocationAsync(location);
-                return RedirectToAction(nameof(Index));
+                _ = await this._repository.AddLocationAsync(location);
+                return this.RedirectToAction(nameof(Index));
             }
-            return View(location);
+            return this.View(location);
         }
 
         // GET: Map/Edit/5
         public async Task<IActionResult> Edit(int id)
         {
-            var location = await _repository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return NotFound();
-            }
-            return View(location);
+            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            return location == null ? this.NotFound() : this.View(location);
         }
 
         // POST: Map/Edit/5
@@ -58,26 +53,22 @@ namespace MapHive.Controllers
         {
             if (id != location.Id)
             {
-                return NotFound();
+                return this.NotFound();
             }
 
-            if (ModelState.IsValid)
+            if (this.ModelState.IsValid)
             {
-                await _repository.UpdateLocationAsync(location);
-                return RedirectToAction(nameof(Index));
+                _ = await this._repository.UpdateLocationAsync(location);
+                return this.RedirectToAction(nameof(Index));
             }
-            return View(location);
+            return this.View(location);
         }
 
         // GET: Map/Delete/5
         public async Task<IActionResult> Delete(int id)
         {
-            var location = await _repository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return NotFound();
-            }
-            return View(location);
+            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            return location == null ? this.NotFound() : this.View(location);
         }
 
         // POST: Map/Delete/5
@@ -85,27 +76,23 @@ namespace MapHive.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            await _repository.DeleteLocationAsync(id);
-            return RedirectToAction(nameof(Index));
+            _ = await this._repository.DeleteLocationAsync(id);
+            return this.RedirectToAction(nameof(Index));
         }
 
         // GET: Map/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            var location = await _repository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return NotFound();
-            }
-            return View(location);
+            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            return location == null ? this.NotFound() : this.View(location);
         }
 
         // API endpoint to get all locations as JSON
         [HttpGet]
         public async Task<IActionResult> GetLocations()
         {
-            var locations = await _repository.GetAllLocationsAsync();
-            return Json(locations);
+            IEnumerable<MapLocation> locations = await this._repository.GetAllLocationsAsync();
+            return this.Json(locations);
         }
     }
-} 
+}
