@@ -2,6 +2,7 @@ using MapHive;
 using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +11,21 @@ builder.Services.AddControllersWithViews();
 
 // Add repository services
 builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();
+
+// Add authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+    });
 
 // Add session state services
 builder.Services.AddDistributedMemoryCache();
@@ -25,6 +38,9 @@ builder.Services.AddSession(options =>
 
 // Add the LogManager service
 builder.Services.AddScoped<LogManager>();
+
+// Add the AuthService
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 WebApplication app = builder.Build();
 
@@ -41,12 +57,11 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// Enable session before error handling middleware
 app.UseSession();
 
-// Add error handling middleware after session is configured
 app.UseErrorHandling();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

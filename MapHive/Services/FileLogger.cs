@@ -1,5 +1,3 @@
-using Extensions;
-
 namespace MapHive.Services
 {
     public class FileLogger
