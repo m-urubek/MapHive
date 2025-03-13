@@ -14,15 +14,21 @@ builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();
 
+// Add session state services
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
 // Add the LogManager service
 builder.Services.AddScoped<LogManager>();
 
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
-// Add error handling middleware first to catch all exceptions
-app.UseErrorHandling();
-
 if (!app.Environment.IsDevelopment())
 {
     _ = app.UseExceptionHandler("/Home/Error");
@@ -34,6 +40,12 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Enable session before error handling middleware
+app.UseSession();
+
+// Add error handling middleware after session is configured
+app.UseErrorHandling();
 
 app.UseAuthorization();
 
