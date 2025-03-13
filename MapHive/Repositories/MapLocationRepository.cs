@@ -1,11 +1,6 @@
-using MapHive;
 using MapHive.Models;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MapHive.Repositories
 {
@@ -15,14 +10,14 @@ namespace MapHive.Repositories
         {
             return await Task.Run(() =>
             {
-                var locations = new List<MapLocation>();
+                List<MapLocation> locations = new();
                 DataTable dataTable = MainClient.SqlClient.Select("SELECT * FROM MapLocations");
-                
+
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    locations.Add(MapDataRowToMapLocation(row));
+                    locations.Add(this.MapDataRowToMapLocation(row));
                 }
-                
+
                 return locations;
             });
         }
@@ -31,19 +26,16 @@ namespace MapHive.Repositories
         {
             return await Task.Run(() =>
             {
-                var parameters = new SQLiteParameter[]
+                SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
-                    new SQLiteParameter("@Id", id)
+                    new("@Id", id)
                 };
-                
+
                 DataTable dataTable = MainClient.SqlClient.Select(
-                    "SELECT * FROM MapLocations WHERE Id = @Id", 
+                    "SELECT * FROM MapLocations WHERE Id = @Id",
                     parameters);
-                
-                if (dataTable.Rows.Count == 0)
-                    return null;
-                
-                return MapDataRowToMapLocation(dataTable.Rows[0]);
+
+                return dataTable.Rows.Count == 0 ? null : this.MapDataRowToMapLocation(dataTable.Rows[0]);
             });
         }
 
@@ -53,27 +45,27 @@ namespace MapHive.Repositories
             {
                 location.CreatedAt = DateTime.UtcNow;
                 location.UpdatedAt = DateTime.UtcNow;
-                
-                var parameters = new SQLiteParameter[]
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
-                    new SQLiteParameter("@Name", location.Name),
-                    new SQLiteParameter("@Description", location.Description),
-                    new SQLiteParameter("@Latitude", location.Latitude),
-                    new SQLiteParameter("@Longitude", location.Longitude),
-                    new SQLiteParameter("@Address", location.Address ?? (object)DBNull.Value),
-                    new SQLiteParameter("@Website", location.Website ?? (object)DBNull.Value),
-                    new SQLiteParameter("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
-                    new SQLiteParameter("@CreatedAt", location.CreatedAt),
-                    new SQLiteParameter("@UpdatedAt", location.UpdatedAt)
+                    new("@Name", location.Name),
+                    new("@Description", location.Description),
+                    new("@Latitude", location.Latitude),
+                    new("@Longitude", location.Longitude),
+                    new("@Address", location.Address ?? (object)DBNull.Value),
+                    new("@Website", location.Website ?? (object)DBNull.Value),
+                    new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
+                    new("@CreatedAt", location.CreatedAt),
+                    new("@UpdatedAt", location.UpdatedAt)
                 };
-                
+
                 int id = MainClient.SqlClient.Insert(
                     @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, 
                       Address, Website, PhoneNumber, CreatedAt, UpdatedAt) 
                       VALUES (@Name, @Description, @Latitude, @Longitude, 
                       @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt)",
                     parameters);
-                
+
                 location.Id = id;
                 return location;
             });
@@ -83,29 +75,31 @@ namespace MapHive.Repositories
         {
             return await Task.Run(async () =>
             {
-                var existingLocation = await GetLocationByIdAsync(location.Id);
-                
+                MapLocation existingLocation = await this.GetLocationByIdAsync(location.Id);
+
                 if (existingLocation == null)
+                {
                     return null;
+                }
 
                 location.CreatedAt = existingLocation.CreatedAt;
                 location.UpdatedAt = DateTime.UtcNow;
-                
-                var parameters = new SQLiteParameter[]
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
-                    new SQLiteParameter("@Id", location.Id),
-                    new SQLiteParameter("@Name", location.Name),
-                    new SQLiteParameter("@Description", location.Description),
-                    new SQLiteParameter("@Latitude", location.Latitude),
-                    new SQLiteParameter("@Longitude", location.Longitude),
-                    new SQLiteParameter("@Address", location.Address ?? (object)DBNull.Value),
-                    new SQLiteParameter("@Website", location.Website ?? (object)DBNull.Value),
-                    new SQLiteParameter("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
-                    new SQLiteParameter("@CreatedAt", location.CreatedAt),
-                    new SQLiteParameter("@UpdatedAt", location.UpdatedAt)
+                    new("@Id", location.Id),
+                    new("@Name", location.Name),
+                    new("@Description", location.Description),
+                    new("@Latitude", location.Latitude),
+                    new("@Longitude", location.Longitude),
+                    new("@Address", location.Address ?? (object)DBNull.Value),
+                    new("@Website", location.Website ?? (object)DBNull.Value),
+                    new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
+                    new("@CreatedAt", location.CreatedAt),
+                    new("@UpdatedAt", location.UpdatedAt)
                 };
-                
-                MainClient.SqlClient.Update(
+
+                _ = MainClient.SqlClient.Update(
                     @"UPDATE MapLocations 
                       SET Name = @Name, Description = @Description, 
                       Latitude = @Latitude, Longitude = @Longitude, 
@@ -114,7 +108,7 @@ namespace MapHive.Repositories
                       UpdatedAt = @UpdatedAt 
                       WHERE Id = @Id",
                     parameters);
-                
+
                 return location;
             });
         }
@@ -123,20 +117,22 @@ namespace MapHive.Repositories
         {
             return await Task.Run(async () =>
             {
-                var location = await GetLocationByIdAsync(id);
-                
-                if (location == null)
-                    return false;
+                MapLocation location = await this.GetLocationByIdAsync(id);
 
-                var parameters = new SQLiteParameter[]
+                if (location == null)
                 {
-                    new SQLiteParameter("@Id", id)
+                    return false;
+                }
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Id", id)
                 };
-                
+
                 int rowsAffected = MainClient.SqlClient.Delete(
                     "DELETE FROM MapLocations WHERE Id = @Id",
                     parameters);
-                
+
                 return rowsAffected > 0;
             });
         }
@@ -158,4 +154,4 @@ namespace MapHive.Repositories
             };
         }
     }
-} 
+}
