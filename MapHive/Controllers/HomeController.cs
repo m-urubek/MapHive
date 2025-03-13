@@ -18,6 +18,7 @@ namespace MapHive.Controllers
 
         public IActionResult Privacy()
         {
+            throw new Exception("test exception");
             return this.View();
         }
     }

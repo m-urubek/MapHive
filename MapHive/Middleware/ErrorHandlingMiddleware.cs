@@ -14,6 +14,7 @@ namespace MapHive.Middleware
 
         public async Task InvokeAsync(HttpContext context, LogManager logManager)
         {
+            HttpResponse originResponse = context.Response;
             try
             {
                 await this._next(context);
@@ -29,8 +30,16 @@ namespace MapHive.Middleware
             {
                 try
                 {
-                    // Show a generic error message to the user
-                    await this.HandleUserFriendlyExceptionAsync(context, new RedUserException("Internal Server Error!"));
+                    if (MainClient.AppSettings.DevelopmentMode)
+                    {
+                        //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
+                        await this.HandleUserFriendlyExceptionAsync(context, new RedUserException(ex.ToString()));
+                    }
+                    else
+                    {
+                        // Show a generic error message to the user
+                        await this.HandleUserFriendlyExceptionAsync(context, new RedUserException("Internal Server Error!"));
+                    }
                 }
                 catch { } // Don't let UI message display issues prevent error logging
 
