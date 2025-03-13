@@ -52,16 +52,19 @@ namespace SuperSmashHoes
 
         public static void v1()
         {
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'VersionNumber' (
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'MapLocations' (
                 'Id'	INTEGER,
-                'Value'	INTEGER,
+                'Name'	TEXT NOT NULL,
+                'Description'	TEXT NOT NULL,
+                'Latitude'	REAL NOT NULL,
+                'Longitude'	REAL NOT NULL,
+                'Address'	TEXT,
+                'Website'	TEXT,
+                'PhoneNumber'	TEXT,
+                'CreatedAt'	TEXT NOT NULL,
+                'UpdatedAt'	TEXT NOT NULL,
                 PRIMARY KEY('Id' AUTOINCREMENT)
             )");
-
-            _ = MainClient.SqlClient.Insert(
-                "INSERT INTO VersionNumber (Value) VALUES (@Value);",
-                new SQLiteParameter[] { new("@Value", 0) }
-            );
         }
 
         public static void v2()
@@ -108,6 +111,41 @@ namespace SuperSmashHoes
                 PRIMARY KEY('Id' AUTOINCREMENT),
                 FOREIGN KEY('SeverityId') REFERENCES 'LogSeverity'('Id')
             )");
+        }
+
+        public static void v3()
+        {
+            // Create Users table
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users' (
+                'Id'	INTEGER,
+                'Username'	TEXT NOT NULL UNIQUE,
+                'PasswordHash'	TEXT NOT NULL,
+                'RegistrationDate'	TEXT NOT NULL,
+                'IpAddress'	TEXT NOT NULL,
+                'MacAddress'	TEXT NOT NULL,
+                'IsTrusted'	INTEGER NOT NULL DEFAULT 0,
+                'IsAdmin'	INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY('Id' AUTOINCREMENT)
+            )");
+
+            // Create blacklist table for IP and MAC addresses
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist' (
+                'Id'	INTEGER,
+                'IpAddress'	TEXT,
+                'MacAddress'	TEXT,
+                'Reason'	TEXT NOT NULL,
+                'BlacklistedDate'	TEXT NOT NULL,
+                PRIMARY KEY('Id' AUTOINCREMENT)
+            )");
+
+            // Create an index on Username for faster lookups
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
+
+            // Create indexes on IP and MAC addresses for blacklist checks
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_mac_address ON Users(MacAddress)");
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_mac ON Blacklist(MacAddress)");
         }
     }
 }

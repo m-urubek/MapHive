@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace Extensions
+namespace MapHive.Utilities
 {
     public static class ThreadSafeFileWriter
     {
