@@ -27,14 +27,21 @@ namespace MapHive.Middleware
             }
             catch (Exception ex)
             {
+                try
+                {
+                    // Show a generic error message to the user
+                    await this.HandleUserFriendlyExceptionAsync(context, new RedUserException("Internal Server Error!"));
+                }
+                catch { } // Don't let UI message display issues prevent error logging
+
+                // Log the actual error for administrators
                 this.HandleExceptionAsync(context, ex, logManager);
-                throw; // Re-throw the exception to let the built-in exception handlers deal with it
             }
         }
 
         private void HandleExceptionAsync(HttpContext context, Exception exception, LogManager logManager)
         {
-            // Log the exception with the LogManager
+            // Log detailed exception information that's not shown to users
             logManager.Error(
                 message: exception.Message,
                 source: "ErrorHandlingMiddleware",

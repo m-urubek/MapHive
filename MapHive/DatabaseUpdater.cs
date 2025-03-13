@@ -102,7 +102,6 @@ namespace SuperSmashHoes
                 'Message' TEXT NOT NULL,
                 'Source' TEXT,
                 'Exception' TEXT,
-                'StackTrace' TEXT,
                 'UserName' TEXT,
                 'RequestPath' TEXT,
                 'AdditionalData' TEXT,
