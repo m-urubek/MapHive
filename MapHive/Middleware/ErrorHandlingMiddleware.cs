@@ -18,7 +18,7 @@ namespace MapHive.Middleware
             {
                 await this._next(context);
             }
-            catch (UserFriendlyException ex)
+            catch (UserFriendlyExceptionBase ex)
             {
                 // For user-friendly exceptions, don't log them as errors but show to the user
                 await this.HandleUserFriendlyExceptionAsync(context, ex);
@@ -43,10 +43,14 @@ namespace MapHive.Middleware
             );
         }
 
-        private async Task HandleUserFriendlyExceptionAsync(HttpContext context, UserFriendlyException exception)
+        private async Task HandleUserFriendlyExceptionAsync(HttpContext context, UserFriendlyExceptionBase exception)
         {
-            // Store the exception message in TempData so it can be displayed on the next page
+            // Convert exception type to string for storage in session
+            string messageTypeString = exception.Type.ToString();
+
+            // Store the exception message and type in session
             context.Session.SetString("UserFriendlyMessage", exception.Message);
+            context.Session.SetString("UserFriendlyMessageType", messageTypeString);
 
             // Check if the request is an AJAX request
             bool isAjaxRequest = context.Request.Headers["X-Requested-With"] == "XMLHttpRequest";
@@ -56,7 +60,7 @@ namespace MapHive.Middleware
                 // For AJAX requests, return a JSON response with the message
                 context.Response.StatusCode = 200; // Use 200 instead of error code since this is user-friendly
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync($"{{\"userFriendlyMessage\": \"{exception.Message}\"}}");
+                await context.Response.WriteAsync($"{{\"userFriendlyMessage\": \"{exception.Message}\", \"messageType\": \"{messageTypeString}\"}}");
             }
             else
             {

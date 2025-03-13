@@ -1,10 +1,10 @@
-@model string
+@model MapHive.ViewComponents.UserFriendlyMessageViewModel
 
-@if (!string.IsNullOrEmpty(Model))
+@if (!string.IsNullOrEmpty(Model.Message))
 {
     <div class="user-friendly-message" id="userFriendlyMessage">
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            <span>@Model</span>
+        <div class="alert @Model.AlertClass alert-dismissible fade show" role="alert">
+            <span>@Model.Message</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>
@@ -27,13 +27,13 @@
     </style>
     
     <script>
-        // Auto-hide the message after 5 seconds
+        // Auto-hide the message after 15 seconds
         setTimeout(function() {
             const element = document.getElementById('userFriendlyMessage');
             if (element) {
                 const alert = new bootstrap.Alert(element.querySelector('.alert'));
                 alert.close();
             }
-        }, 5000);
+        }, 15000);
     </script>
 } 
