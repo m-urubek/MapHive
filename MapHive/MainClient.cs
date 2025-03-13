@@ -1,6 +1,5 @@
 ﻿using MapHive.Models;
 using MapHive.Repositories;
-using MapHive.Services;
 using MapHive.Utilities;
 using System.Data.SQLite;
 
@@ -9,7 +8,6 @@ namespace MapHive
     public static class MainClient
     {
         public static SqlClient? SqlClient { get; private set; }
-        public static LogManager? LogManager { get; private set; }
         public static AppSettings? AppSettings { get; private set; }
 
         public static void Initialize()

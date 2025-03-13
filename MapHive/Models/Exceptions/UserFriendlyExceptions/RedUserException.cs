@@ -1,4 +1,4 @@
-namespace MapHive.Models
+namespace MapHive.Models.Exceptions
 {
     /// <summary>
     /// Exception that displays a red error message to the user

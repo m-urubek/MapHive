@@ -1,3 +1,4 @@
+using MapHive.Models.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapHive.Controllers
@@ -18,7 +19,6 @@ namespace MapHive.Controllers
 
         public IActionResult Privacy()
         {
-            throw new Exception("test exception");
             return this.View();
         }
     }

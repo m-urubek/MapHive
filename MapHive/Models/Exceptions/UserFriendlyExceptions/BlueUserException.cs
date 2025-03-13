@@ -1,4 +1,4 @@
-namespace MapHive.Models
+namespace MapHive.Models.Exceptions
 {
     /// <summary>
     /// Exception that displays a blue information message to the user

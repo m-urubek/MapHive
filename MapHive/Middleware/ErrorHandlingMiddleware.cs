@@ -1,4 +1,4 @@
-using MapHive.Models;
+using MapHive.Models.Exceptions;
 using MapHive.Services;
 
 namespace MapHive.Middleware
@@ -14,7 +14,6 @@ namespace MapHive.Middleware
 
         public async Task InvokeAsync(HttpContext context, LogManager logManager)
         {
-            HttpResponse originResponse = context.Response;
             try
             {
                 await this._next(context);
@@ -25,6 +24,39 @@ namespace MapHive.Middleware
                 await this.HandleUserFriendlyExceptionAsync(context, ex);
 
                 // Don't re-throw the exception since we've handled it by showing a friendly message
+            }
+            catch (WarningException ex)
+            {
+                await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.Message));
+                logManager.Warning(ex.Message,
+                    "ErrorHandlingMiddleware",
+                    ex,
+                    $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                );
+            }
+            catch (NonCriticalException ex)
+            {
+                try
+                {
+                    if (MainClient.AppSettings.DevelopmentMode)
+                    {
+                        //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
+                        await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.ToString()));
+                    }
+                    else
+                    {
+                        // Show a generic error message to the user
+                        await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException("Internal Server Error!"));
+                    }
+                }
+                catch { } // Don't let UI message display issues prevent error logging
+
+                logManager.Error(
+                    message: ex.Message,
+                    source: "ErrorHandlingMiddleware",
+                    exception: ex,
+                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                );
             }
             catch (Exception ex)
             {
@@ -43,20 +75,13 @@ namespace MapHive.Middleware
                 }
                 catch { } // Don't let UI message display issues prevent error logging
 
-                // Log the actual error for administrators
-                this.HandleExceptionAsync(context, ex, logManager);
+                logManager.Critical(
+                    message: ex.Message,
+                    source: "ErrorHandlingMiddleware",
+                    exception: ex,
+                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                );
             }
-        }
-
-        private void HandleExceptionAsync(HttpContext context, Exception exception, LogManager logManager)
-        {
-            // Log detailed exception information that's not shown to users
-            logManager.Error(
-                message: exception.Message,
-                source: "ErrorHandlingMiddleware",
-                exception: exception,
-                additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
-            );
         }
 
         private async Task HandleUserFriendlyExceptionAsync(HttpContext context, UserFriendlyExceptionBase exception)
