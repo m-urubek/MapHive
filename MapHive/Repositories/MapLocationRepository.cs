@@ -32,7 +32,7 @@ namespace MapHive.Repositories
                 };
 
                 DataTable dataTable = MainClient.SqlClient.Select(
-                    "SELECT * FROM MapLocations WHERE Id = @Id",
+                    "SELECT * FROM MapLocations WHERE Id_MapLocation = @Id",
                     parameters);
 
                 return dataTable.Rows.Count == 0 ? null : this.MapDataRowToMapLocation(dataTable.Rows[0]);
@@ -106,7 +106,7 @@ namespace MapHive.Repositories
                       Address = @Address, Website = @Website, 
                       PhoneNumber = @PhoneNumber, CreatedAt = @CreatedAt, 
                       UpdatedAt = @UpdatedAt 
-                      WHERE Id = @Id",
+                      WHERE Id_MapLocation = @Id",
                     parameters);
 
                 return location;
@@ -130,7 +130,7 @@ namespace MapHive.Repositories
                 };
 
                 int rowsAffected = MainClient.SqlClient.Delete(
-                    "DELETE FROM MapLocations WHERE Id = @Id",
+                    "DELETE FROM MapLocations WHERE Id_MapLocation = @Id",
                     parameters);
 
                 return rowsAffected > 0;
@@ -141,7 +141,7 @@ namespace MapHive.Repositories
         {
             return new MapLocation
             {
-                Id = Convert.ToInt32(row["Id"]),
+                Id = Convert.ToInt32(row["Id_MapLocation"]),
                 Name = row["Name"].ToString(),
                 Description = row["Description"].ToString(),
                 Latitude = Convert.ToDouble(row["Latitude"]),

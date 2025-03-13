@@ -150,13 +150,15 @@ namespace MapHive.Controllers
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
             {
-                return this.RedirectToAction("Login");
+                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
+                throw new OrangeUserException("Your session is invalid, login again.");
             }
 
             User? user = this._userRepository.GetUserById(id);
             if (user == null)
             {
-                return this.RedirectToAction("Login");
+                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
+                throw new OrangeUserException("Your session is invalid, login again.");
             }
 
             ProfileViewModel model = new()

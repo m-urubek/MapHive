@@ -59,31 +59,36 @@ namespace MapHive.Services
         /// </summary>
         private void WriteLog(int severityId, string message, string? source = null, Exception? exception = null, string? additionalData = null)
         {
+            // Capture HttpContext information before creating the background thread
+            string? userName = null;
+            string? requestPath = null;
+
+            // Safely access HttpContext on the original request thread
+            if (this._httpContextAccessor.HttpContext != null)
+            {
+                userName = this._httpContextAccessor.HttpContext.User?.Identity?.Name;
+                requestPath = this._httpContextAccessor.HttpContext.Request?.Path;
+            }
+
+            // Format additional data as JSON if it's not already - do this on the current thread
+            if (additionalData != null && !additionalData.StartsWith("{") && !additionalData.StartsWith("["))
+            {
+                additionalData = JsonConvert.SerializeObject(new { data = additionalData });
+            }
+
+            // Get a copy of all necessary data
+            string capturedMessage = message;
+            string? capturedSource = source;
+            string? capturedException = exception?.ToString();
+            string? capturedAdditionalData = additionalData;
+
             new Thread(() =>
             {
                 Thread.CurrentThread.IsBackground = true;
 
                 try
                 {
-                    // Get current user and request path if available
-                    string? userName = null;
-                    string? requestPath = null;
-
-                    if (this._httpContextAccessor.HttpContext != null)
-                    {
-                        userName = this._httpContextAccessor.HttpContext.User?.Identity?.Name;
-                        requestPath = this._httpContextAccessor.HttpContext.Request?.Path;
-                    }
-
-                    // Prepare exception details
-
-                    // Format additional data as JSON if it's not already
-                    if (additionalData != null && !additionalData.StartsWith("{") && !additionalData.StartsWith("["))
-                    {
-                        additionalData = JsonConvert.SerializeObject(new { data = additionalData });
-                    }
-
-                    // Insert log into database
+                    // Insert log into database using the captured values
                     string query = @"
                     INSERT INTO Logs 
                     (Timestamp, SeverityId, Message, Source, Exception, UserName, RequestPath, AdditionalData) 
@@ -92,14 +97,14 @@ namespace MapHive.Services
 
                     SQLiteParameter[] parameters = new SQLiteParameter[]
                     {
-                    new("@Timestamp", DateTime.UtcNow.ToString("o")),
-                    new("@SeverityId", severityId),
-                    new("@Message", message),
-                    new("@Source", source ?? ""),
-                    new("@Exception", exception?.ToString() ?? ""),
-                    new("@UserName", userName ?? ""),
-                    new("@RequestPath", requestPath ?? ""),
-                    new("@AdditionalData", additionalData ?? "")
+                        new("@Timestamp", DateTime.UtcNow.ToString("o")),
+                        new("@SeverityId", severityId),
+                        new("@Message", capturedMessage),
+                        new("@Source", capturedSource ?? ""),
+                        new("@Exception", capturedException ?? ""),
+                        new("@UserName", userName ?? ""),
+                        new("@RequestPath", requestPath ?? ""),
+                        new("@AdditionalData", capturedAdditionalData ?? "")
                     };
 
                     _ = MainClient.SqlClient.Insert(query, parameters);
@@ -108,13 +113,13 @@ namespace MapHive.Services
                 {
                     // If logging to the database fails, write to Console output as a fallback
                     Console.WriteLine($"Failed to write log to database: {ex.ToString()}");
-                    Console.WriteLine($"Original log: Severity={severityId}, Message={message}");
+                    Console.WriteLine($"Original log: Severity={severityId}, Message={capturedMessage}");
 
                     // Try to write to file as a fallback
                     try
                     {
-                        this.WriteToFile(severityId, message, source, exception,
-                            $"Database logging failed: {ex.ToString()}. {additionalData}");
+                        this.WriteToFile(severityId, capturedMessage, capturedSource, exception,
+                            $"Database logging failed: {ex.ToString()}. {capturedAdditionalData}");
                     }
                     catch
                     {
