@@ -18,11 +18,13 @@ a detail page about the place.
 
 Key Features:
 
+Those surrounded by * are finished
+
 - Public Places: All places are visible to everyone.
 - User Registration: Only registered users can add new places.
 - MAC Address Restriction: Each user can register only one account per MAC address.
 - IP & MAC Blacklisting:
-  - The database stores the registration IP.
+  *- The database stores the registration IP.*
   - If an IP registers too many accounts too quickly, both the IP and 
     MAC address will be blacklisted.
 - Anonymous Submissions: Users can choose to anonymize themselves as 
