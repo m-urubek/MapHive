@@ -1,13 +1,16 @@
-﻿using MapHive.Services;
-using SuperSmashHoes;
+﻿using MapHive.Models;
+using MapHive.Repositories;
+using MapHive.Services;
+using MapHive.Utilities;
 using System.Data.SQLite;
 
 namespace MapHive
 {
     public static class MainClient
     {
-        public static SqlClient SqlClient { get; private set; }
+        public static SqlClient? SqlClient { get; private set; }
         public static LogManager? LogManager { get; private set; }
+        public static AppSettings? AppSettings { get; private set; }
 
         public static void Initialize()
         {
@@ -25,6 +28,15 @@ namespace MapHive
             SqlClient = new(dbFilePath);
 
             DatabaseUpdater.Run();
+
+            // Initialize AppSettings after database is updated
+            InitializeAppSettings();
+        }
+
+        private static void InitializeAppSettings()
+        {
+            ConfigurationRepository configRepository = new();
+            AppSettings = configRepository.GetAppSettings();
         }
 
         private static void CreateNewDatabase(string dbFilePath)
@@ -39,9 +51,9 @@ namespace MapHive
             // Create the VersionNumber table
             using (SQLiteCommand command = new(
                 @"CREATE TABLE IF NOT EXISTS 'VersionNumber' (
-                        'Id'    INTEGER,
+                        'Id_VersionNumber'    INTEGER,
                         'Value' INTEGER,
-                        PRIMARY KEY('Id' AUTOINCREMENT)
+                        PRIMARY KEY('Id_VersionNumber' AUTOINCREMENT)
                     )", connection))
             {
                 _ = command.ExecuteNonQuery();

@@ -1,9 +1,7 @@
-﻿using MapHive;
-using System.Data;
+﻿using System.Data;
 using System.Data.SQLite;
 using System.Reflection;
-
-namespace SuperSmashHoes
+namespace MapHive.Utilities
 {
     public static class DatabaseUpdater
     {
@@ -37,11 +35,11 @@ namespace SuperSmashHoes
             }
             if (lastUpdateNumber > dbVersion)
             {
-                string query = "UPDATE VersionNumber SET Value = @Value WHERE Id = @Id";
+                string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id";
                 SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
                 new("@Value", lastUpdateNumber),
-                new("@Id", versionRawData.Rows[0]["Id"])
+                new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
                 };
                 if (MainClient.SqlClient.Update(query, parameters) != 1)
                 {
@@ -53,7 +51,7 @@ namespace SuperSmashHoes
         public static void v1()
         {
             _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'MapLocations' (
-                'Id'	INTEGER,
+                'Id_MapLocation'	INTEGER,
                 'Name'	TEXT NOT NULL,
                 'Description'	TEXT NOT NULL,
                 'Latitude'	REAL NOT NULL,
@@ -63,7 +61,7 @@ namespace SuperSmashHoes
                 'PhoneNumber'	TEXT,
                 'CreatedAt'	TEXT NOT NULL,
                 'UpdatedAt'	TEXT NOT NULL,
-                PRIMARY KEY('Id' AUTOINCREMENT)
+                PRIMARY KEY('Id_MapLocation' AUTOINCREMENT)
             )");
         }
 
@@ -71,10 +69,10 @@ namespace SuperSmashHoes
         {
             // Create LogSeverity table to store different log levels
             _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'LogSeverity' (
-                'Id'	INTEGER,
+                'Id_LogSeverity'	INTEGER,
                 'Name'	TEXT NOT NULL,
                 'Description' TEXT,
-                PRIMARY KEY('Id' AUTOINCREMENT)
+                PRIMARY KEY('Id_LogSeverity' AUTOINCREMENT)
             )");
 
             // Insert default severity levels - only 4 levels as requested
@@ -99,7 +97,7 @@ namespace SuperSmashHoes
 
             // Create Logs table
             _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Logs' (
-                'Id'	INTEGER,
+                'Id_Log'	INTEGER,
                 'Timestamp' TEXT NOT NULL,
                 'SeverityId' INTEGER NOT NULL,
                 'Message' TEXT NOT NULL,
@@ -108,8 +106,8 @@ namespace SuperSmashHoes
                 'UserName' TEXT,
                 'RequestPath' TEXT,
                 'AdditionalData' TEXT,
-                PRIMARY KEY('Id' AUTOINCREMENT),
-                FOREIGN KEY('SeverityId') REFERENCES 'LogSeverity'('Id')
+                PRIMARY KEY('Id_Log' AUTOINCREMENT),
+                FOREIGN KEY('SeverityId') REFERENCES 'LogSeverity'('Id_LogSeverity')
             )");
         }
 
@@ -117,7 +115,7 @@ namespace SuperSmashHoes
         {
             // Create Users table
             _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users' (
-                'Id'	INTEGER,
+                'Id_User'	INTEGER,
                 'Username'	TEXT NOT NULL UNIQUE,
                 'PasswordHash'	TEXT NOT NULL,
                 'RegistrationDate'	TEXT NOT NULL,
@@ -125,17 +123,17 @@ namespace SuperSmashHoes
                 'MacAddress'	TEXT NOT NULL,
                 'IsTrusted'	INTEGER NOT NULL DEFAULT 0,
                 'IsAdmin'	INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY('Id' AUTOINCREMENT)
+                PRIMARY KEY('Id_User' AUTOINCREMENT)
             )");
 
             // Create blacklist table for IP and MAC addresses
             _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist' (
-                'Id'	INTEGER,
+                'Id_Blacklist'	INTEGER,
                 'IpAddress'	TEXT,
                 'MacAddress'	TEXT,
                 'Reason'	TEXT NOT NULL,
                 'BlacklistedDate'	TEXT NOT NULL,
-                PRIMARY KEY('Id' AUTOINCREMENT)
+                PRIMARY KEY('Id_Blacklist' AUTOINCREMENT)
             )");
 
             // Create an index on Username for faster lookups
@@ -146,6 +144,35 @@ namespace SuperSmashHoes
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_mac_address ON Users(MacAddress)");
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_mac ON Blacklist(MacAddress)");
+        }
+
+        public static void v4()
+        {
+            // Create Configuration table
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Configuration' (
+                'Id_Configuration'	INTEGER,
+                'Key'	TEXT NOT NULL UNIQUE,
+                'Value'	TEXT NOT NULL,
+                'Description'	TEXT,
+                PRIMARY KEY('Id_Configuration' AUTOINCREMENT)
+            )");
+
+            // Create an index on the Key column for faster lookups
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_configuration_key ON Configuration(Key)");
+
+            // Add DevelopmentMode configuration with default value of false
+            string query = @"
+                INSERT INTO Configuration (Key, Value, Description)
+                VALUES (@Key, @Value, @Description)";
+
+            SQLiteParameter[] parameters = new SQLiteParameter[]
+            {
+                new("@Key", "DevelopmentMode"),
+                new("@Value", "false"),
+                new("@Description", "Enable development features and debugging tools when true")
+            };
+
+            _ = MainClient.SqlClient.Insert(query, parameters);
         }
     }
 }

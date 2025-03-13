@@ -12,6 +12,7 @@ builder.Services.AddControllersWithViews();
 // Add repository services
 builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();

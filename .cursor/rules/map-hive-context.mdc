@@ -3,6 +3,8 @@ description:
 globs: 
 alwaysApply: true
 ---
+Oftentimes, I run automatic code cleanup from Visual Studio. So between our interactions, the code might change but not functionally. If that happens, keep the formating from Visual Studio and use that style in your future suggestions.
+
 **********************************************************
 Beggining of project context
 
@@ -50,6 +52,7 @@ The website will include an Admin Panel to manage:
 - Users
 - Places
 - Perform direct sql commands with option to view results of the commands
+- Manage configuration
 
 Design:
 - Dark/light theme

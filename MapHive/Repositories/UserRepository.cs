@@ -28,7 +28,7 @@ namespace MapHive.Repositories
 
         public User? GetUserById(int id)
         {
-            string query = "SELECT * FROM Users WHERE Id = @Id";
+            string query = "SELECT * FROM Users WHERE Id_User = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
 
             DataTable result = MainClient.SqlClient.Select(query, parameters);
@@ -108,7 +108,7 @@ namespace MapHive.Repositories
                     PasswordHash = @PasswordHash, 
                     IsTrusted = @IsTrusted,
                     IsAdmin = @IsAdmin
-                WHERE Id = @Id";
+                WHERE Id_User = @Id";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
@@ -126,7 +126,7 @@ namespace MapHive.Repositories
         {
             return new User
             {
-                Id = Convert.ToInt32(row["Id"]),
+                Id = Convert.ToInt32(row["Id_User"]),
                 Username = row["Username"].ToString() ?? string.Empty,
                 PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
                 RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
