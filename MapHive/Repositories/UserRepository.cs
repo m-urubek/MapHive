@@ -100,6 +100,28 @@ namespace MapHive.Repositories
             return MainClient.SqlClient.Insert(query, parameters);
         }
 
+        public void UpdateUser(User user)
+        {
+            string query = @"
+                UPDATE Users 
+                SET Username = @Username, 
+                    PasswordHash = @PasswordHash, 
+                    IsTrusted = @IsTrusted,
+                    IsAdmin = @IsAdmin
+                WHERE Id = @Id";
+
+            SQLiteParameter[] parameters = new SQLiteParameter[]
+            {
+                new("@Username", user.Username),
+                new("@PasswordHash", user.PasswordHash),
+                new("@IsTrusted", user.IsTrusted ? 1 : 0),
+                new("@IsAdmin", user.IsAdmin ? 1 : 0),
+                new("@Id", user.Id)
+            };
+
+            _ = MainClient.SqlClient.Update(query, parameters);
+        }
+
         private static User MapDataRowToUser(DataRow row)
         {
             return new User

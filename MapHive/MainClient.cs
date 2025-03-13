@@ -19,11 +19,10 @@ namespace MapHive
 
             if (!File.Exists(dbFilePath))
             {
-                // Create new database file with version 0 instead of throwing an exception
                 CreateNewDatabase(dbFilePath);
             }
 
-            MainClient.SqlClient = new(dbFilePath);
+            SqlClient = new(dbFilePath);
 
             DatabaseUpdater.Run();
         }

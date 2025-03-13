@@ -16,26 +16,26 @@ namespace MapHive.Services
             this._logManager = logManager;
         }
 
-        public async Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress)
+        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress)
         {
             // Check if username already exists
             if (this._userRepository.CheckUsernameExists(request.Username))
             {
-                return new AuthResponse
+                return Task.FromResult(new AuthResponse
                 {
                     Success = false,
                     Message = "Username already exists"
-                };
+                });
             }
 
             // Check if MAC address already exists (one account per MAC address)
             if (this._userRepository.CheckMacAddressExists(macAddress))
             {
-                return new AuthResponse
+                return Task.FromResult(new AuthResponse
                 {
                     Success = false,
                     Message = "An account already exists for this device"
-                };
+                });
             }
 
             // Check if IP or MAC is blacklisted
@@ -44,18 +44,18 @@ namespace MapHive.Services
                 this._logManager.Warning("Registration attempt from blacklisted IP or MAC",
                     additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
 
-                return new AuthResponse
+                return Task.FromResult(new AuthResponse
                 {
                     Success = false,
                     Message = "Registration is not allowed from this device or network"
-                };
+                });
             }
 
             // Create the user
             User user = new()
             {
                 Username = request.Username,
-                PasswordHash = HashPassword(request.Password),
+                PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
                 IpAddress = ipAddress,
                 MacAddress = macAddress,
@@ -69,15 +69,15 @@ namespace MapHive.Services
             this._logManager.Information($"New user registered: {request.Username}",
                 additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
 
-            return new AuthResponse
+            return Task.FromResult(new AuthResponse
             {
                 Success = true,
                 Message = "Registration successful",
                 User = user
-            };
+            });
         }
 
-        public async Task<AuthResponse> LoginAsync(LoginRequest request)
+        public Task<AuthResponse> LoginAsync(LoginRequest request)
         {
             // Get user by username
             User? user = this._userRepository.GetUserByUsername(request.Username);
@@ -85,33 +85,33 @@ namespace MapHive.Services
             // Check if user exists
             if (user == null)
             {
-                return new AuthResponse
+                return Task.FromResult(new AuthResponse
                 {
                     Success = false,
                     Message = "Invalid username or password"
-                };
+                });
             }
 
             // Verify password
-            if (!VerifyPassword(request.Password, user.PasswordHash))
+            if (!this.VerifyPassword(request.Password, user.PasswordHash))
             {
                 this._logManager.Warning($"Failed login attempt for user: {request.Username}");
 
-                return new AuthResponse
+                return Task.FromResult(new AuthResponse
                 {
                     Success = false,
                     Message = "Invalid username or password"
-                };
+                });
             }
 
             this._logManager.Information($"User logged in: {request.Username}");
 
-            return new AuthResponse
+            return Task.FromResult(new AuthResponse
             {
                 Success = true,
                 Message = "Login successful",
                 User = user
-            };
+            });
         }
 
         public bool IsBlacklisted(string ipAddress, string macAddress)
@@ -119,7 +119,7 @@ namespace MapHive.Services
             return this._userRepository.IsBlacklisted(ipAddress, macAddress);
         }
 
-        private static string HashPassword(string password)
+        public string HashPassword(string password)
         {
             using SHA256 sha256 = SHA256.Create();
             byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
@@ -133,9 +133,9 @@ namespace MapHive.Services
             return builder.ToString();
         }
 
-        private static bool VerifyPassword(string password, string storedHash)
+        public bool VerifyPassword(string password, string storedHash)
         {
-            string hashedPassword = HashPassword(password);
+            string hashedPassword = this.HashPassword(password);
             return hashedPassword.Equals(storedHash);
         }
     }

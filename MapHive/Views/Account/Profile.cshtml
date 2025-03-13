@@ -1,0 +1,103 @@
+@model MapHive.Models.ProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title">Profile Information</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Username:</div>
+                        <div class="col-md-8">@Model.Username</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Registration Date:</div>
+                        <div class="col-md-8">@Model.RegistrationDate.ToString("MMMM dd, yyyy")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Trusted Status:</div>
+                        <div class="col-md-8">
+                            @if (Model.IsTrusted)
+                            {
+                                <span class="badge bg-success">Trusted User</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Standard User</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-info text-white">
+                    <h3 class="card-title">Change Username</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="ChangeUsername" method="post">
+                        <div class="mb-3">
+                            <label asp-for="ChangeUsernameModel.NewUsername" class="form-label">New Username</label>
+                            <input asp-for="ChangeUsernameModel.NewUsername" class="form-control" />
+                            <span asp-validation-for="ChangeUsernameModel.NewUsername" class="text-danger"></span>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Update Username</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-info text-white">
+                    <h3 class="card-title">Change Password</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="ChangePassword" method="post">
+                        <div class="mb-3">
+                            <label asp-for="ChangePasswordModel.CurrentPassword" class="form-label"></label>
+                            <input asp-for="ChangePasswordModel.CurrentPassword" class="form-control" type="password" />
+                            <span asp-validation-for="ChangePasswordModel.CurrentPassword" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="ChangePasswordModel.NewPassword" class="form-label"></label>
+                            <input asp-for="ChangePasswordModel.NewPassword" class="form-control" type="password" />
+                            <span asp-validation-for="ChangePasswordModel.NewPassword" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="ChangePasswordModel.ConfirmPassword" class="form-label"></label>
+                            <input asp-for="ChangePasswordModel.ConfirmPassword" class="form-control" type="password" />
+                            <span asp-validation-for="ChangePasswordModel.ConfirmPassword" class="text-danger"></span>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Update Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+} 

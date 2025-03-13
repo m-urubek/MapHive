@@ -11,5 +11,6 @@ namespace MapHive.Repositories
         bool CheckMacAddressExists(string macAddress);
         bool IsBlacklisted(string ipAddress, string macAddress);
         int AddToBlacklist(BlacklistedAddress blacklistedAddress);
+        void UpdateUser(User user);
     }
 }
