@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-
 namespace MapHive.Middleware
 {
     public static class ErrorHandlingMiddlewareExtensions
@@ -9,4 +7,4 @@ namespace MapHive.Middleware
             return builder.UseMiddleware<ErrorHandlingMiddleware>();
         }
     }
-} 
+}

@@ -1,10 +1,9 @@
 using MapHive;
+using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
-using MapHive.Middleware;
-using Microsoft.AspNetCore.Http;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -18,7 +17,7 @@ builder.Services.AddHttpContextAccessor();
 // Add the LogManager service
 builder.Services.AddScoped<LogManager>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 // Add error handling middleware first to catch all exceptions
@@ -26,9 +25,9 @@ app.UseErrorHandling();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    _ = app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    _ = app.UseHsts();
 }
 
 app.UseHttpsRedirection();
@@ -44,4 +43,4 @@ app.MapControllerRoute(
 
 MainClient.Initialize();
 
-app.Run(); 
+app.Run();

@@ -1,7 +1,4 @@
 using MapHive.Services;
-using Microsoft.AspNetCore.Http;
-using System;
-using System.Threading.Tasks;
 
 namespace MapHive.Middleware
 {
@@ -11,18 +8,18 @@ namespace MapHive.Middleware
 
         public ErrorHandlingMiddleware(RequestDelegate next)
         {
-            _next = next;
+            this._next = next;
         }
 
         public async Task InvokeAsync(HttpContext context, LogManager logManager)
         {
             try
             {
-                await _next(context);
+                await this._next(context);
             }
             catch (Exception ex)
             {
-                HandleExceptionAsync(context, ex, logManager);
+                this.HandleExceptionAsync(context, ex, logManager);
                 throw; // Re-throw the exception to let the built-in exception handlers deal with it
             }
         }
@@ -38,4 +35,4 @@ namespace MapHive.Middleware
             );
         }
     }
-} 
+}
