@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Models.Exceptions;
 using MapHive.Repositories;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,11 +22,7 @@ namespace MapHive.Services
             // Check if username already exists
             if (this._userRepository.CheckUsernameExists(request.Username))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username already exists"
-                });
+                throw new OrangeUserException("Username already exists");
             }
 
             // Check if MAC address already exists (one account per MAC address)
@@ -33,24 +30,13 @@ namespace MapHive.Services
             if (this._userRepository.CheckMacAddressExists(macAddress) &&
                 !this._userRepository.HasAdminAccount(macAddress))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "An account already exists for this device"
-                });
+                throw new RedUserException("An account already exists for this device");
             }
 
             // Check if IP or MAC is blacklisted
             if (this._userRepository.IsBlacklisted(ipAddress, macAddress))
             {
-                this._logManager.Warning("Registration attempt from blacklisted IP or MAC",
-                    additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Registration is not allowed from this device or network"
-                });
+                throw new WarningException($"Registration attempt from blacklisted IP or MAC. IP: {ipAddress}, MAC: {macAddress}");
             }
 
             // Create the user
@@ -87,23 +73,13 @@ namespace MapHive.Services
             // Check if user exists
             if (user == null)
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
             // Verify password
             if (!this.VerifyPassword(request.Password, user.PasswordHash))
             {
-                this._logManager.Warning($"Failed login attempt for user: {request.Username}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
             this._logManager.Information($"User logged in: {request.Username}");

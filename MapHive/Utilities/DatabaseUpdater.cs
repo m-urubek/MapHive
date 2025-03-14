@@ -216,6 +216,5 @@ namespace MapHive.Utilities
             // Log the migration result
             Console.WriteLine($"Executed {statementsExecuted} statements from ReviewsAndDiscussions sql update script.");
         }
-
     }
 }

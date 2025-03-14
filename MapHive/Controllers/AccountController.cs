@@ -99,7 +99,7 @@ namespace MapHive.Controllers
 
             // Verify reCAPTCHA
             RecaptchaResponse recaptchaResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
-            
+
             if (!recaptchaResponse.success)
             {
                 throw new OrangeUserException("reCAPTCHA verification failed. Please try again.");
@@ -114,11 +114,11 @@ namespace MapHive.Controllers
 
             // Get user agent
             string? userAgent = this.HttpContext.Request.Headers.UserAgent.ToString();
-            
+
             // Generate device identifier using browser fingerprinting
             string deviceId = NetworkUtilities.GenerateDeviceIdentifier(
-                ipAddress, 
-                userAgent, 
+                ipAddress,
+                userAgent,
                 model.DeviceFingerprint);
 
             AuthResponse response = await this._authService.RegisterAsync(model, ipAddress, deviceId);

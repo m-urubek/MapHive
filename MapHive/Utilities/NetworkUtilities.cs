@@ -1,5 +1,3 @@
-using System.Net.NetworkInformation;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -22,7 +20,7 @@ namespace MapHive.Utilities
             {
                 ipAddress = "0.0.0.0";
             }
-            
+
             if (string.IsNullOrEmpty(userAgent))
             {
                 userAgent = "unknown-agent";
@@ -34,7 +32,7 @@ namespace MapHive.Utilities
                 // If client fingerprint is provided, use it to create a unique ID for local testing
                 if (!string.IsNullOrEmpty(clientFingerprint))
                 {
-                    return $"DEV:{HashString(clientFingerprint).Substring(0, 12)}";
+                    return $"DEV:{HashString(clientFingerprint)[..12]}";
                 }
                 return "10:11:12:13:14:15"; // Default mock device ID for local testing
             }
@@ -62,12 +60,12 @@ namespace MapHive.Utilities
             // This regex tries to extract: Browser name/version and OS
             string pattern = @"(MSIE|Trident|(?:Firefox|Chrome|Safari|Opera|Edge))[\/\s](\d+\.\d+).*?(Windows|Mac|Linux|Android|iOS)[^;)]*";
             Match match = Regex.Match(userAgent, pattern, RegexOptions.IgnoreCase);
-            
+
             if (match.Success)
             {
                 return match.Value;
             }
-            
+
             // Fallback to a simple hash of the entire user agent
             return userAgent;
         }
@@ -79,18 +77,21 @@ namespace MapHive.Utilities
         {
             // Create a deterministic hash from the input
             string hash = HashString(input);
-            
+
             // Take first 12 characters and format like a MAC address
             string macFormat = string.Empty;
             for (int i = 0; i < 6; i++)
             {
-                if (i * 2 + 1 < hash.Length)
+                if ((i * 2) + 1 < hash.Length)
                 {
                     macFormat += hash.Substring(i * 2, 2);
-                    if (i < 5) macFormat += ":";
+                    if (i < 5)
+                    {
+                        macFormat += ":";
+                    }
                 }
             }
-            
+
             return macFormat;
         }
 
@@ -99,18 +100,16 @@ namespace MapHive.Utilities
         /// </summary>
         private static string HashString(string input)
         {
-            using (SHA256 sha256 = SHA256.Create())
+            using SHA256 sha256 = SHA256.Create();
+            byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+            // Return a hex string
+            StringBuilder builder = new();
+            foreach (byte b in hashBytes)
             {
-                byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-                
-                // Return a hex string
-                StringBuilder builder = new StringBuilder();
-                foreach (byte b in hashBytes)
-                {
-                    builder.Append(b.ToString("x2"));
-                }
-                return builder.ToString();
+                _ = builder.Append(b.ToString("x2"));
             }
+            return builder.ToString();
         }
     }
 }
