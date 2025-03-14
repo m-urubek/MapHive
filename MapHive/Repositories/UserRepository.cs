@@ -1,6 +1,7 @@
 using MapHive.Models;
 using System.Data;
 using System.Data.SQLite;
+using System.Threading.Tasks;
 
 namespace MapHive.Repositories
 {
@@ -106,20 +107,34 @@ namespace MapHive.Repositories
                 UPDATE Users 
                 SET Username = @Username, 
                     PasswordHash = @PasswordHash, 
+                    IpAddress = @IpAddress, 
+                    MacAddress = @MacAddress, 
                     IsTrusted = @IsTrusted,
                     IsAdmin = @IsAdmin
                 WHERE Id_User = @Id";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
+                new("@Id", user.Id),
                 new("@Username", user.Username),
                 new("@PasswordHash", user.PasswordHash),
+                new("@IpAddress", user.IpAddress),
+                new("@MacAddress", user.MacAddress),
                 new("@IsTrusted", user.IsTrusted ? 1 : 0),
-                new("@IsAdmin", user.IsAdmin ? 1 : 0),
-                new("@Id", user.Id)
+                new("@IsAdmin", user.IsAdmin ? 1 : 0)
             };
 
-            _ = MainClient.SqlClient.Update(query, parameters);
+            MainClient.SqlClient.Update(query, parameters);
+        }
+
+        public async Task<string> GetUsernameByIdAsync(int userId)
+        {
+            string query = "SELECT Username FROM Users WHERE Id_User = @Id";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", userId) };
+
+            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+
+            return result.Rows.Count > 0 ? result.Rows[0]["Username"].ToString() ?? "Unknown" : "Unknown";
         }
 
         private static User MapDataRowToUser(DataRow row)

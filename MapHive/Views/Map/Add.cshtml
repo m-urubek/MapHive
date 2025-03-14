@@ -59,6 +59,11 @@
                     <span asp-validation-for="PhoneNumber" class="text-danger"></span>
                 </div>
                 
+                <div class="form-check mb-3">
+                    <input asp-for="IsAnonymous" class="form-check-input" />
+                    <label asp-for="IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
+                </div>
+                
                 <div class="form-group mt-4">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <a asp-action="Index" class="btn btn-secondary">Back to List</a>

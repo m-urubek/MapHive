@@ -56,14 +56,16 @@ namespace MapHive.Repositories
                     new("@Website", location.Website ?? (object)DBNull.Value),
                     new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
                     new("@CreatedAt", location.CreatedAt),
-                    new("@UpdatedAt", location.UpdatedAt)
+                    new("@UpdatedAt", location.UpdatedAt),
+                    new("@UserId", location.UserId),
+                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
                 };
 
                 int id = MainClient.SqlClient.Insert(
                     @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, 
-                      Address, Website, PhoneNumber, CreatedAt, UpdatedAt) 
+                      Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous) 
                       VALUES (@Name, @Description, @Latitude, @Longitude, 
-                      @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt)",
+                      @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous)",
                     parameters);
 
                 location.Id = id;
@@ -84,6 +86,7 @@ namespace MapHive.Repositories
 
                 location.CreatedAt = existingLocation.CreatedAt;
                 location.UpdatedAt = DateTime.UtcNow;
+                location.UserId = existingLocation.UserId; // Preserve the original creator
 
                 SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
@@ -96,7 +99,9 @@ namespace MapHive.Repositories
                     new("@Website", location.Website ?? (object)DBNull.Value),
                     new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
                     new("@CreatedAt", location.CreatedAt),
-                    new("@UpdatedAt", location.UpdatedAt)
+                    new("@UpdatedAt", location.UpdatedAt),
+                    new("@UserId", location.UserId),
+                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
                 };
 
                 _ = MainClient.SqlClient.Update(
@@ -105,7 +110,7 @@ namespace MapHive.Repositories
                       Latitude = @Latitude, Longitude = @Longitude, 
                       Address = @Address, Website = @Website, 
                       PhoneNumber = @PhoneNumber, CreatedAt = @CreatedAt, 
-                      UpdatedAt = @UpdatedAt 
+                      UpdatedAt = @UpdatedAt, UserId = @UserId, IsAnonymous = @IsAnonymous 
                       WHERE Id_MapLocation = @Id",
                     parameters);
 
@@ -137,6 +142,29 @@ namespace MapHive.Repositories
             });
         }
 
+        public async Task<IEnumerable<MapLocation>> GetLocationsByUserIdAsync(int userId)
+        {
+            return await Task.Run(() =>
+            {
+                List<MapLocation> locations = new();
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@UserId", userId)
+                };
+
+                DataTable dataTable = MainClient.SqlClient.Select(
+                    "SELECT * FROM MapLocations WHERE UserId = @UserId",
+                    parameters);
+
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    locations.Add(this.MapDataRowToMapLocation(row));
+                }
+
+                return locations;
+            });
+        }
+
         private MapLocation MapDataRowToMapLocation(DataRow row)
         {
             return new MapLocation
@@ -150,7 +178,9 @@ namespace MapHive.Repositories
                 Website = row["Website"] != DBNull.Value ? row["Website"].ToString() : null,
                 PhoneNumber = row["PhoneNumber"] != DBNull.Value ? row["PhoneNumber"].ToString() : null,
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"])
+                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
+                UserId = row.Table.Columns.Contains("UserId") ? Convert.ToInt32(row["UserId"]) : 0,
+                IsAnonymous = row.Table.Columns.Contains("IsAnonymous") && Convert.ToInt32(row["IsAnonymous"]) == 1
             };
         }
     }

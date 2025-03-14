@@ -17,14 +17,16 @@ namespace MapHive.Controllers
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IUserRepository _userRepository;
         private readonly LogManager _logManager;
+        private readonly IMapLocationRepository _mapLocationRepository;
 
         public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
-            IUserRepository userRepository, LogManager logManager)
+            IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository)
         {
             this._authService = authService;
             this._httpContextAccessor = httpContextAccessor;
             this._userRepository = userRepository;
             this._logManager = logManager;
+            this._mapLocationRepository = mapLocationRepository;
         }
 
         [HttpGet]
@@ -146,7 +148,7 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize]
-        public IActionResult Profile()
+        public async Task<IActionResult> Profile()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
@@ -162,11 +164,15 @@ namespace MapHive.Controllers
                 throw new OrangeUserException("Your session is invalid, login again.");
             }
 
+            // Get the user's places
+            IEnumerable<MapLocation> userLocations = await this._mapLocationRepository.GetLocationsByUserIdAsync(id);
+
             ProfileViewModel model = new()
             {
                 Username = user.Username,
                 IsTrusted = user.IsTrusted,
-                RegistrationDate = user.RegistrationDate
+                RegistrationDate = user.RegistrationDate,
+                UserLocations = userLocations
             };
 
             return this.View(model);

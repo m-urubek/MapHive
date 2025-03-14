@@ -1,0 +1,38 @@
+This document outlines how the implementation of the reviews and discussions features for the MapHive project should look like.
+
+1. **Reviews System**:
+   - Users can leave reviews for map locations with a 5-star rating system
+   - Reviews can be anonymous
+   - Average ratings are displayed for each location
+   - A review has a delete button visible and working only for the review author or an admin
+
+2. **Discussions System**:
+   - 2 kinds of threads - disussion thread and review thread
+   - Discussion threads
+        - Logged-in users can start discussion threads about map locations
+        - Creation page
+            - Each discussion thread has to have an initial message
+            - Each discussion thread has a name
+        - Discussion threads have detail page
+            - Each thread can be opened - user clicks a button or the thread's title and gets reddirected to the thread page
+            - Logged-in users can write a message in the discussion thread page
+        - Dicussion thread can be deleted only by admin
+            - delete button visible and working only for an admin
+    - Review threads
+        - The review thread is started automatically after a review is creted
+        - Each review can have only one review thread
+        - The review will then contain a button to reddirect to the thread page
+        - Review threads don't have initial message
+        - the review is visible on the thread page and is visible where the initial message would be in the discussion thread
+        - if a review is deleted and its review thread has any messages, it becomes discussion thread with the review text as initial message. If the review was anonymous, the author of the thread and the initial message says "Anonymous"
+    - Messages inside the threads can be deleted 
+        - delete button visible and working only for the message author or an admin
+        - Initial message can be also deleted
+        - when a message is deleted, there is going to be text "User {name of the user} deleted a message" at the place of the message.
+    - Map locations have list of all discussion thread on their view page. This list does not show review threads
+    - Map location page contains 2 views on the bottom part of the page - Reviews and Discussion. User can click on buttons "View Discussion" and "View Reviews" to switch between them.
+    - A thread messages are not visible on the place page but only on the thread page
+    - Both kinds of threads cannot have threads inside, only messages
+    - Discussions are publicly available to be viewed
+    - Authors of messasges and discussion thread cannot be anonymous
+        - the exception is when an anonymous review is deleted, then the subsequent discussion thread and its initial messages are anonymous
