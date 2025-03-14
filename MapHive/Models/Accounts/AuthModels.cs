@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using reCAPTCHA.AspNetCore;
 
 namespace MapHive.Models
 {
@@ -15,6 +16,9 @@ namespace MapHive.Models
         [Required]
         [Compare("Password")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please complete the reCAPTCHA.")]
+        public string RecaptchaResponse { get; set; } = string.Empty;
     }
 
     public class LoginRequest

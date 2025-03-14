@@ -1,0 +1,5 @@
+@using reCAPTCHA.AspNetCore
+@inject RecaptchaService Recaptcha
+
+<div class="g-recaptcha" data-sitekey="@Recaptcha.SiteKey"></div>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script> 

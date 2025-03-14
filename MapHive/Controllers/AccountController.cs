@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
 
 namespace MapHive.Controllers
@@ -18,15 +19,18 @@ namespace MapHive.Controllers
         private readonly IUserRepository _userRepository;
         private readonly LogManager _logManager;
         private readonly IMapLocationRepository _mapLocationRepository;
+        private readonly RecaptchaService _recaptchaService;
 
         public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
-            IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository)
+            IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository,
+            RecaptchaService recaptchaService)
         {
             this._authService = authService;
             this._httpContextAccessor = httpContextAccessor;
             this._userRepository = userRepository;
             this._logManager = logManager;
             this._mapLocationRepository = mapLocationRepository;
+            this._recaptchaService = recaptchaService;
         }
 
         [HttpGet]
@@ -90,6 +94,15 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
+                return this.View(model);
+            }
+
+            // Verify reCAPTCHA
+            RecaptchaResponse recaptchaResponse = await this._recaptchaService.Validate(this.HttpContext.Request);
+            
+            if (!recaptchaResponse.success)
+            {
+                this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
                 return this.View(model);
             }
 
