@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.SQLite;
 using System.Reflection;
+using System.IO;
 
 namespace MapHive.Utilities
 {
@@ -179,22 +180,42 @@ namespace MapHive.Utilities
         public static void v5()
         {
             // Path to the migration script
-            string migrationScriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Migrations", "AddUserIdToMapLocations.sql");
+            string sqlUpdateScriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "SqlUpdates", "AddUserIdToMapLocations.sql");
 
             // Check if the migration script exists
-            if (!File.Exists(migrationScriptPath))
+            if (!File.Exists(sqlUpdateScriptPath))
             {
-                throw new FileNotFoundException("Could not find the migration script.", migrationScriptPath);
+                throw new FileNotFoundException("Could not find the migration script.", sqlUpdateScriptPath);
             }
 
             // Read the migration script
-            string migrationScript = File.ReadAllText(migrationScriptPath);
+            string migrationScript = File.ReadAllText(sqlUpdateScriptPath);
 
             // Execute the migration script
             int statementsExecuted = MainClient.SqlClient.ExecuteScript(migrationScript);
 
             // Log the migration result
             Console.WriteLine($"Executed {statementsExecuted} statements from MapLocations migration script.");
+        }
+
+        public static void v6()
+        {
+            string sqlUpdateScriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "SqlUpdates", "ReviewsAndDiscussions.sql");
+
+            // Check if the migration script exists
+            if (!File.Exists(sqlUpdateScriptPath))
+            {
+                throw new FileNotFoundException("Could not find the migration script.", sqlUpdateScriptPath);
+            }
+
+            // Read the migration script
+            string migrationScript = File.ReadAllText(sqlUpdateScriptPath);
+
+            // Execute the migration script
+            int statementsExecuted = MainClient.SqlClient.ExecuteScript(migrationScript);
+
+            // Log the migration result
+            Console.WriteLine($"Executed {statementsExecuted} statements from ReviewsAndDiscussions sql update script.");
         }
     }
 }

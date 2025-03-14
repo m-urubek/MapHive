@@ -2,6 +2,7 @@ using MapHive;
 using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
+using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();
@@ -69,6 +72,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
+// Initialize the main client
 MainClient.Initialize();
 
 app.Run();

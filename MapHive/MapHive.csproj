@@ -14,7 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Data\Migrations\AddUserIdToMapLocations.sql">
+    <None Include="Data\SqlUpdates\AddUserIdToMapLocations.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\SqlUpdates\ReviewsAndDiscussions.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
