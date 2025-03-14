@@ -1,6 +1,4 @@
 using MapHive.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace MapHive.Repositories
 {
@@ -11,5 +9,6 @@ namespace MapHive.Repositories
         Task<MapLocation> AddLocationAsync(MapLocation location);
         Task<MapLocation> UpdateLocationAsync(MapLocation location);
         Task<bool> DeleteLocationAsync(int id);
+        Task<IEnumerable<MapLocation>> GetLocationsByUserIdAsync(int userId);
     }
-} 
+}

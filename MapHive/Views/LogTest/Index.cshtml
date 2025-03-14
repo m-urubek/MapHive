@@ -1,0 +1,48 @@
+@{
+    ViewData["Title"] = "Log Test";
+}
+
+<h1>Log Testing</h1>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>User-Friendly Exceptions</h5>
+            </div>
+            <div class="card-body">
+                <p>Click the buttons below to test different types of user-friendly exceptions:</p>
+                <div class="d-grid gap-2">
+                    <a asp-action="BlueMessage" class="btn btn-info">Blue Message (Information)</a>
+                    <a asp-action="OrangeMessage" class="btn btn-warning">Orange Message (Warning)</a>
+                    <a asp-action="RedMessage" class="btn btn-danger">Red Message (Error)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Error Logging</h5>
+            </div>
+            <div class="card-body">
+                <p>Click the buttons below to test error logging to database and file:</p>
+                <div class="d-grid gap-2">
+                    <a asp-action="LogToDatabase" class="btn btn-primary">Log Handled Exception</a>
+                    <a asp-action="UnhandledException" class="btn btn-dark">Trigger Unhandled Exception</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <p><strong>Note:</strong> Error and Critical logs are written to both database and log files.</p>
+            <p>Log files are stored in the <code>Logs</code> directory and rotate when they exceed 1MB.</p>
+            <p>Files older than 30 days are automatically deleted.</p>
+        </div>
+    </div>
+</div> 
