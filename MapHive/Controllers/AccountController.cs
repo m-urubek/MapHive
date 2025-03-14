@@ -98,25 +98,30 @@ namespace MapHive.Controllers
             }
 
             // Verify reCAPTCHA
-            RecaptchaResponse recaptchaResponse = await this._recaptchaService.Validate(this.HttpContext.Request);
+            RecaptchaResponse recaptchaResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
             
             if (!recaptchaResponse.success)
             {
-                this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
-                return this.View(model);
+                throw new OrangeUserException("reCAPTCHA verification failed. Please try again.");
             }
 
             // Get client IP address
             string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ipAddress))
             {
-                ipAddress = "0.0.0.0";
+                throw new RedUserException("Unable to retreive your IP address");
             }
 
-            // Get or simulate client MAC address
-            string macAddress = NetworkUtilities.GetMacAddressFromIp(ipAddress);
+            // Get user agent
+            string? userAgent = this.HttpContext.Request.Headers.UserAgent.ToString();
+            
+            // Generate device identifier using browser fingerprinting
+            string deviceId = NetworkUtilities.GenerateDeviceIdentifier(
+                ipAddress, 
+                userAgent, 
+                model.DeviceFingerprint);
 
-            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress, macAddress);
+            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress, deviceId);
 
             if (response.Success && response.User != null)
             {

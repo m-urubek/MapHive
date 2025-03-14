@@ -21,7 +21,8 @@ builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddHttpContextAccessor();
 
 // Add reCAPTCHA service
-builder.Services.AddRecaptcha(builder.Configuration.GetSection("RecaptchaSettings"));
+builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("RecaptchaSettings"));
+builder.Services.AddTransient<RecaptchaService>();
 
 // Add authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

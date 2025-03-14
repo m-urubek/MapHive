@@ -12,7 +12,7 @@
                 <h2 class="card-title text-center">Register</h2>
             </div>
             <div class="card-body">
-                <form asp-action="Register" method="post">
+                <form asp-action="Register" method="post" data-use-fingerprint="true">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     
                     <div class="mb-3">
@@ -38,6 +38,9 @@
                         <span asp-validation-for="RecaptchaResponse" class="text-danger"></span>
                     </div>
                     
+                    <!-- Hidden field for device fingerprint -->
+                    <input type="hidden" asp-for="DeviceFingerprint" id="DeviceFingerprint" />
+                    
                     <div class="mb-3 d-grid">
                         <button type="submit" class="btn btn-primary">Register</button>
                     </div>
@@ -53,4 +56,12 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="~/js/fingerprint.js"></script>
+    <script>
+        // Initialize fingerprinting when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFingerprinting();
+            applyFingerprintToForms();
+        });
+    </script>
 } 
