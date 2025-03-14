@@ -13,6 +13,9 @@ namespace MapHive.Models
 
         // For changing password
         public ChangePasswordViewModel ChangePasswordModel { get; set; } = new ChangePasswordViewModel();
+
+        // User's locations
+        public IEnumerable<MapLocation> UserLocations { get; set; } = new List<MapLocation>();
     }
 
     public class ChangeUsernameViewModel

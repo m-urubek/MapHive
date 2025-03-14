@@ -36,5 +36,11 @@ namespace MapHive.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // User who created this place
+        public int UserId { get; set; }
+
+        // Flag for anonymous submission (hide author's username)
+        public bool IsAnonymous { get; set; } = false;
     }
 }
