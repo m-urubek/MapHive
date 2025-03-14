@@ -42,15 +42,15 @@ namespace MapHive.Controllers
             thread.Location = await this._locationRepository.GetLocationByIdAsync(thread.LocationId);
 
             // Create a view model for adding a new message
-            var messageViewModel = new ThreadMessageViewModel
+            ThreadMessageViewModel messageViewModel = new()
             {
                 ThreadId = thread.Id,
                 ThreadName = thread.ThreadName,
                 MessageText = string.Empty
             };
 
-            ViewBag.MessageViewModel = messageViewModel;
-            
+            this.ViewBag.MessageViewModel = messageViewModel;
+
             return this.View(thread);
         }
 
@@ -65,7 +65,7 @@ namespace MapHive.Controllers
                 return this.NotFound();
             }
 
-            var model = new DiscussionThreadViewModel
+            DiscussionThreadViewModel model = new()
             {
                 LocationId = id,
                 LocationName = location.Name,
@@ -92,7 +92,7 @@ namespace MapHive.Controllers
                 }
 
                 // Create the thread
-                var thread = new DiscussionThread
+                DiscussionThread thread = new()
                 {
                     LocationId = model.LocationId,
                     UserId = this.GetCurrentUserId(),
@@ -126,7 +126,7 @@ namespace MapHive.Controllers
                 }
 
                 // Create the message
-                var message = new ThreadMessage
+                ThreadMessage message = new()
                 {
                     ThreadId = model.ThreadId,
                     UserId = this.GetCurrentUserId(),
@@ -136,7 +136,7 @@ namespace MapHive.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await this._discussionRepository.AddMessageAsync(message);
+                _ = await this._discussionRepository.AddMessageAsync(message);
 
                 return this.RedirectToAction("Thread", new { id = model.ThreadId });
             }
@@ -165,7 +165,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            await this._discussionRepository.DeleteMessageAsync(id, userId);
+            _ = await this._discussionRepository.DeleteMessageAsync(id, userId);
 
             return this.RedirectToAction("Thread", new { id = message.ThreadId });
         }
@@ -183,7 +183,7 @@ namespace MapHive.Controllers
             }
 
             int locationId = thread.LocationId;
-            await this._discussionRepository.DeleteThreadAsync(id);
+            _ = await this._discussionRepository.DeleteThreadAsync(id);
 
             return this.RedirectToAction("Details", "Map", new { id = locationId });
         }
@@ -191,11 +191,9 @@ namespace MapHive.Controllers
         private int GetCurrentUserId()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id))
-            {
-                throw new Exception("User ID not found or is invalid");
-            }
-            return id;
+            return string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id)
+                ? throw new Exception("User ID not found or is invalid")
+                : id;
         }
     }
-} 
+}

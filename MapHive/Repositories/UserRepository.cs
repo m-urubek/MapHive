@@ -1,7 +1,6 @@
 using MapHive.Models;
 using System.Data;
 using System.Data.SQLite;
-using System.Threading.Tasks;
 
 namespace MapHive.Repositories
 {
@@ -134,7 +133,7 @@ namespace MapHive.Repositories
                 new("@IsAdmin", user.IsAdmin ? 1 : 0)
             };
 
-            MainClient.SqlClient.Update(query, parameters);
+            _ = MainClient.SqlClient.Update(query, parameters);
         }
 
         public async Task<string> GetUsernameByIdAsync(int userId)

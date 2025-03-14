@@ -27,14 +27,14 @@ namespace MapHive.Models
         public MapLocation? Location { get; set; }
         public Review? Review { get; set; }
         public List<ThreadMessage> Messages { get; set; } = new List<ThreadMessage>();
-        
+
         // This property will be populated by the repository
         public string AuthorName { get; set; } = string.Empty;
-        
+
         // Property to check if initial message exists
-        public bool HasInitialMessage => Messages.Any(m => m.IsInitialMessage);
-        
+        public bool HasInitialMessage => this.Messages.Any(m => m.IsInitialMessage);
+
         // Property to get the initial message
-        public ThreadMessage? InitialMessage => Messages.FirstOrDefault(m => m.IsInitialMessage);
+        public ThreadMessage? InitialMessage => this.Messages.FirstOrDefault(m => m.IsInitialMessage);
     }
-} 
+}

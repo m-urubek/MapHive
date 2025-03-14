@@ -2,7 +2,6 @@ using MapHive;
 using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
-using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);

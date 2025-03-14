@@ -14,7 +14,7 @@ namespace MapHive.Controllers
         private readonly IDiscussionRepository _discussionRepository;
 
         public ReviewController(
-            IReviewRepository reviewRepository, 
+            IReviewRepository reviewRepository,
             IMapLocationRepository locationRepository,
             IDiscussionRepository discussionRepository)
         {
@@ -33,7 +33,7 @@ namespace MapHive.Controllers
             {
                 return this.NotFound();
             }
-            
+
             // Check if user has already reviewed this location
             int userId = this.GetCurrentUserId();
             bool hasReviewed = await this._reviewRepository.HasUserReviewedLocationAsync(userId, id);
@@ -43,7 +43,7 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Details", "Map", new { id });
             }
 
-            var model = new ReviewViewModel
+            ReviewViewModel model = new()
             {
                 LocationId = id,
                 LocationName = location.Name,
@@ -67,7 +67,7 @@ namespace MapHive.Controllers
                 {
                     return this.NotFound();
                 }
-                
+
                 // Check if user has already reviewed this location
                 int userId = this.GetCurrentUserId();
                 bool hasReviewed = await this._reviewRepository.HasUserReviewedLocationAsync(userId, model.LocationId);
@@ -78,7 +78,7 @@ namespace MapHive.Controllers
                 }
 
                 // Create the review
-                var review = new Review
+                Review review = new()
                 {
                     LocationId = model.LocationId,
                     UserId = userId,
@@ -90,9 +90,9 @@ namespace MapHive.Controllers
                 };
 
                 review = await this._reviewRepository.AddReviewAsync(review);
-                
+
                 // Create a review thread
-                await this._discussionRepository.CreateReviewThreadAsync(review.Id, model.LocationId, userId);
+                _ = await this._discussionRepository.CreateReviewThreadAsync(review.Id, model.LocationId, userId);
 
                 return this.RedirectToAction("Details", "Map", new { id = model.LocationId });
             }
@@ -125,7 +125,7 @@ namespace MapHive.Controllers
                 return this.NotFound();
             }
 
-            var model = new ReviewViewModel
+            ReviewViewModel model = new()
             {
                 LocationId = review.LocationId,
                 Rating = review.Rating,
@@ -163,7 +163,7 @@ namespace MapHive.Controllers
                 review.IsAnonymous = model.IsAnonymous;
                 review.UpdatedAt = DateTime.UtcNow;
 
-                await this._reviewRepository.UpdateReviewAsync(review);
+                _ = await this._reviewRepository.UpdateReviewAsync(review);
                 return this.RedirectToAction("Details", "Map", new { id = review.LocationId });
             }
 
@@ -194,27 +194,27 @@ namespace MapHive.Controllers
 
             // Check if this review has a review thread with messages
             string reviewText = review.ReviewText;
-            bool isAnonymous = review.IsAnonymous;
-            int reviewUserId = review.UserId;
+            _ = review.IsAnonymous;
+            _ = review.UserId;
             int locationId = review.LocationId;
 
             // Get all threads related to this review
-            var allThreads = await this._discussionRepository.GetThreadByIdAsync(review.Id);
+            DiscussionThread? allThreads = await this._discussionRepository.GetThreadByIdAsync(review.Id);
             DiscussionThread? reviewThread = null;
-            
+
             if (allThreads != null && allThreads.IsReviewThread && allThreads.ReviewId == review.Id)
             {
                 reviewThread = allThreads;
             }
 
             // Delete the review
-            await this._reviewRepository.DeleteReviewAsync(id);
+            _ = await this._reviewRepository.DeleteReviewAsync(id);
 
             // If review thread exists and has messages, convert it to discussion thread
             if (reviewThread != null && reviewThread.Messages.Count > 0)
             {
-                await this._discussionRepository.ConvertReviewThreadToDiscussionAsync(
-                    reviewThread.Id, 
+                _ = await this._discussionRepository.ConvertReviewThreadToDiscussionAsync(
+                    reviewThread.Id,
                     reviewText);
             }
 
@@ -224,11 +224,9 @@ namespace MapHive.Controllers
         private int GetCurrentUserId()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id))
-            {
-                throw new Exception("User ID not found or is invalid");
-            }
-            return id;
+            return string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id)
+                ? throw new Exception("User ID not found or is invalid")
+                : id;
         }
     }
-} 
+}

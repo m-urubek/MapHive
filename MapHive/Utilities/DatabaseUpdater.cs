@@ -1,7 +1,6 @@
 ﻿using System.Data;
 using System.Data.SQLite;
 using System.Reflection;
-using System.IO;
 
 namespace MapHive.Utilities
 {

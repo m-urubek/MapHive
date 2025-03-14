@@ -13,4 +13,4 @@ namespace MapHive.Repositories
         Task<int> GetReviewCountForLocationAsync(int locationId);
         Task<bool> HasUserReviewedLocationAsync(int userId, int locationId);
     }
-} 
+}

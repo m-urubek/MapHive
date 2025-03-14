@@ -7,8 +7,8 @@ namespace MapHive
 {
     public static class MainClient
     {
-        public static SqlClient SqlClient { get; private set; }
-        public static AppSettings AppSettings { get; private set; }
+        public static SqlClient? SqlClient { get; private set; }
+        public static AppSettings? AppSettings { get; private set; }
 
         public static void Initialize()
         {
