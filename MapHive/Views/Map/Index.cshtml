@@ -5,11 +5,24 @@
 }
 
 <div class="container">
-    <h2 class="my-4">@ViewData["Title"]</h2>
-    
     <div class="row mb-4">
-        <div class="col">
-            <a asp-action="Add" class="btn btn-primary">Add New Location</a>
+        <div class="col-md-8">
+            <h1 class="display-4">Explore Places</h1>
+            <p class="lead">Discover interesting locations around the world.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a asp-action="Add" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add New Place
+                </a>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <a asp-area="" asp-controller="Account" asp-action="Login" class="alert-link">Log in</a> to add your own places.
+                </div>
+            }
         </div>
     </div>
     

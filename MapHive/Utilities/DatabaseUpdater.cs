@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.SQLite;
 using System.Reflection;
+
 namespace MapHive.Utilities
 {
     public static class DatabaseUpdater
@@ -38,8 +39,8 @@ namespace MapHive.Utilities
                 string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id";
                 SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
-                new("@Value", lastUpdateNumber),
-                new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
+                    new("@Value", lastUpdateNumber),
+                    new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
                 };
                 if (MainClient.SqlClient.Update(query, parameters) != 1)
                 {
@@ -173,6 +174,27 @@ namespace MapHive.Utilities
             };
 
             _ = MainClient.SqlClient.Insert(query, parameters);
+        }
+
+        public static void v5()
+        {
+            // Path to the migration script
+            string migrationScriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Migrations", "AddUserIdToMapLocations.sql");
+
+            // Check if the migration script exists
+            if (!File.Exists(migrationScriptPath))
+            {
+                throw new FileNotFoundException("Could not find the migration script.", migrationScriptPath);
+            }
+
+            // Read the migration script
+            string migrationScript = File.ReadAllText(migrationScriptPath);
+
+            // Execute the migration script
+            int statementsExecuted = MainClient.SqlClient.ExecuteScript(migrationScript);
+
+            // Log the migration result
+            Console.WriteLine($"Executed {statementsExecuted} statements from MapLocations migration script.");
         }
     }
 }

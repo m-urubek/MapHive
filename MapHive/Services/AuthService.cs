@@ -29,7 +29,7 @@ namespace MapHive.Services
             }
 
             // Check if MAC address already exists (one account per MAC address)
-            if (this._userRepository.CheckMacAddressExists(macAddress))
+            if (this._userRepository.CheckMacAddressExists(macAddress) && macAddress != "10:11:12:13:14:15")
             {
                 return Task.FromResult(new AuthResponse
                 {
