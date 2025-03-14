@@ -29,7 +29,10 @@ namespace MapHive.Services
             }
 
             // Check if MAC address already exists (one account per MAC address)
-            if (this._userRepository.CheckMacAddressExists(macAddress) && macAddress != "10:11:12:13:14:15")
+            // Allow multiple accounts if the MAC address is associated with an admin account or is the local development MAC
+            if (this._userRepository.CheckMacAddressExists(macAddress) && 
+                !this._userRepository.HasAdminAccount(macAddress) && 
+                macAddress != "10:11:12:13:14:15")
             {
                 return Task.FromResult(new AuthResponse
                 {

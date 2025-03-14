@@ -26,15 +26,14 @@ Key Features:
 
 Those surrounded by * are finished
 
-- Public Places: All places are visible to everyone.
-- User Registration: Only registered users can add new places.
+*- Public Places: All places are visible to everyone.*
+*- User Registration: Only registered users can add new places.*
 - MAC Address Restriction: Each user can register only one account per MAC address.
 - IP & MAC Blacklisting:
   *- The database stores the registration IP.*
   - If an IP registers too many accounts too quickly, both the IP and 
     MAC address will be blacklisted.
-- Anonymous Submissions: Users can choose to anonymize themselves as 
-  the author of a place.
+  *- Anonymous Submissions: Users can choose to anonymize themselves as the author of a place.*
 - Admin Approval:
   - Each place must be approved by an admin before being added to the map.
   - Admins can mark a user as trusted, allowing their places to be added 
@@ -46,7 +45,7 @@ Those surrounded by * are finished
   *- Logged-in users can discuss each place in a thread-based system.*
 *- Review System:*
   *- Each place has a 5-star rating system.*
-  - Discussions can be started from published reviews.
+  *- Discussions can be started from published reviews.*
   *- Reviews can also be anonymous.*
 
 Admin UI:

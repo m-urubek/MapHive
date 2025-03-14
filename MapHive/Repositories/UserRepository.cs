@@ -67,6 +67,16 @@ namespace MapHive.Repositories
             return Convert.ToInt32(result.Rows[0][0]) > 0;
         }
 
+        public bool HasAdminAccount(string macAddress)
+        {
+            string query = "SELECT COUNT(*) FROM Users WHERE MacAddress = @MacAddress AND IsAdmin = 1";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@MacAddress", macAddress) };
+
+            DataTable result = MainClient.SqlClient.Select(query, parameters);
+
+            return Convert.ToInt32(result.Rows[0][0]) > 0;
+        }
+
         public bool IsBlacklisted(string ipAddress, string macAddress)
         {
             string query = @"

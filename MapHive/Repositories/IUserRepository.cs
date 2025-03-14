@@ -9,6 +9,7 @@ namespace MapHive.Repositories
         User? GetUserByUsername(string username);
         bool CheckUsernameExists(string username);
         bool CheckMacAddressExists(string macAddress);
+        bool HasAdminAccount(string macAddress);
         bool IsBlacklisted(string ipAddress, string macAddress);
         int AddToBlacklist(BlacklistedAddress blacklistedAddress);
         void UpdateUser(User user);
