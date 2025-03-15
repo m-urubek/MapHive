@@ -2,11 +2,11 @@ using MapHive.Models;
 using MapHive.Models.Exceptions;
 using MapHive.Repositories;
 using MapHive.Services;
-using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
 
@@ -20,10 +20,11 @@ namespace MapHive.Controllers
         private readonly LogManager _logManager;
         private readonly IMapLocationRepository _mapLocationRepository;
         private readonly RecaptchaService _recaptchaService;
+        private readonly RecaptchaSettings _recaptchaSettings;
 
         public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
             IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository,
-            RecaptchaService recaptchaService)
+            RecaptchaService recaptchaService, IOptions<RecaptchaSettings> recaptchaSettings)
         {
             this._authService = authService;
             this._httpContextAccessor = httpContextAccessor;
@@ -31,6 +32,7 @@ namespace MapHive.Controllers
             this._logManager = logManager;
             this._mapLocationRepository = mapLocationRepository;
             this._recaptchaService = recaptchaService;
+            this._recaptchaSettings = recaptchaSettings.Value;
         }
 
         [HttpGet]
@@ -92,17 +94,53 @@ namespace MapHive.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterRequest model)
         {
+            // Add explicit check for null or empty RecaptchaResponse and try to get it from form data
+            if (string.IsNullOrEmpty(model.RecaptchaResponse))
+            {
+                // Fallback: try to get the reCAPTCHA response directly from the form data
+                string recaptchaResponse = this.Request.Form["g-recaptcha-response"].ToString();
+                if (!string.IsNullOrEmpty(recaptchaResponse))
+                {
+                    // If found in form data, use it
+                    model.RecaptchaResponse = recaptchaResponse;
+
+                    // Remove the error state for RecaptchaResponse if it exists
+                    if (this.ModelState.ContainsKey("RecaptchaResponse"))
+                    {
+                        _ = this.ModelState.Remove("RecaptchaResponse");
+                    }
+                }
+            }
+
             if (!this.ModelState.IsValid)
             {
                 return this.View(model);
             }
 
-            // Verify reCAPTCHA
-            RecaptchaResponse recaptchaResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
+            // Get reCAPTCHA settings from configuration (for test key detection)
+            RecaptchaSettings recaptchaSettings = this._recaptchaSettings;
+            bool isUsingTestKeys = MainClient.AppSettings.DevelopmentMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
-            if (!recaptchaResponse.success)
+            // For test keys, accept any non-null response
+            if (isUsingTestKeys && !string.IsNullOrEmpty(model.RecaptchaResponse))
             {
-                throw new OrangeUserException("reCAPTCHA verification failed. Please try again.");
+                // Using test keys with a response, so we'll consider it valid
+                this._logManager.Information("Accepting reCAPTCHA test response");
+            }
+            // Skip server-side validation when using test keys
+            else if (!isUsingTestKeys)
+            {
+                // Only validate if not using test keys
+                RecaptchaResponse validationResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
+                if (!validationResponse.success)
+                {
+                    // Log the failure
+                    this._logManager.Warning($"reCAPTCHA validation failed for user registration attempt");
+
+                    // Add error to model state
+                    this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
+                    return this.View(model);
+                }
             }
 
             // Get client IP address
@@ -112,16 +150,8 @@ namespace MapHive.Controllers
                 throw new RedUserException("Unable to retreive your IP address");
             }
 
-            // Get user agent
-            string? userAgent = this.HttpContext.Request.Headers.UserAgent.ToString();
-
-            // Generate device identifier using browser fingerprinting
-            string deviceId = NetworkUtilities.GenerateDeviceIdentifier(
-                ipAddress,
-                userAgent,
-                model.DeviceFingerprint);
-
-            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress, deviceId);
+            // Create the user
+            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress);
 
             if (response.Success && response.User != null)
             {

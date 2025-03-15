@@ -1,6 +1,7 @@
 @model MapHive.Models.RegisterRequest
 @using reCAPTCHA.AspNetCore
 @inject RecaptchaService Recaptcha
+@inject Microsoft.Extensions.Options.IOptions<RecaptchaSettings> RecaptchaOptions
 @{
     ViewData["Title"] = "Register";
 }
@@ -12,7 +13,7 @@
                 <h2 class="card-title text-center">Register</h2>
             </div>
             <div class="card-body">
-                <form asp-action="Register" method="post" data-use-fingerprint="true">
+                <form asp-action="Register" method="post" id="registerForm">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     
                     <div class="mb-3">
@@ -34,12 +35,14 @@
                     </div>
                     
                     <div class="mb-3">
-                        @await Html.PartialAsync("_RecaptchaPartial")
+                        <!-- Standard reCAPTCHA implementation with callback -->
+                        <div class="g-recaptcha" 
+                             data-sitekey="@RecaptchaOptions.Value.SiteKey"
+                             data-callback="onRecaptchaCompleted"></div>
                         <span asp-validation-for="RecaptchaResponse" class="text-danger"></span>
+                        <!-- Hidden field to store the reCAPTCHA response for model binding -->
+                        <input type="hidden" asp-for="RecaptchaResponse" id="RecaptchaResponse" />
                     </div>
-                    
-                    <!-- Hidden field for device fingerprint -->
-                    <input type="hidden" asp-for="DeviceFingerprint" id="DeviceFingerprint" />
                     
                     <div class="mb-3 d-grid">
                         <button type="submit" class="btn btn-primary">Register</button>
@@ -56,12 +59,30 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    <script src="~/js/fingerprint.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script>
-        // Initialize fingerprinting when the page loads
+        // Define a callback function for when reCAPTCHA is completed
+        window.onRecaptchaCompleted = function(token) {
+            document.getElementById('RecaptchaResponse').value = token;
+            console.log("reCAPTCHA response captured: " + token);
+        };
+        
+        // Add event listener to the form to ensure reCAPTCHA response is copied before submission
         document.addEventListener('DOMContentLoaded', function() {
-            initializeFingerprinting();
-            applyFingerprintToForms();
+            document.getElementById('registerForm').addEventListener('submit', function(e) {
+                // Prevent default form submission
+                e.preventDefault();
+                
+                // Get the response from reCAPTCHA
+                var recaptchaResponse = document.querySelector('[name="g-recaptcha-response"]').value;
+                console.log("reCAPTCHA response from form submission: " + recaptchaResponse);
+                
+                // Set it in our hidden field
+                document.getElementById('RecaptchaResponse').value = recaptchaResponse;
+                
+                // Continue with form submission
+                this.submit();
+            });
         });
     </script>
 } 

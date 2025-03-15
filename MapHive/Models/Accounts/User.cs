@@ -17,9 +17,6 @@ namespace MapHive.Models
         [Required]
         public string IpAddress { get; set; } = string.Empty;
 
-        [Required]
-        public string MacAddress { get; set; } = string.Empty;
-
         public bool IsTrusted { get; set; }
 
         public bool IsAdmin { get; set; }

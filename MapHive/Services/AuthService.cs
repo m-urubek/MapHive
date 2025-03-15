@@ -17,7 +17,7 @@ namespace MapHive.Services
             this._logManager = logManager;
         }
 
-        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress)
+        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
         {
             // Check if username already exists
             if (this._userRepository.CheckUsernameExists(request.Username))
@@ -25,18 +25,10 @@ namespace MapHive.Services
                 throw new OrangeUserException("Username already exists");
             }
 
-            // Check if MAC address already exists (one account per MAC address)
-            // Allow multiple accounts if the MAC address is associated with an admin account or is the local development MAC
-            if (this._userRepository.CheckMacAddressExists(macAddress) &&
-                !this._userRepository.HasAdminAccount(macAddress))
+            // Check if IP is blacklisted
+            if (this._userRepository.IsBlacklisted(ipAddress))
             {
-                throw new RedUserException("An account already exists for this device");
-            }
-
-            // Check if IP or MAC is blacklisted
-            if (this._userRepository.IsBlacklisted(ipAddress, macAddress))
-            {
-                throw new WarningException($"Registration attempt from blacklisted IP or MAC. IP: {ipAddress}, MAC: {macAddress}");
+                throw new WarningException($"Registration attempt from blacklisted IP. IP: {ipAddress}");
             }
 
             // Create the user
@@ -46,7 +38,6 @@ namespace MapHive.Services
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
                 IpAddress = ipAddress,
-                MacAddress = macAddress,
                 IsTrusted = false,
                 IsAdmin = false
             };
@@ -55,7 +46,7 @@ namespace MapHive.Services
             user.Id = userId;
 
             this._logManager.Information($"New user registered: {request.Username}",
-                additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
+                additionalData: $"IP: {ipAddress}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -92,9 +83,9 @@ namespace MapHive.Services
             });
         }
 
-        public bool IsBlacklisted(string ipAddress, string macAddress)
+        public bool IsBlacklisted(string ipAddress)
         {
-            return this._userRepository.IsBlacklisted(ipAddress, macAddress);
+            return this._userRepository.IsBlacklisted(ipAddress);
         }
 
         public string HashPassword(string password)

@@ -5,9 +5,11 @@ alwaysApply: true
 ---
 Oftentimes, I run automatic code cleanup from Visual Studio. So between our interactions, the code might change but not functionally. If that happens, keep the formating from Visual Studio and use that style in your future suggestions.
 
+When a database change is needed, create new update method in file MapHive\Utilities\DatabaseUpdater.cs .
+
 Name IDs of new database tables by this pattern "Id_{table name}".
 
-Always run dotnet build after your suggested changes to check whether you cause compilations errors.
+Always run dotnet build after your suggested changes in .cs files to check whether you caused any compilations errors.
 
 **********************************************************
 Beggining of project context
@@ -28,8 +30,7 @@ Those surrounded by * are finished
 
 *- Public Places: All places are visible to everyone.*
 *- User Registration: Only registered users can add new places.*
-- MAC Address Restriction: Each user can register only one account per MAC address.
-- IP & MAC Blacklisting:
+- IP Blacklisting:
   *- The database stores the registration IP.*
   - If an IP registers too many accounts too quickly, both the IP and 
     MAC address will be blacklisted.

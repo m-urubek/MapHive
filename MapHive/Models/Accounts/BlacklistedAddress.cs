@@ -8,8 +8,6 @@ namespace MapHive.Models
 
         public string? IpAddress { get; set; }
 
-        public string? MacAddress { get; set; }
-
         [Required]
         public string Reason { get; set; } = string.Empty;
 

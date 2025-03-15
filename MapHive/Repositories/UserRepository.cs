@@ -9,8 +9,8 @@ namespace MapHive.Repositories
         public int CreateUser(User user)
         {
             string query = @"
-                INSERT INTO Users (Username, PasswordHash, RegistrationDate, IpAddress, MacAddress, IsTrusted, IsAdmin)
-                VALUES (@Username, @PasswordHash, @RegistrationDate, @IpAddress, @MacAddress, @IsTrusted, @IsAdmin)";
+                INSERT INTO Users (Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
+                VALUES (@Username, @PasswordHash, @RegistrationDate, @IpAddress, @IsTrusted, @IsAdmin)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
@@ -18,7 +18,6 @@ namespace MapHive.Repositories
                 new("@PasswordHash", user.PasswordHash),
                 new("@RegistrationDate", user.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
                 new("@IpAddress", user.IpAddress),
-                new("@MacAddress", user.MacAddress),
                 new("@IsTrusted", user.IsTrusted ? 1 : 0),
                 new("@IsAdmin", user.IsAdmin ? 1 : 0)
             };
@@ -56,36 +55,15 @@ namespace MapHive.Repositories
             return Convert.ToInt32(result.Rows[0][0]) > 0;
         }
 
-        public bool CheckMacAddressExists(string macAddress)
-        {
-            string query = "SELECT COUNT(*) FROM Users WHERE MacAddress = @MacAddress";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@MacAddress", macAddress) };
-
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
-
-            return Convert.ToInt32(result.Rows[0][0]) > 0;
-        }
-
-        public bool HasAdminAccount(string macAddress)
-        {
-            string query = "SELECT COUNT(*) FROM Users WHERE MacAddress = @MacAddress AND IsAdmin = 1";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@MacAddress", macAddress) };
-
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
-
-            return Convert.ToInt32(result.Rows[0][0]) > 0;
-        }
-
-        public bool IsBlacklisted(string ipAddress, string macAddress)
+        public bool IsBlacklisted(string ipAddress)
         {
             string query = @"
                 SELECT COUNT(*) FROM Blacklist 
-                WHERE IpAddress = @IpAddress OR MacAddress = @MacAddress";
+                WHERE IpAddress = @IpAddress";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@IpAddress", ipAddress),
-                new("@MacAddress", macAddress)
+                new("@IpAddress", ipAddress)
             };
 
             DataTable result = MainClient.SqlClient.Select(query, parameters);
@@ -96,13 +74,12 @@ namespace MapHive.Repositories
         public int AddToBlacklist(BlacklistedAddress blacklistedAddress)
         {
             string query = @"
-                INSERT INTO Blacklist (IpAddress, MacAddress, Reason, BlacklistedDate)
-                VALUES (@IpAddress, @MacAddress, @Reason, @BlacklistedDate)";
+                INSERT INTO Blacklist (IpAddress, Reason, BlacklistedDate)
+                VALUES (@IpAddress, @Reason, @BlacklistedDate)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
                 new("@IpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
-                new("@MacAddress", blacklistedAddress.MacAddress as object ?? DBNull.Value),
                 new("@Reason", blacklistedAddress.Reason),
                 new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
             };
@@ -117,7 +94,6 @@ namespace MapHive.Repositories
                 SET Username = @Username, 
                     PasswordHash = @PasswordHash, 
                     IpAddress = @IpAddress, 
-                    MacAddress = @MacAddress, 
                     IsTrusted = @IsTrusted,
                     IsAdmin = @IsAdmin
                 WHERE Id_User = @Id";
@@ -128,7 +104,6 @@ namespace MapHive.Repositories
                 new("@Username", user.Username),
                 new("@PasswordHash", user.PasswordHash),
                 new("@IpAddress", user.IpAddress),
-                new("@MacAddress", user.MacAddress),
                 new("@IsTrusted", user.IsTrusted ? 1 : 0),
                 new("@IsAdmin", user.IsAdmin ? 1 : 0)
             };
@@ -155,7 +130,6 @@ namespace MapHive.Repositories
                 PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
                 RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
                 IpAddress = row["IpAddress"].ToString() ?? string.Empty,
-                MacAddress = row["MacAddress"].ToString() ?? string.Empty,
                 IsTrusted = Convert.ToInt32(row["IsTrusted"]) == 1,
                 IsAdmin = Convert.ToInt32(row["IsAdmin"]) == 1
             };
