@@ -29,8 +29,8 @@ namespace MapHive.Models
 
         // Navigation properties (for reference, not used in SQLite directly)
         public MapLocation? Location { get; set; }
-        
+
         // This property will be populated by the repository
         public string AuthorName { get; set; } = string.Empty;
     }
-} 
+}

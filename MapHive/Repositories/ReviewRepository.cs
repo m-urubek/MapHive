@@ -1,6 +1,6 @@
+using MapHive.Models;
 using System.Data;
 using System.Data.SQLite;
-using MapHive.Models;
 
 namespace MapHive.Repositories
 {
@@ -27,12 +27,12 @@ namespace MapHive.Repositories
             foreach (DataRow row in result.Rows)
             {
                 Review review = this.MapRowToReview(row);
-                
+
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
                 string username = await this._userRepository.GetUsernameByIdAsync(userId);
                 review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-                
+
                 reviews.Add(review);
             }
 
@@ -51,12 +51,12 @@ namespace MapHive.Repositories
             }
 
             Review review = this.MapRowToReview(result.Rows[0]);
-            
+
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
             string username = await this._userRepository.GetUsernameByIdAsync(userId);
             review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-            
+
             return review;
         }
 
@@ -78,11 +78,11 @@ namespace MapHive.Repositories
 
             int reviewId = await MainClient.SqlClient.InsertAsync(query, parameters);
             review.Id = reviewId;
-            
+
             // Get author name
             string username = await this._userRepository.GetUsernameByIdAsync(review.UserId);
             review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-            
+
             return review;
         }
 
@@ -113,7 +113,7 @@ namespace MapHive.Repositories
         {
             string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            
+
             int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
@@ -122,47 +122,39 @@ namespace MapHive.Repositories
         {
             string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            
+
             DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-            
-            if (result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value)
-            {
-                return 0;
-            }
-            
-            return Convert.ToDouble(result.Rows[0]["AverageRating"]);
+
+            return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
+                ? 0
+                : Convert.ToDouble(result.Rows[0]["AverageRating"]);
         }
 
         public async Task<int> GetReviewCountForLocationAsync(int locationId)
         {
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            
+
             DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-            
-            if (result.Rows.Count == 0)
-            {
-                return 0;
-            }
-            
-            return Convert.ToInt32(result.Rows[0]["ReviewCount"]);
+
+            return result.Rows.Count == 0 ? 0 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
         }
 
         public async Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
         {
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE UserId = @UserId AND LocationId = @LocationId";
-            SQLiteParameter[] parameters = { 
+            SQLiteParameter[] parameters = {
                 new("@UserId", userId),
                 new("@LocationId", locationId)
             };
-            
+
             DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-            
+
             if (result.Rows.Count == 0)
             {
                 return false;
             }
-            
+
             int count = Convert.ToInt32(result.Rows[0]["ReviewCount"]);
             return count > 0;
         }
@@ -182,4 +174,4 @@ namespace MapHive.Repositories
             };
         }
     }
-} 
+}

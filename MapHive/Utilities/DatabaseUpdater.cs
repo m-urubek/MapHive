@@ -1,7 +1,6 @@
 ﻿using System.Data;
 using System.Data.SQLite;
 using System.Reflection;
-using System.IO;
 
 namespace MapHive.Utilities
 {
@@ -216,6 +215,51 @@ namespace MapHive.Utilities
 
             // Log the migration result
             Console.WriteLine($"Executed {statementsExecuted} statements from ReviewsAndDiscussions sql update script.");
+        }
+
+        public static void v7()
+        {
+            // Remove MAC address functionality
+
+            // Create temporary tables without MAC address
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users_temp' (
+                'Id_User'	INTEGER,
+                'Username'	TEXT NOT NULL UNIQUE,
+                'PasswordHash'	TEXT NOT NULL,
+                'RegistrationDate'	TEXT NOT NULL,
+                'IpAddress'	TEXT NOT NULL,
+                'IsTrusted'	INTEGER NOT NULL DEFAULT 0,
+                'IsAdmin'	INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY('Id_User' AUTOINCREMENT)
+            )");
+
+            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist_temp' (
+                'Id_Blacklist'	INTEGER,
+                'IpAddress'	TEXT,
+                'Reason'	TEXT NOT NULL,
+                'BlacklistedDate'	TEXT NOT NULL,
+                PRIMARY KEY('Id_Blacklist' AUTOINCREMENT)
+            )");
+
+            // Copy data to temporary tables without MAC address
+            _ = MainClient.SqlClient.Alter(@"INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
+                SELECT Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin FROM Users");
+
+            _ = MainClient.SqlClient.Alter(@"INSERT INTO Blacklist_temp (Id_Blacklist, IpAddress, Reason, BlacklistedDate)
+                SELECT Id_Blacklist, IpAddress, Reason, BlacklistedDate FROM Blacklist");
+
+            // Drop original tables
+            _ = MainClient.SqlClient.Alter("DROP TABLE Users");
+            _ = MainClient.SqlClient.Alter("DROP TABLE Blacklist");
+
+            // Rename temporary tables to original names
+            _ = MainClient.SqlClient.Alter("ALTER TABLE Users_temp RENAME TO Users");
+            _ = MainClient.SqlClient.Alter("ALTER TABLE Blacklist_temp RENAME TO Blacklist");
+
+            // Recreate indexes
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
+            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
         }
     }
 }

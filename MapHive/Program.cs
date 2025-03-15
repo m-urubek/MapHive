@@ -2,8 +2,8 @@ using MapHive;
 using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
-using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using reCAPTCHA.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +19,10 @@ builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();
+
+// Add reCAPTCHA service
+builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("RecaptchaSettings"));
+builder.Services.AddTransient<RecaptchaService>();
 
 // Add authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

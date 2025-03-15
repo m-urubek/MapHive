@@ -15,7 +15,7 @@ namespace MapHive.Controllers
         private readonly IDiscussionRepository _discussionRepository;
 
         public MapController(
-            IMapLocationRepository repository, 
+            IMapLocationRepository repository,
             IUserRepository userRepository,
             IReviewRepository reviewRepository,
             IDiscussionRepository discussionRepository)
@@ -181,17 +181,17 @@ namespace MapHive.Controllers
             }
 
             // Get reviews for this location
-            var reviews = await this._reviewRepository.GetReviewsByLocationIdAsync(id);
+            IEnumerable<Review> reviews = await this._reviewRepository.GetReviewsByLocationIdAsync(id);
             this.ViewBag.Reviews = reviews;
-            
+
             // Get average rating
             double averageRating = await this._reviewRepository.GetAverageRatingForLocationAsync(id);
             this.ViewBag.AverageRating = averageRating;
-            
+
             // Get review count
             int reviewCount = await this._reviewRepository.GetReviewCountForLocationAsync(id);
             this.ViewBag.ReviewCount = reviewCount;
-            
+
             // Check if the current user has already reviewed this location
             bool hasReviewed = false;
             if (this.User.Identity?.IsAuthenticated == true)
@@ -203,11 +203,11 @@ namespace MapHive.Controllers
                 }
             }
             this.ViewBag.HasReviewed = hasReviewed;
-            
+
             // Get discussion threads for this location
-            var discussionThreads = await this._discussionRepository.GetAllDiscussionThreadsByLocationIdAsync(id);
+            IEnumerable<DiscussionThread> discussionThreads = await this._discussionRepository.GetAllDiscussionThreadsByLocationIdAsync(id);
             this.ViewBag.DiscussionThreads = discussionThreads;
-            
+
             // Calculate the count of regular discussion threads (excluding review threads)
             this.ViewBag.RegularDiscussionCount = discussionThreads.Count(t => !t.IsReviewThread);
 

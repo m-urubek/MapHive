@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Models.Exceptions;
 using MapHive.Repositories;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,39 +17,18 @@ namespace MapHive.Services
             this._logManager = logManager;
         }
 
-        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress)
+        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
         {
             // Check if username already exists
             if (this._userRepository.CheckUsernameExists(request.Username))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username already exists"
-                });
+                throw new OrangeUserException("Username already exists");
             }
 
-            // Check if MAC address already exists (one account per MAC address)
-            if (this._userRepository.CheckMacAddressExists(macAddress) && macAddress != "10:11:12:13:14:15")
+            // Check if IP is blacklisted
+            if (this._userRepository.IsBlacklisted(ipAddress))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "An account already exists for this device"
-                });
-            }
-
-            // Check if IP or MAC is blacklisted
-            if (this._userRepository.IsBlacklisted(ipAddress, macAddress))
-            {
-                this._logManager.Warning("Registration attempt from blacklisted IP or MAC",
-                    additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Registration is not allowed from this device or network"
-                });
+                throw new WarningException($"Registration attempt from blacklisted IP. IP: {ipAddress}");
             }
 
             // Create the user
@@ -58,7 +38,6 @@ namespace MapHive.Services
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
                 IpAddress = ipAddress,
-                MacAddress = macAddress,
                 IsTrusted = false,
                 IsAdmin = false
             };
@@ -67,7 +46,7 @@ namespace MapHive.Services
             user.Id = userId;
 
             this._logManager.Information($"New user registered: {request.Username}",
-                additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
+                additionalData: $"IP: {ipAddress}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -85,23 +64,13 @@ namespace MapHive.Services
             // Check if user exists
             if (user == null)
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
             // Verify password
             if (!this.VerifyPassword(request.Password, user.PasswordHash))
             {
-                this._logManager.Warning($"Failed login attempt for user: {request.Username}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
             this._logManager.Information($"User logged in: {request.Username}");
@@ -114,9 +83,9 @@ namespace MapHive.Services
             });
         }
 
-        public bool IsBlacklisted(string ipAddress, string macAddress)
+        public bool IsBlacklisted(string ipAddress)
         {
-            return this._userRepository.IsBlacklisted(ipAddress, macAddress);
+            return this._userRepository.IsBlacklisted(ipAddress);
         }
 
         public string HashPassword(string password)

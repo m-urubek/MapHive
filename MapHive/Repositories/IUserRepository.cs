@@ -8,8 +8,7 @@ namespace MapHive.Repositories
         User? GetUserById(int id);
         User? GetUserByUsername(string username);
         bool CheckUsernameExists(string username);
-        bool CheckMacAddressExists(string macAddress);
-        bool IsBlacklisted(string ipAddress, string macAddress);
+        bool IsBlacklisted(string ipAddress);
         int AddToBlacklist(BlacklistedAddress blacklistedAddress);
         void UpdateUser(User user);
         Task<string> GetUsernameByIdAsync(int userId);

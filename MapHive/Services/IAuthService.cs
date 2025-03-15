@@ -4,9 +4,9 @@ namespace MapHive.Services
 {
     public interface IAuthService
     {
-        Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress);
+        Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress);
         Task<AuthResponse> LoginAsync(LoginRequest request);
-        bool IsBlacklisted(string ipAddress, string macAddress);
+        bool IsBlacklisted(string ipAddress);
         string HashPassword(string password);
         bool VerifyPassword(string password, string storedHash);
     }

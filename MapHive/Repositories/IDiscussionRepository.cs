@@ -11,7 +11,7 @@ namespace MapHive.Repositories
         Task<DiscussionThread> CreateDiscussionThreadAsync(DiscussionThread thread, string initialMessage);
         Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, int locationId, int userId);
         Task<bool> DeleteThreadAsync(int id);
-        
+
         // Message operations
         Task<IEnumerable<ThreadMessage>> GetMessagesByThreadIdAsync(int threadId);
         Task<ThreadMessage?> GetMessageByIdAsync(int id);
@@ -19,4 +19,4 @@ namespace MapHive.Repositories
         Task<bool> DeleteMessageAsync(int id, int deletedByUserId);
         Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage);
     }
-} 
+}

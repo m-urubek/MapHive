@@ -1,6 +1,6 @@
+using MapHive.Models;
 using System.Data;
 using System.Data.SQLite;
-using MapHive.Models;
 
 namespace MapHive.Repositories
 {
@@ -27,15 +27,15 @@ namespace MapHive.Repositories
             foreach (DataRow row in result.Rows)
             {
                 DiscussionThread thread = this.MapRowToThread(row);
-                
+
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
                 string username = await this._userRepository.GetUsernameByIdAsync(userId);
                 thread.AuthorName = username;
-                
+
                 // Get initial message
                 thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-                
+
                 threads.Add(thread);
             }
 
@@ -56,15 +56,15 @@ namespace MapHive.Repositories
             foreach (DataRow row in result.Rows)
             {
                 DiscussionThread thread = this.MapRowToThread(row);
-                
+
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
                 string username = await this._userRepository.GetUsernameByIdAsync(userId);
                 thread.AuthorName = username;
-                
+
                 // Get messages
                 thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-                
+
                 threads.Add(thread);
             }
 
@@ -83,15 +83,15 @@ namespace MapHive.Repositories
             }
 
             DiscussionThread thread = this.MapRowToThread(result.Rows[0]);
-            
+
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
             string username = await this._userRepository.GetUsernameByIdAsync(userId);
             thread.AuthorName = username;
-            
+
             // Get messages
             thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-            
+
             return thread;
         }
 
@@ -136,7 +136,7 @@ namespace MapHive.Repositories
 
                 // Load messages
                 thread.Messages = (await this.GetMessagesByThreadIdAsync(threadId)).ToList();
-                
+
                 // Get author name
                 string username = await this._userRepository.GetUsernameByIdAsync(thread.UserId);
                 thread.AuthorName = username;
@@ -151,7 +151,7 @@ namespace MapHive.Repositories
 
         public async Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, int locationId, int userId)
         {
-            var thread = new DiscussionThread
+            DiscussionThread thread = new()
             {
                 LocationId = locationId,
                 UserId = userId,
@@ -177,11 +177,11 @@ namespace MapHive.Repositories
 
             int threadId = await MainClient.SqlClient.InsertAsync(query, parameters);
             thread.Id = threadId;
-            
+
             // Get author name
             string username = await this._userRepository.GetUsernameByIdAsync(thread.UserId);
             thread.AuthorName = username;
-            
+
             return thread;
         }
 
@@ -189,7 +189,7 @@ namespace MapHive.Repositories
         {
             string query = "DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            
+
             int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
@@ -208,18 +208,18 @@ namespace MapHive.Repositories
             foreach (DataRow row in result.Rows)
             {
                 ThreadMessage message = this.MapRowToMessage(row);
-                
+
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
                 string username = await this._userRepository.GetUsernameByIdAsync(userId);
                 message.AuthorName = username;
-                
+
                 // Get deleted by username if applicable
                 if (message.IsDeleted && message.DeletedByUserId.HasValue)
                 {
                     message.DeletedByUsername = await this._userRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
                 }
-                
+
                 messages.Add(message);
             }
 
@@ -238,18 +238,18 @@ namespace MapHive.Repositories
             }
 
             ThreadMessage message = this.MapRowToMessage(result.Rows[0]);
-            
+
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
             string username = await this._userRepository.GetUsernameByIdAsync(userId);
             message.AuthorName = username;
-            
+
             // Get deleted by username if applicable
             if (message.IsDeleted && message.DeletedByUserId.HasValue)
             {
                 message.DeletedByUsername = await this._userRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
             }
-            
+
             return message;
         }
 
@@ -271,11 +271,11 @@ namespace MapHive.Repositories
 
             int messageId = await MainClient.SqlClient.InsertAsync(query, parameters);
             message.Id = messageId;
-            
+
             // Get author name
             string username = await this._userRepository.GetUsernameByIdAsync(message.UserId);
             message.AuthorName = username;
-            
+
             return message;
         }
 
@@ -286,11 +286,11 @@ namespace MapHive.Repositories
                 SET IsDeleted = 1, DeletedByUserId = @DeletedByUserId
                 WHERE Id_ThreadMessages = @Id";
 
-            SQLiteParameter[] parameters = { 
+            SQLiteParameter[] parameters = {
                 new("@Id", id),
                 new("@DeletedByUserId", deletedByUserId)
             };
-            
+
             int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
@@ -303,20 +303,20 @@ namespace MapHive.Repositories
                 WHERE Id_DiscussionThreads = @Id";
 
             SQLiteParameter[] parameters = { new("@Id", threadId) };
-            
+
             int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
-            
+
             if (rowsAffected > 0)
             {
                 // Get the thread
-                var thread = await this.GetThreadByIdAsync(threadId);
+                DiscussionThread? thread = await this.GetThreadByIdAsync(threadId);
                 if (thread == null)
                 {
                     return false;
                 }
-                
+
                 // Add initial message
-                var message = new ThreadMessage
+                ThreadMessage message = new()
                 {
                     ThreadId = threadId,
                     UserId = thread.UserId,
@@ -325,11 +325,11 @@ namespace MapHive.Repositories
                     IsDeleted = false,
                     CreatedAt = DateTime.UtcNow
                 };
-                
-                await this.AddMessageAsync(message);
+
+                _ = await this.AddMessageAsync(message);
                 return true;
             }
-            
+
             return false;
         }
 
@@ -362,4 +362,4 @@ namespace MapHive.Repositories
             };
         }
     }
-} 
+}
