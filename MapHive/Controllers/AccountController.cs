@@ -59,8 +59,7 @@ namespace MapHive.Controllers
                 {
                     new Claim(ClaimTypes.Name, response.User.Username),
                     new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("IsTrusted", response.User.IsTrusted.ToString()),
-                    new Claim(ClaimTypes.Role, response.User.IsAdmin ? "Admin" : "User")
+                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -160,8 +159,7 @@ namespace MapHive.Controllers
                 {
                     new Claim(ClaimTypes.Name, response.User.Username),
                     new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("IsTrusted", response.User.IsTrusted.ToString()),
-                    new Claim(ClaimTypes.Role, response.User.IsAdmin ? "Admin" : "User")
+                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -218,7 +216,7 @@ namespace MapHive.Controllers
             ProfileViewModel model = new()
             {
                 Username = user.Username,
-                IsTrusted = user.IsTrusted,
+                Tier = user.Tier,
                 RegistrationDate = user.RegistrationDate,
                 UserLocations = userLocations
             };
@@ -266,8 +264,7 @@ namespace MapHive.Controllers
             {
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("IsTrusted", user.IsTrusted.ToString()),
-                new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User")
+                new Claim("UserTier", ((int)user.Tier).ToString()),
             };
 
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -342,7 +339,7 @@ namespace MapHive.Controllers
                 : new ProfileViewModel
                 {
                     Username = user.Username,
-                    IsTrusted = user.IsTrusted,
+                    Tier = user.Tier,
                     RegistrationDate = user.RegistrationDate
                 };
         }

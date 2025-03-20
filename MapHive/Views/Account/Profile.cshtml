@@ -28,16 +28,22 @@
                         <div class="col-md-8">@Model.RegistrationDate.ToString("MMMM dd, yyyy")</div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-4 fw-bold">Trusted Status:</div>
+                        <div class="col-md-4 fw-bold">
+                            User Tier:
+                            <span class="ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Normal: Standard user access. Trusted: User's places are automatically approved. Admin: Full administrative privileges.">
+                                <i class="bi bi-info-circle"></i>
+                            </span>
+                        </div>
                         <div class="col-md-8">
-                            @if (Model.IsTrusted)
-                            {
-                                <span class="badge bg-success">Trusted User</span>
+                            @{
+                                string tierClass = Model.Tier switch
+                                {
+                                    UserTier.Admin => "bg-danger",
+                                    UserTier.Trusted => "bg-success",
+                                    _ => "bg-warning text-dark"
+                                };
                             }
-                            else
-                            {
-                                <span class="badge bg-warning text-dark">Standard User</span>
-                            }
+                            <span class="badge @tierClass">@Model.Tier</span>
                         </div>
                     </div>
                 </div>
@@ -153,4 +159,12 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+        });
+    </script>
 } 

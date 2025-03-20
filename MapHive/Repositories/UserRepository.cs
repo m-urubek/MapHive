@@ -9,8 +9,8 @@ namespace MapHive.Repositories
         public int CreateUser(User user)
         {
             string query = @"
-                INSERT INTO Users (Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
-                VALUES (@Username, @PasswordHash, @RegistrationDate, @IpAddress, @IsTrusted, @IsAdmin)";
+                INSERT INTO Users (Username, PasswordHash, RegistrationDate, IpAddress, Tier)
+                VALUES (@Username, @PasswordHash, @RegistrationDate, @IpAddress, @Tier)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
@@ -18,8 +18,7 @@ namespace MapHive.Repositories
                 new("@PasswordHash", user.PasswordHash),
                 new("@RegistrationDate", user.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
                 new("@IpAddress", user.IpAddress),
-                new("@IsTrusted", user.IsTrusted ? 1 : 0),
-                new("@IsAdmin", user.IsAdmin ? 1 : 0)
+                new("@Tier", (int)user.Tier)
             };
 
             return MainClient.SqlClient.Insert(query, parameters);
@@ -94,8 +93,7 @@ namespace MapHive.Repositories
                 SET Username = @Username, 
                     PasswordHash = @PasswordHash, 
                     IpAddress = @IpAddress, 
-                    IsTrusted = @IsTrusted,
-                    IsAdmin = @IsAdmin
+                    Tier = @Tier
                 WHERE Id_User = @Id";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
@@ -104,8 +102,7 @@ namespace MapHive.Repositories
                 new("@Username", user.Username),
                 new("@PasswordHash", user.PasswordHash),
                 new("@IpAddress", user.IpAddress),
-                new("@IsTrusted", user.IsTrusted ? 1 : 0),
-                new("@IsAdmin", user.IsAdmin ? 1 : 0)
+                new("@Tier", (int)user.Tier)
             };
 
             _ = MainClient.SqlClient.Update(query, parameters);
@@ -130,8 +127,7 @@ namespace MapHive.Repositories
                 PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
                 RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
                 IpAddress = row["IpAddress"].ToString() ?? string.Empty,
-                IsTrusted = Convert.ToInt32(row["IsTrusted"]) == 1,
-                IsAdmin = Convert.ToInt32(row["IsAdmin"]) == 1
+                Tier = (UserTier)Convert.ToInt32(row["Tier"])
             };
         }
     }

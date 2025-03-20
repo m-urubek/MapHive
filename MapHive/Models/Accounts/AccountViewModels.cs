@@ -5,7 +5,7 @@ namespace MapHive.Models
     public class ProfileViewModel
     {
         public string Username { get; set; } = string.Empty;
-        public bool IsTrusted { get; set; }
+        public UserTier Tier { get; set; }
         public DateTime RegistrationDate { get; set; }
 
         // For changing username
@@ -16,6 +16,8 @@ namespace MapHive.Models
 
         // User's locations
         public IEnumerable<MapLocation> UserLocations { get; set; } = new List<MapLocation>();
+
+        // Get the user tier as a string
     }
 
     public class ChangeUsernameViewModel

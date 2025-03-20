@@ -38,8 +38,7 @@ namespace MapHive.Services
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
                 IpAddress = ipAddress,
-                IsTrusted = false,
-                IsAdmin = false
+                Tier = UserTier.Normal
             };
 
             int userId = this._userRepository.CreateUser(user);
