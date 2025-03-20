@@ -9,7 +9,7 @@ When a database change is needed, create new update method in file MapHive\Utili
 
 Name IDs of new database tables by this pattern "Id_{table name}".
 
-Always run "cd MapHive ; dotnet build" after your suggested changes in .cs files to check whether you caused any compilations errors.
+Always run dotnet build after your suggested changes in .cs files to check whether you caused any compilations errors.
 
 Never run "dotnet run".
 

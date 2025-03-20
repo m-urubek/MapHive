@@ -194,6 +194,37 @@ namespace MapHive.Repositories
             return rowsAffected > 0;
         }
 
+        public async Task<IEnumerable<DiscussionThread>> GetThreadsByUserIdAsync(int userId)
+        {
+            // Get threads created by the user or where the user has posted messages
+            string query = @"
+                SELECT DISTINCT dt.* FROM DiscussionThreads dt
+                LEFT JOIN ThreadMessages tm ON dt.Id_DiscussionThreads = tm.ThreadId
+                WHERE dt.UserId = @UserId OR tm.UserId = @UserId
+                ORDER BY dt.CreatedAt DESC";
+
+            SQLiteParameter[] parameters = { new("@UserId", userId) };
+            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+
+            List<DiscussionThread> threads = new();
+            foreach (DataRow row in result.Rows)
+            {
+                DiscussionThread thread = this.MapRowToThread(row);
+
+                // Get author name
+                int authorId = Convert.ToInt32(row["UserId"]);
+                string username = await this._userRepository.GetUsernameByIdAsync(authorId);
+                thread.AuthorName = username;
+
+                // Get messages
+                thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
+
+                threads.Add(thread);
+            }
+
+            return threads;
+        }
+
         public async Task<IEnumerable<ThreadMessage>> GetMessagesByThreadIdAsync(int threadId)
         {
             string query = @"

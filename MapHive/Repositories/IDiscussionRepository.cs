@@ -11,6 +11,7 @@ namespace MapHive.Repositories
         Task<DiscussionThread> CreateDiscussionThreadAsync(DiscussionThread thread, string initialMessage);
         Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, int locationId, int userId);
         Task<bool> DeleteThreadAsync(int id);
+        Task<IEnumerable<DiscussionThread>> GetThreadsByUserIdAsync(int userId);
 
         // Message operations
         Task<IEnumerable<ThreadMessage>> GetMessagesByThreadIdAsync(int threadId);

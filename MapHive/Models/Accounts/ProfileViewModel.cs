@@ -17,7 +17,7 @@ namespace MapHive.Models
         // User's locations
         public IEnumerable<MapLocation> UserLocations { get; set; } = new List<MapLocation>();
 
-        // Get the user tier as a string
+        public IEnumerable<DiscussionThread> UserThreads { get; set; } = new List<DiscussionThread>();
     }
 
     public class ChangeUsernameViewModel

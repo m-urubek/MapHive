@@ -7,7 +7,7 @@
 
 <div class="container">
     <h2 class="my-4">@Model.Name</h2>
-    
+
     <div class="row">
         <div class="col-md-6">
             <div class="card mb-4">
@@ -18,16 +18,16 @@
                     <dl class="row">
                         <dt class="col-sm-4">Name</dt>
                         <dd class="col-sm-8">@Model.Name</dd>
-                        
+
                         <dt class="col-sm-4">Description</dt>
                         <dd class="col-sm-8">@Model.Description</dd>
-                        
+
                         <dt class="col-sm-4">Address</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
-                        
+
                         <dt class="col-sm-4">Coordinates</dt>
                         <dd class="col-sm-8">@Model.Latitude, @Model.Longitude</dd>
-                        
+
                         <dt class="col-sm-4">Website</dt>
                         <dd class="col-sm-8">
                             @if (string.IsNullOrEmpty(Model.Website))
@@ -39,19 +39,19 @@
                                 <a href="@Model.Website" target="_blank">@Model.Website</a>
                             }
                         </dd>
-                        
+
                         <dt class="col-sm-4">Phone Number</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.PhoneNumber) ? "N/A" : Model.PhoneNumber)</dd>
-                        
+
                         <dt class="col-sm-4">Created</dt>
                         <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
-                        
+
                         <dt class="col-sm-4">Last Updated</dt>
                         <dd class="col-sm-8">@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
-                        
+
                         <dt class="col-sm-4">Added By</dt>
                         <dd class="col-sm-8">@ViewBag.AuthorUsername</dd>
-                        
+
                         <dt class="col-sm-4">Rating</dt>
                         <dd class="col-sm-8">
                             @if (ViewBag.ReviewCount > 0)
@@ -91,7 +91,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
@@ -103,7 +103,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row mt-4">
         <div class="col-12">
             <ul class="nav nav-tabs" id="locationTabs" role="tablist">
@@ -118,7 +118,7 @@
                     </button>
                 </li>
             </ul>
-            
+
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="locationTabsContent">
                 <div class="tab-pane fade show active" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -130,7 +130,7 @@
                             </a>
                         }
                     </div>
-                    
+
                     @if (ViewBag.Reviews.Count > 0)
                     {
                         @foreach (var review in ViewBag.Reviews)
@@ -161,7 +161,7 @@
                                 <div class="card-footer d-flex justify-content-between">
                                     @{
                                         DiscussionThread? reviewThread = null;
-                                        foreach(var thread in ViewBag.DiscussionThreads)
+                                        foreach (var thread in ViewBag.DiscussionThreads)
                                         {
                                             if (thread.IsReviewThread && thread.ReviewId == review.Id)
                                             {
@@ -170,7 +170,7 @@
                                             }
                                         }
                                     }
-                                    
+
                                     <div>
                                         @if (reviewThread != null)
                                         {
@@ -179,10 +179,10 @@
                                             </a>
                                         }
                                     </div>
-                                    
+
                                     <div>
-                                        @if (User.Identity?.IsAuthenticated == true && 
-                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == review.UserId.ToString()))
+                                        @if (User.Identity?.IsAuthenticated == true &&
+                                       (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == review.UserId.ToString()))
                                         {
                                             <a asp-controller="Review" asp-action="Edit" asp-route-id="@review.Id" class="btn btn-sm btn-outline-warning me-2">
                                                 <i class="fas fa-edit"></i> Edit
@@ -205,7 +205,7 @@
                         </div>
                     }
                 </div>
-                
+
                 <div class="tab-pane fade" id="discussions" role="tabpanel" aria-labelledby="discussions-tab">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4>Discussions</h4>
@@ -216,36 +216,11 @@
                             </a>
                         }
                     </div>
-                    
+
                     @if (ViewBag.RegularDiscussionCount > 0)
                     {
-                        <div class="list-group">
-                            @foreach (var thread in ViewBag.DiscussionThreads)
-                            {
-                                if (!thread.IsReviewThread)
-                                {
-                                    <div class="list-group-item list-group-item-action">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <h5 class="mb-1">
-                                                <a asp-controller="Discussion" asp-action="Thread" asp-route-id="@thread.Id">
-                                                    @thread.ThreadName
-                                                </a>
-                                            </h5>
-                                            <small>@thread.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
-                                        </div>
-                                        <p class="mb-1">
-                                            @if (thread.HasInitialMessage)
-                                            {
-                                                @(thread.InitialMessage.MessageText.Length > 100 
-                                                    ? thread.InitialMessage.MessageText.Substring(0, 100) + "..." 
-                                                    : thread.InitialMessage.MessageText)
-                                            }
-                                        </p>
-                                        <small>Started by @thread.AuthorName - @thread.Messages.Count @(thread.Messages.Count == 1 ? "message" : "messages")</small>
-                                    </div>
-                                }
-                            }
-                        </div>
+                        ViewData["IsReviewThread"] = false;
+                        <partial name="_ThreadListPartial" model="ViewBag.DiscussionThreads" />
                     }
                     else
                     {
@@ -260,17 +235,18 @@
 </div>
 
 @section Styles {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
-          crossorigin=""/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
-          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
           crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         #map {
             border-radius: 5px;
             border: 1px solid #ccc;
         }
+
         .rating-stars {
             color: #ffc107;
         }
@@ -285,16 +261,16 @@
         $(document).ready(function() {
             // Initialize the map
             var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
-            
+
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
             }).addTo(map);
-            
+
             // Add a marker for the location
             var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
-            
+
             // Add a popup to the marker
             marker.bindPopup(
                 '<strong>@Model.Name</strong><br>' +

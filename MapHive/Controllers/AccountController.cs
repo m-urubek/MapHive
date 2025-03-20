@@ -21,10 +21,12 @@ namespace MapHive.Controllers
         private readonly IMapLocationRepository _mapLocationRepository;
         private readonly RecaptchaService _recaptchaService;
         private readonly RecaptchaSettings _recaptchaSettings;
+        private readonly IDiscussionRepository _discussionRepository;
 
         public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
             IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository,
-            RecaptchaService recaptchaService, IOptions<RecaptchaSettings> recaptchaSettings)
+            RecaptchaService recaptchaService, IOptions<RecaptchaSettings> recaptchaSettings,
+            IDiscussionRepository discussionRepository)
         {
             this._authService = authService;
             this._httpContextAccessor = httpContextAccessor;
@@ -33,6 +35,7 @@ namespace MapHive.Controllers
             this._mapLocationRepository = mapLocationRepository;
             this._recaptchaService = recaptchaService;
             this._recaptchaSettings = recaptchaSettings.Value;
+            this._discussionRepository = discussionRepository;
         }
 
         [HttpGet]
@@ -212,13 +215,17 @@ namespace MapHive.Controllers
 
             // Get the user's places
             IEnumerable<MapLocation> userLocations = await this._mapLocationRepository.GetLocationsByUserIdAsync(id);
+            
+            // Get the user's threads
+            IEnumerable<DiscussionThread> userThreads = await this._discussionRepository.GetThreadsByUserIdAsync(id);
 
             ProfileViewModel model = new()
             {
                 Username = user.Username,
                 Tier = user.Tier,
                 RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations
+                UserLocations = userLocations,
+                UserThreads = userThreads
             };
 
             return this.View(model);
@@ -334,14 +341,25 @@ namespace MapHive.Controllers
             }
 
             User? user = this._userRepository.GetUserById(id);
-            return user == null
-                ? null
-                : new ProfileViewModel
-                {
-                    Username = user.Username,
-                    Tier = user.Tier,
-                    RegistrationDate = user.RegistrationDate
-                };
+            if (user == null)
+            {
+                return null;
+            }
+
+            // Get user locations
+            IEnumerable<MapLocation> userLocations = this._mapLocationRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
+            
+            // Get user threads
+            IEnumerable<DiscussionThread> userThreads = this._discussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
+
+            return new ProfileViewModel
+            {
+                Username = user.Username,
+                Tier = user.Tier,
+                RegistrationDate = user.RegistrationDate,
+                UserLocations = userLocations,
+                UserThreads = userThreads
+            };
         }
     }
 }

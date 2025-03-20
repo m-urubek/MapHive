@@ -104,6 +104,55 @@
         </div>
     </div>
 
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title">My Threads</h2>
+                </div>
+                <div class="card-body">
+                    @if (Model.UserThreads.Any())
+                    {
+                        <ul class="nav nav-tabs" id="userThreadTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="user-discussions-tab" data-bs-toggle="tab" data-bs-target="#user-discussions" type="button" role="tab" aria-controls="user-discussions" aria-selected="true">
+                                    Discussions (@Model.UserThreads.Count(t => !t.IsReviewThread))
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="user-reviews-tab" data-bs-toggle="tab" data-bs-target="#user-reviews" type="button" role="tab" aria-controls="user-reviews" aria-selected="false">
+                                    Review Discussions (@Model.UserThreads.Count(t => t.IsReviewThread))
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content p-3 border border-top-0 rounded-bottom" id="userThreadTabsContent">
+                            <div class="tab-pane fade show active" id="user-discussions" role="tabpanel" aria-labelledby="user-discussions-tab">
+                                @{
+                                    ViewData["IsReviewThread"] = false;
+                                }
+                                <partial name="_ThreadListPartial" model="Model.UserThreads" />
+                            </div>
+                            
+                            <div class="tab-pane fade" id="user-reviews" role="tabpanel" aria-labelledby="user-reviews-tab">
+                                @{
+                                    ViewData["IsReviewThread"] = true;
+                                }
+                                <partial name="_ThreadListPartial" model="Model.UserThreads" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <p class="mb-0">You haven't participated in any discussions yet.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-6 mb-4">
             <div class="card shadow h-100">
