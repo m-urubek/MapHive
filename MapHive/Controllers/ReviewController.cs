@@ -78,7 +78,7 @@ namespace MapHive.Controllers
                 review = await CurrentRequest.ReviewRepository.AddReviewAsync(review);
 
                 // Create a review thread
-                _ = await CurrentRequest.DiscussionRepository.CreateReviewThreadAsync(review.Id, model.LocationId, userId);
+                _ = await CurrentRequest.DiscussionRepository.CreateReviewThreadAsync(review.Id, model.LocationName, model.LocationId);
 
                 return this.RedirectToAction("Details", "Map", new { id = model.LocationId });
             }

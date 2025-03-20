@@ -53,7 +53,7 @@ namespace MapHive.Singletons
         /// <summary>
         /// Gets the current user's ID if authenticated, otherwise returns null
         /// </summary>
-        public static int? CurrentUserId
+        public static int? UserId
         {
             get
             {

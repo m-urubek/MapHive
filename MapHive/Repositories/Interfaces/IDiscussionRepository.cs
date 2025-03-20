@@ -9,7 +9,7 @@ namespace MapHive.Repositories
         Task<IEnumerable<DiscussionThread>> GetAllDiscussionThreadsByLocationIdAsync(int locationId);
         Task<DiscussionThread?> GetThreadByIdAsync(int id);
         Task<DiscussionThread> CreateDiscussionThreadAsync(DiscussionThread thread, string initialMessage);
-        Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, int locationId, int userId);
+        Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, string reviewTitle, int locationId);
         Task<bool> DeleteThreadAsync(int id);
         Task<IEnumerable<DiscussionThread>> GetThreadsByUserIdAsync(int userId);
 

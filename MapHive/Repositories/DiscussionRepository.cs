@@ -143,13 +143,13 @@ namespace MapHive.Repositories
             }
         }
 
-        public async Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, int locationId, int userId)
+        public async Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, string reviewTitle, int locationId)
         {
             DiscussionThread thread = new()
             {
                 LocationId = locationId,
-                UserId = userId,
-                ThreadName = "Review Discussion",
+                UserId = CurrentRequest.UserId ?? throw new Exception("User ID is not set"),
+                ThreadName = $"Discussion for {CurrentRequest.Username}'s review of {reviewId} {reviewTitle}",
                 IsReviewThread = true,
                 ReviewId = reviewId,
                 CreatedAt = DateTime.UtcNow
