@@ -1,6 +1,6 @@
 using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Repositories;
+using MapHive.Singletons;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,25 +8,16 @@ namespace MapHive.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IUserRepository _userRepository;
-        private readonly LogManager _logManager;
-
-        public AuthService(IUserRepository userRepository, LogManager logManager)
-        {
-            this._userRepository = userRepository;
-            this._logManager = logManager;
-        }
-
         public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
         {
             // Check if username already exists
-            if (this._userRepository.CheckUsernameExists(request.Username))
+            if (CurrentRequest.UserRepository.CheckUsernameExists(request.Username))
             {
                 throw new OrangeUserException("Username already exists");
             }
 
             // Check if IP is blacklisted
-            if (this._userRepository.IsBlacklisted(ipAddress))
+            if (CurrentRequest.UserRepository.IsBlacklisted(ipAddress))
             {
                 throw new WarningException($"Registration attempt from blacklisted IP. IP: {ipAddress}");
             }
@@ -41,10 +32,10 @@ namespace MapHive.Services
                 Tier = UserTier.Normal
             };
 
-            int userId = this._userRepository.CreateUser(user);
+            int userId = CurrentRequest.UserRepository.CreateUser(user);
             user.Id = userId;
 
-            this._logManager.Information($"New user registered: {request.Username}",
+            CurrentRequest.LogManager.Information($"New user registered: {request.Username}",
                 additionalData: $"IP: {ipAddress}");
 
             return Task.FromResult(new AuthResponse
@@ -58,7 +49,7 @@ namespace MapHive.Services
         public Task<AuthResponse> LoginAsync(LoginRequest request)
         {
             // Get user by username
-            User? user = this._userRepository.GetUserByUsername(request.Username);
+            User? user = CurrentRequest.UserRepository.GetUserByUsername(request.Username);
 
             // Check if user exists
             if (user == null)
@@ -72,7 +63,7 @@ namespace MapHive.Services
                 throw new OrangeUserException("Invalid username or password");
             }
 
-            this._logManager.Information($"User logged in: {request.Username}");
+            CurrentRequest.LogManager.Information($"User logged in: {request.Username}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -84,7 +75,7 @@ namespace MapHive.Services
 
         public bool IsBlacklisted(string ipAddress)
         {
-            return this._userRepository.IsBlacklisted(ipAddress);
+            return CurrentRequest.UserRepository.IsBlacklisted(ipAddress);
         }
 
         public string HashPassword(string password)

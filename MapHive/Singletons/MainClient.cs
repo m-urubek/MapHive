@@ -1,9 +1,8 @@
 ﻿using MapHive.Models;
 using MapHive.Repositories;
-using MapHive.Utilities;
 using System.Data.SQLite;
 
-namespace MapHive
+namespace MapHive.Singletons
 {
     public static class MainClient
     {

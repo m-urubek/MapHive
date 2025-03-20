@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
 
@@ -6,13 +7,6 @@ namespace MapHive.Repositories
 {
     public class DiscussionRepository : IDiscussionRepository
     {
-        private readonly IUserRepository _userRepository;
-
-        public DiscussionRepository(IUserRepository userRepository)
-        {
-            this._userRepository = userRepository;
-        }
-
         public async Task<IEnumerable<DiscussionThread>> GetDiscussionThreadsByLocationIdAsync(int locationId)
         {
             string query = @"
@@ -30,7 +24,7 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
-                string username = await this._userRepository.GetUsernameByIdAsync(userId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
                 thread.AuthorName = username;
 
                 // Get initial message
@@ -59,7 +53,7 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
-                string username = await this._userRepository.GetUsernameByIdAsync(userId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
                 thread.AuthorName = username;
 
                 // Get messages
@@ -86,7 +80,7 @@ namespace MapHive.Repositories
 
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await this._userRepository.GetUsernameByIdAsync(userId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
             thread.AuthorName = username;
 
             // Get messages
@@ -138,7 +132,7 @@ namespace MapHive.Repositories
                 thread.Messages = (await this.GetMessagesByThreadIdAsync(threadId)).ToList();
 
                 // Get author name
-                string username = await this._userRepository.GetUsernameByIdAsync(thread.UserId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(thread.UserId);
                 thread.AuthorName = username;
 
                 return thread;
@@ -179,7 +173,7 @@ namespace MapHive.Repositories
             thread.Id = threadId;
 
             // Get author name
-            string username = await this._userRepository.GetUsernameByIdAsync(thread.UserId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(thread.UserId);
             thread.AuthorName = username;
 
             return thread;
@@ -213,7 +207,7 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int authorId = Convert.ToInt32(row["UserId"]);
-                string username = await this._userRepository.GetUsernameByIdAsync(authorId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(authorId);
                 thread.AuthorName = username;
 
                 // Get messages
@@ -242,13 +236,13 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
-                string username = await this._userRepository.GetUsernameByIdAsync(userId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
                 message.AuthorName = username;
 
                 // Get deleted by username if applicable
                 if (message.IsDeleted && message.DeletedByUserId.HasValue)
                 {
-                    message.DeletedByUsername = await this._userRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
+                    message.DeletedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
                 }
 
                 messages.Add(message);
@@ -272,13 +266,13 @@ namespace MapHive.Repositories
 
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await this._userRepository.GetUsernameByIdAsync(userId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
             message.AuthorName = username;
 
             // Get deleted by username if applicable
             if (message.IsDeleted && message.DeletedByUserId.HasValue)
             {
-                message.DeletedByUsername = await this._userRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
+                message.DeletedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
             }
 
             return message;
@@ -304,7 +298,7 @@ namespace MapHive.Repositories
             message.Id = messageId;
 
             // Get author name
-            string username = await this._userRepository.GetUsernameByIdAsync(message.UserId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.UserId);
             message.AuthorName = username;
 
             return message;
@@ -391,6 +385,24 @@ namespace MapHive.Repositories
                 DeletedByUserId = row["DeletedByUserId"] == DBNull.Value ? null : Convert.ToInt32(row["DeletedByUserId"]),
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"])
             };
+        }
+
+        public DiscussionThread GetThreadById(int threadId)
+        {
+            // Comment out until the needed methods are implemented
+            throw new NotImplementedException("GetThreadById is not implemented yet");
+        }
+
+        public IEnumerable<DiscussionThread> GetThreadsByLocationId(int locationId)
+        {
+            // Comment out until the needed methods are implemented
+            throw new NotImplementedException("GetThreadsByLocationId is not implemented yet");
+        }
+
+        public void CreateThread(DiscussionThread thread)
+        {
+            // Implementation will be added later
+            throw new NotImplementedException("CreateThread is not implemented yet");
         }
     }
 }

@@ -1,12 +1,10 @@
 using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Repositories;
-using MapHive.Services;
+using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
 
@@ -14,30 +12,6 @@ namespace MapHive.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly IAuthService _authService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IUserRepository _userRepository;
-        private readonly LogManager _logManager;
-        private readonly IMapLocationRepository _mapLocationRepository;
-        private readonly RecaptchaService _recaptchaService;
-        private readonly RecaptchaSettings _recaptchaSettings;
-        private readonly IDiscussionRepository _discussionRepository;
-
-        public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
-            IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository,
-            RecaptchaService recaptchaService, IOptions<RecaptchaSettings> recaptchaSettings,
-            IDiscussionRepository discussionRepository)
-        {
-            this._authService = authService;
-            this._httpContextAccessor = httpContextAccessor;
-            this._userRepository = userRepository;
-            this._logManager = logManager;
-            this._mapLocationRepository = mapLocationRepository;
-            this._recaptchaService = recaptchaService;
-            this._recaptchaSettings = recaptchaSettings.Value;
-            this._discussionRepository = discussionRepository;
-        }
-
         [HttpGet]
         public IActionResult Login()
         {
@@ -53,7 +27,7 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
-            AuthResponse response = await this._authService.LoginAsync(model);
+            AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
 
             if (response.Success && response.User != null)
             {
@@ -120,24 +94,24 @@ namespace MapHive.Controllers
             }
 
             // Get reCAPTCHA settings from configuration (for test key detection)
-            RecaptchaSettings recaptchaSettings = this._recaptchaSettings;
+            RecaptchaSettings recaptchaSettings = CurrentRequest.RecaptchaService.RecaptchaSettings;
             bool isUsingTestKeys = MainClient.AppSettings.DevelopmentMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
             // For test keys, accept any non-null response
             if (isUsingTestKeys && !string.IsNullOrEmpty(model.RecaptchaResponse))
             {
                 // Using test keys with a response, so we'll consider it valid
-                this._logManager.Information("Accepting reCAPTCHA test response");
+                CurrentRequest.LogManager.Information("Accepting reCAPTCHA test response");
             }
             // Skip server-side validation when using test keys
             else if (!isUsingTestKeys)
             {
                 // Only validate if not using test keys
-                RecaptchaResponse validationResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
+                RecaptchaResponse validationResponse = await CurrentRequest.RecaptchaService.Validate(model.RecaptchaResponse);
                 if (!validationResponse.success)
                 {
                     // Log the failure
-                    this._logManager.Warning($"reCAPTCHA validation failed for user registration attempt");
+                    CurrentRequest.LogManager.Warning($"reCAPTCHA validation failed for user registration attempt");
 
                     // Add error to model state
                     this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
@@ -146,14 +120,14 @@ namespace MapHive.Controllers
             }
 
             // Get client IP address
-            string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ipAddress))
             {
                 throw new RedUserException("Unable to retreive your IP address");
             }
 
             // Create the user
-            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress);
+            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, ipAddress);
 
             if (response.Success && response.User != null)
             {
@@ -206,7 +180,7 @@ namespace MapHive.Controllers
                 throw new OrangeUserException("Your session is invalid, login again.");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
@@ -214,10 +188,10 @@ namespace MapHive.Controllers
             }
 
             // Get the user's places
-            IEnumerable<MapLocation> userLocations = await this._mapLocationRepository.GetLocationsByUserIdAsync(id);
-            
+            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id);
+
             // Get the user's threads
-            IEnumerable<DiscussionThread> userThreads = await this._discussionRepository.GetThreadsByUserIdAsync(id);
+            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id);
 
             ProfileViewModel model = new()
             {
@@ -248,14 +222,14 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 return this.RedirectToAction("Login");
             }
 
             // Check if the username already exists
-            if (this._userRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
+            if (CurrentRequest.UserRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
             {
                 this.ModelState.AddModelError("NewUsername", "Username already exists");
                 ProfileViewModel? profileModel = this.GetCurrentUserProfile();
@@ -264,7 +238,7 @@ namespace MapHive.Controllers
 
             // Update the username
             user.Username = model.NewUsername;
-            this._userRepository.UpdateUser(user);
+            CurrentRequest.UserRepository.UpdateUser(user);
 
             // Update user claims
             List<Claim> claims = new()
@@ -310,14 +284,14 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 return this.RedirectToAction("Login");
             }
 
             // Verify current password
-            if (!this._authService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            if (!CurrentRequest.AuthService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
             {
                 this.ModelState.AddModelError("CurrentPassword", "Current password is incorrect");
                 ProfileViewModel? profileModel = this.GetCurrentUserProfile();
@@ -325,8 +299,8 @@ namespace MapHive.Controllers
             }
 
             // Update password
-            user.PasswordHash = this._authService.HashPassword(model.NewPassword);
-            this._userRepository.UpdateUser(user);
+            user.PasswordHash = CurrentRequest.AuthService.HashPassword(model.NewPassword);
+            CurrentRequest.UserRepository.UpdateUser(user);
 
             this.TempData["SuccessMessage"] = "Password changed successfully";
             return this.RedirectToAction("Profile");
@@ -340,17 +314,17 @@ namespace MapHive.Controllers
                 return null;
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 return null;
             }
 
             // Get user locations
-            IEnumerable<MapLocation> userLocations = this._mapLocationRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
-            
+            IEnumerable<MapLocation> userLocations = CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
+
             // Get user threads
-            IEnumerable<DiscussionThread> userThreads = this._discussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
+            IEnumerable<DiscussionThread> userThreads = CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
 
             return new ProfileViewModel
             {

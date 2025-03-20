@@ -2,7 +2,7 @@
 using System.Data.SQLite;
 using System.Reflection;
 
-namespace MapHive.Utilities
+namespace MapHive.Singletons
 {
     public static class DatabaseUpdater
     {
