@@ -228,9 +228,16 @@ namespace MapHive.Controllers
                 return this.NotFound();
             }
 
-            // If logged-in user is viewing their own profile, redirect to private profile
+            // Only redirect to private profile if the user is viewing their own profile
+            // AND they didn't explicitly request to see their public profile
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id)
+            bool isOwnProfile = currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id;
+            
+            // Check if the request came from the "Show Public Profile" button
+            bool isExplicitPublicProfileRequest = Request.Headers["Referer"].ToString().Contains("/PrivateProfile");
+            
+            // Only redirect if viewing own profile and not explicitly requesting public view
+            if (isOwnProfile && !isExplicitPublicProfileRequest && !Request.Query.ContainsKey("viewPublic"))
             {
                 return this.RedirectToAction("PrivateProfile");
             }

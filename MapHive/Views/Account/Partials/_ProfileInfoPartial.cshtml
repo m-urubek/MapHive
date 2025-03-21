@@ -1,8 +1,20 @@
 @model MapHive.Models.BaseProfileViewModel
+@{
+    // Determine if this is the current user's private profile
+    bool isPrivateProfile = User.Identity?.Name == Model.Username && Context.Request.Path.Value?.Contains("/PrivateProfile") == true;
+}
 
 <div class="card shadow">
     <div class="card-header bg-primary text-white">
-        <h2 class="card-title">Profile Information</h2>
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Profile Information</h2>
+            @if (isPrivateProfile)
+            {
+                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="true" class="btn btn-light btn-sm">
+                    <i class="bi bi-eye"></i> Show Public Profile
+                </a>
+            }
+        </div>
     </div>
     <div class="card-body">
         <div class="row mb-3">

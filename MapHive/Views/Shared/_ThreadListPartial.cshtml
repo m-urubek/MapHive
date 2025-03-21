@@ -34,7 +34,15 @@
                         }
                     </p>
                     <small>
-                        Started by @thread.AuthorName - 
+                        Started by 
+                        @if (thread.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                        {
+                            @thread.AuthorName
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@thread.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == thread.AuthorName ? "true" : null)">@thread.AuthorName</a>
+                        } - 
                         @thread.Messages.Count @(thread.Messages.Count == 1 ? "message" : "messages") - 
                         Location: <a asp-controller="Map" asp-action="Details" asp-route-id="@thread.LocationId">View Place</a>
                     </small>

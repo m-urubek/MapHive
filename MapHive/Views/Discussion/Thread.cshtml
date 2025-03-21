@@ -30,7 +30,16 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <small class="text-muted">
-                            Started by @Model.AuthorName on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+                            Started by 
+                            @if (Model.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                            {
+                                @Model.AuthorName
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorName ? "true" : null)">@Model.AuthorName</a>
+                            }
+                            on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
                         </small>
                     </div>
                     
@@ -39,7 +48,16 @@
                         <div class="review-content mb-4 p-3 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div>
-                                    <span class="fw-bold">@Model.Review.AuthorName</span>
+                                    @if (Model.Review.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="fw-bold">@Model.Review.AuthorName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold">
+                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Review.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.Review.AuthorName ? "true" : null)">@Model.Review.AuthorName</a>
+                                        </span>
+                                    }
                                     <span class="text-muted ms-2">@Model.Review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                 </div>
                                 <div class="rating-stars">
@@ -64,7 +82,16 @@
                         <div class="initial-message mb-4">
                             <div class="message-card">
                                 <div class="message-header">
-                                    <span class="fw-bold">@Model.InitialMessage.AuthorName</span>
+                                    @if (Model.InitialMessage.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="fw-bold">@Model.InitialMessage.AuthorName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold">
+                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorName ? "true" : null)">@Model.InitialMessage.AuthorName</a>
+                                        </span>
+                                    }
                                     <span class="text-muted ms-2">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                 </div>
                                 <div class="message-body mt-2">
@@ -72,7 +99,16 @@
                                     {
                                         @if (Model.InitialMessage.DeletedByUsername == Model.InitialMessage.AuthorName)
                                         {
-                                            <p class="text-muted fst-italic">User @Model.InitialMessage.AuthorName deleted their message</p>
+                                            <p class="text-muted fst-italic">User 
+                                                @if (Model.InitialMessage.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    @Model.InitialMessage.AuthorName
+                                                }
+                                                else
+                                                {
+                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorName ? "true" : null)">@Model.InitialMessage.AuthorName</a>
+                                                }
+                                                deleted their message</p>
                                         }
                                         else
                                         {
@@ -110,7 +146,16 @@
                             <div class="message-card mb-3 p-3 border rounded">
                                 <div class="message-header d-flex justify-content-between">
                                     <div>
-                                        <span class="fw-bold">@message.AuthorName</span>
+                                        @if (message.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="fw-bold">@message.AuthorName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold">
+                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorName ? "true" : null)">@message.AuthorName</a>
+                                            </span>
+                                        }
                                         <span class="text-muted ms-2">@message.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                     </div>
                                     
@@ -131,7 +176,16 @@
                                     {
                                         @if (message.DeletedByUsername == message.AuthorName)
                                         {
-                                            <p class="text-muted fst-italic">User @message.AuthorName deleted their message</p>
+                                            <p class="text-muted fst-italic">User 
+                                                @if (message.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    @message.AuthorName
+                                                }
+                                                else
+                                                {
+                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorName ? "true" : null)">@message.AuthorName</a>
+                                                }
+                                                deleted their message</p>
                                         }
                                         else
                                         {
