@@ -8,14 +8,14 @@ namespace MapHive.Models
         public string Username { get; set; } = string.Empty;
         public UserTier Tier { get; set; }
         public DateTime RegistrationDate { get; set; }
-        
+
         // User's locations
         public IEnumerable<MapLocation> UserLocations { get; set; } = new List<MapLocation>();
 
         // User's threads
         public IEnumerable<DiscussionThread> UserThreads { get; set; } = new List<DiscussionThread>();
     }
-    
+
     // Private profile - for the logged in user viewing their own profile
     public class PrivateProfileViewModel : BaseProfileViewModel
     {
@@ -25,13 +25,13 @@ namespace MapHive.Models
         // For changing password
         public ChangePasswordViewModel ChangePasswordModel { get; set; } = new ChangePasswordViewModel();
     }
-    
+
     // Public profile - for viewing another user's profile
     public class PublicProfileViewModel : BaseProfileViewModel
     {
         // Any public-specific properties would go here
     }
-    
+
     // For backward compatibility
     public class ProfileViewModel : PrivateProfileViewModel
     {

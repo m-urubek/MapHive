@@ -171,12 +171,12 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Profile()
+        public IActionResult Profile()
         {
             // Redirect to the private profile when user accesses /Account/Profile
-            return RedirectToAction("PrivateProfile");
+            return this.RedirectToAction("PrivateProfile");
         }
-        
+
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
@@ -212,27 +212,27 @@ namespace MapHive.Controllers
 
             return this.View(model);
         }
-        
+
         [HttpGet]
         public async Task<IActionResult> PublicProfile(string username)
         {
             if (string.IsNullOrEmpty(username))
             {
-                return RedirectToAction("Index", "Home");
+                return this.RedirectToAction("Index", "Home");
             }
 
             // Check if user exists
             User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
             if (user == null)
             {
-                return NotFound();
+                return this.NotFound();
             }
 
             // If logged-in user is viewing their own profile, redirect to private profile
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id)
             {
-                return RedirectToAction("PrivateProfile");
+                return this.RedirectToAction("PrivateProfile");
             }
 
             // Get the user's places
