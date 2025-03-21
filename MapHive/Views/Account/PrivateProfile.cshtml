@@ -1,0 +1,60 @@
+@model MapHive.Models.PrivateProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <partial name="Partials/_ProfileInfoPartial" model="Model" />
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            @{
+                ViewData["PlacesTitle"] = "My Places";
+            }
+            <partial name="Partials/_PlacesPartial" model="Model" />
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            @{
+                ViewData["ThreadsTitle"] = "My Threads";
+            }
+            <partial name="Partials/_ThreadsPartial" model="Model" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <partial name="Partials/_ChangeUsernamePartial" model="Model" />
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <partial name="Partials/_ChangePasswordPartial" model="Model" />
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+        });
+    </script>
+} 

@@ -173,6 +173,14 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Profile()
         {
+            // Redirect to the private profile when user accesses /Account/Profile
+            return RedirectToAction("PrivateProfile");
+        }
+        
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> PrivateProfile()
+        {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
             {
@@ -193,7 +201,47 @@ namespace MapHive.Controllers
             // Get the user's threads
             IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id);
 
-            ProfileViewModel model = new()
+            PrivateProfileViewModel model = new()
+            {
+                Username = user.Username,
+                Tier = user.Tier,
+                RegistrationDate = user.RegistrationDate,
+                UserLocations = userLocations,
+                UserThreads = userThreads
+            };
+
+            return this.View(model);
+        }
+        
+        [HttpGet]
+        public async Task<IActionResult> PublicProfile(string username)
+        {
+            if (string.IsNullOrEmpty(username))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            // Check if user exists
+            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // If logged-in user is viewing their own profile, redirect to private profile
+            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id)
+            {
+                return RedirectToAction("PrivateProfile");
+            }
+
+            // Get the user's places
+            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(user.Id);
+
+            // Get the user's threads
+            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(user.Id);
+
+            PublicProfileViewModel model = new()
             {
                 Username = user.Username,
                 Tier = user.Tier,
@@ -212,8 +260,8 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -231,9 +279,9 @@ namespace MapHive.Controllers
             // Check if the username already exists
             if (CurrentRequest.UserRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
             {
-                this.ModelState.AddModelError("NewUsername", "Username already exists");
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                this.ModelState.AddModelError("ChangeUsernameModel.NewUsername", "Username already exists");
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             // Update the username
@@ -264,7 +312,7 @@ namespace MapHive.Controllers
                 authProperties);
 
             this.TempData["SuccessMessage"] = "Username changed successfully";
-            return this.RedirectToAction("Profile");
+            return this.RedirectToAction("PrivateProfile");
         }
 
         [HttpPost]
@@ -274,8 +322,8 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -293,9 +341,9 @@ namespace MapHive.Controllers
             // Verify current password
             if (!CurrentRequest.AuthService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
             {
-                this.ModelState.AddModelError("CurrentPassword", "Current password is incorrect");
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                this.ModelState.AddModelError("ChangePasswordModel.CurrentPassword", "Current password is incorrect");
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             // Update password
@@ -303,10 +351,10 @@ namespace MapHive.Controllers
             CurrentRequest.UserRepository.UpdateUser(user);
 
             this.TempData["SuccessMessage"] = "Password changed successfully";
-            return this.RedirectToAction("Profile");
+            return this.RedirectToAction("PrivateProfile");
         }
 
-        private ProfileViewModel? GetCurrentUserProfile()
+        private PrivateProfileViewModel? GetCurrentUserPrivateProfile()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
@@ -326,7 +374,7 @@ namespace MapHive.Controllers
             // Get user threads
             IEnumerable<DiscussionThread> userThreads = CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
 
-            return new ProfileViewModel
+            return new PrivateProfileViewModel
             {
                 Username = user.Username,
                 Tier = user.Tier,
