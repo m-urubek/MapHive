@@ -1,4 +1,5 @@
 @model MapHive.Models.MapLocation
+@using MapHive.Models
 
 @{
     ViewData["Title"] = "Location Details";
@@ -6,7 +7,7 @@
 
 <div class="container">
     <h2 class="my-4">@Model.Name</h2>
-    
+
     <div class="row">
         <div class="col-md-6">
             <div class="card mb-4">
@@ -17,16 +18,16 @@
                     <dl class="row">
                         <dt class="col-sm-4">Name</dt>
                         <dd class="col-sm-8">@Model.Name</dd>
-                        
+
                         <dt class="col-sm-4">Description</dt>
                         <dd class="col-sm-8">@Model.Description</dd>
-                        
+
                         <dt class="col-sm-4">Address</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
-                        
+
                         <dt class="col-sm-4">Coordinates</dt>
                         <dd class="col-sm-8">@Model.Latitude, @Model.Longitude</dd>
-                        
+
                         <dt class="col-sm-4">Website</dt>
                         <dd class="col-sm-8">
                             @if (string.IsNullOrEmpty(Model.Website))
@@ -38,18 +39,58 @@
                                 <a href="@Model.Website" target="_blank">@Model.Website</a>
                             }
                         </dd>
-                        
+
                         <dt class="col-sm-4">Phone Number</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.PhoneNumber) ? "N/A" : Model.PhoneNumber)</dd>
-                        
+
                         <dt class="col-sm-4">Created</dt>
                         <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
-                        
+
                         <dt class="col-sm-4">Last Updated</dt>
                         <dd class="col-sm-8">@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
-                        
+
                         <dt class="col-sm-4">Added By</dt>
-                        <dd class="col-sm-8">@ViewBag.AuthorUsername</dd>
+                        <dd class="col-sm-8">
+                            @if (ViewBag.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                            {
+                                @ViewBag.AuthorUsername
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@ViewBag.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == ViewBag.AuthorUsername ? "true" : null)">@ViewBag.AuthorUsername</a>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">Rating</dt>
+                        <dd class="col-sm-8">
+                            @if (ViewBag.ReviewCount > 0)
+                            {
+                                <div class="d-flex align-items-center">
+                                    <div class="rating-stars">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            if (i <= Math.Round(ViewBag.AverageRating))
+                                            {
+                                                <i class="fas fa-star text-warning"></i>
+                                            }
+                                            else if (i - 0.5 <= ViewBag.AverageRating)
+                                            {
+                                                <i class="fas fa-star-half-alt text-warning"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="far fa-star text-warning"></i>
+                                            }
+                                        }
+                                    </div>
+                                    <span class="ms-2">@ViewBag.AverageRating.ToString("0.0") (@ViewBag.ReviewCount @(ViewBag.ReviewCount == 1 ? "review" : "reviews"))</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span>No reviews yet</span>
+                            }
+                        </dd>
                     </dl>
                 </div>
                 <div class="card-footer">
@@ -59,7 +100,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
@@ -71,16 +112,161 @@
             </div>
         </div>
     </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="locationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="true">
+                        Reviews (@ViewBag.ReviewCount)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab" aria-controls="discussions" aria-selected="false">
+                        Discussions (@ViewBag.RegularDiscussionCount)
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="locationTabsContent">
+                <div class="tab-pane fade show active" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Reviews</h4>
+                        @if (User.Identity?.IsAuthenticated == true && !ViewBag.HasReviewed)
+                        {
+                            <a asp-controller="Review" asp-action="Create" asp-route-id="@Model.Id" class="btn btn-primary">
+                                <i class="fas fa-star"></i> Write a Review
+                            </a>
+                        }
+                    </div>
+
+                    @if (ViewBag.Reviews.Count > 0)
+                    {
+                        @foreach (var review in ViewBag.Reviews)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <div>
+                                        @if (review.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="fw-bold">@review.AuthorName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold">
+                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@review.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == review.AuthorName ? "true" : null)">@review.AuthorName</a>
+                                            </span>
+                                        }
+                                        <span class="text-muted ms-2">@review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                    <div class="rating-stars">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            if (i <= review.Rating)
+                                            {
+                                                <i class="fas fa-star text-warning"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="far fa-star text-warning"></i>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">@review.ReviewText</p>
+                                </div>
+                                <div class="card-footer d-flex justify-content-between">
+                                    @{
+                                        DiscussionThread? reviewThread = null;
+                                        foreach (var thread in ViewBag.DiscussionThreads)
+                                        {
+                                            if (thread.IsReviewThread && thread.ReviewId == review.Id)
+                                            {
+                                                reviewThread = thread;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    <div>
+                                        @if (reviewThread != null)
+                                        {
+                                            <a asp-controller="Discussion" asp-action="Thread" asp-route-id="@reviewThread.Id" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-comments"></i> View Discussion (@reviewThread.Messages.Count)
+                                            </a>
+                                        }
+                                    </div>
+
+                                    <div>
+                                        @if (User.Identity?.IsAuthenticated == true &&
+                                       (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == review.UserId.ToString()))
+                                        {
+                                            <a asp-controller="Review" asp-action="Edit" asp-route-id="@review.Id" class="btn btn-sm btn-outline-warning me-2">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            <form asp-controller="Review" asp-action="Delete" asp-route-id="@review.Id" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this review?');">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            No reviews yet. Be the first to review this location!
+                        </div>
+                    }
+                </div>
+
+                <div class="tab-pane fade" id="discussions" role="tabpanel" aria-labelledby="discussions-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Discussions</h4>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a asp-controller="Discussion" asp-action="Create" asp-route-id="@Model.Id" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Start a Discussion
+                            </a>
+                        }
+                    </div>
+
+                    @if (ViewBag.RegularDiscussionCount > 0)
+                    {
+                        ViewData["IsReviewThread"] = false;
+                        <partial name="_ThreadListPartial" model="ViewBag.DiscussionThreads" />
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            No discussions yet. Start a new discussion!
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Styles {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
-          crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         #map {
             border-radius: 5px;
             border: 1px solid #ccc;
+        }
+
+        .rating-stars {
+            color: #ffc107;
         }
     </style>
 }
@@ -93,16 +279,16 @@
         $(document).ready(function() {
             // Initialize the map
             var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
-            
+
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
             }).addTo(map);
-            
+
             // Add a marker for the location
             var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
-            
+
             // Add a popup to the marker
             marker.bindPopup(
                 '<strong>@Model.Name</strong><br>' +

@@ -2,7 +2,7 @@ using MapHive.Utilities;
 
 namespace MapHive.Services
 {
-    public class FileLogger
+    public class FileLoggerService
     {
         private static readonly object _lockObject = new();
         private static string _currentLogFile;
@@ -12,7 +12,7 @@ namespace MapHive.Services
         private static readonly string _logDirectory;
         private static readonly Timer _cleanupTimer;
 
-        static FileLogger()
+        static FileLoggerService()
         {
             _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
 

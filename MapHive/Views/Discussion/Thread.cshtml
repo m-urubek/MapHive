@@ -1,0 +1,253 @@
+@model MapHive.Models.DiscussionThread
+
+@{
+    ViewData["Title"] = Model.ThreadName;
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Index">Map</a></li>
+                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId">@Model.Location?.Name</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.ThreadName</li>
+                </ol>
+            </nav>
+            
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>@Model.ThreadName</h3>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <form asp-action="DeleteThread" asp-route-id="@Model.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this thread?');">
+                                <i class="fas fa-trash"></i> Delete Thread
+                            </button>
+                        </form>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            Started by 
+                            @if (Model.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                            {
+                                @Model.AuthorName
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorName ? "true" : null)">@Model.AuthorName</a>
+                            }
+                            on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+                        </small>
+                    </div>
+                    
+                    @if (Model.IsReviewThread && Model.Review != null)
+                    {
+                        <div class="review-content mb-4 p-3 bg-light rounded">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    @if (Model.Review.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="fw-bold">@Model.Review.AuthorName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold">
+                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Review.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.Review.AuthorName ? "true" : null)">@Model.Review.AuthorName</a>
+                                        </span>
+                                    }
+                                    <span class="text-muted ms-2">@Model.Review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                </div>
+                                <div class="rating-stars">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        if (i <= Model.Review.Rating)
+                                        {
+                                            <i class="fas fa-star text-warning"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="far fa-star text-warning"></i>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                            <p>@Model.Review.ReviewText</p>
+                        </div>
+                    }
+                    else if (Model.HasInitialMessage)
+                    {
+                        <div class="initial-message mb-4">
+                            <div class="message-card">
+                                <div class="message-header">
+                                    @if (Model.InitialMessage.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="fw-bold">@Model.InitialMessage.AuthorName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold">
+                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorName ? "true" : null)">@Model.InitialMessage.AuthorName</a>
+                                        </span>
+                                    }
+                                    <span class="text-muted ms-2">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                </div>
+                                <div class="message-body mt-2">
+                                    @if (Model.InitialMessage.IsDeleted)
+                                    {
+                                        @if (Model.InitialMessage.DeletedByUsername == Model.InitialMessage.AuthorName)
+                                        {
+                                            <p class="text-muted fst-italic">User 
+                                                @if (Model.InitialMessage.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    @Model.InitialMessage.AuthorName
+                                                }
+                                                else
+                                                {
+                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorName ? "true" : null)">@Model.InitialMessage.AuthorName</a>
+                                                }
+                                                deleted their message</p>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">Admin @Model.InitialMessage.DeletedByUsername deleted this message</p>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p>@Model.InitialMessage.MessageText</p>
+                                        
+                                        @if (User.Identity?.IsAuthenticated == true && 
+                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.InitialMessage.UserId.ToString()))
+                                        {
+                                            <div class="message-actions mt-2">
+                                                <form asp-action="DeleteMessage" asp-route-id="@Model.InitialMessage.Id" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this message?');">
+                                                        <i class="fas fa-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    
+                    <hr />
+                    
+                    <h4>Messages</h4>
+                    
+                    <div class="messages-container">
+                        @foreach (var message in Model.Messages.Where(m => !m.IsInitialMessage))
+                        {
+                            <div class="message-card mb-3 p-3 border rounded">
+                                <div class="message-header d-flex justify-content-between">
+                                    <div>
+                                        @if (message.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="fw-bold">@message.AuthorName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold">
+                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorName ? "true" : null)">@message.AuthorName</a>
+                                            </span>
+                                        }
+                                        <span class="text-muted ms-2">@message.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                    
+                                    @if (!message.IsDeleted && User.Identity?.IsAuthenticated == true && 
+                                        (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == message.UserId.ToString()))
+                                    {
+                                        <div class="message-actions">
+                                            <form asp-action="DeleteMessage" asp-route-id="@message.Id" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this message?');">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="message-body mt-2">
+                                    @if (message.IsDeleted)
+                                    {
+                                        @if (message.DeletedByUsername == message.AuthorName)
+                                        {
+                                            <p class="text-muted fst-italic">User 
+                                                @if (message.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    @message.AuthorName
+                                                }
+                                                else
+                                                {
+                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorName ? "true" : null)">@message.AuthorName</a>
+                                                }
+                                                deleted their message</p>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">Admin @message.DeletedByUsername deleted this message</p>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p>@message.MessageText</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="reply-form mt-4">
+                            <h5>Add a Reply</h5>
+                            <form asp-action="AddMessage" method="post">
+                                <input type="hidden" name="ThreadId" value="@Model.Id" />
+                                
+                                <div class="mb-3">
+                                    <textarea name="MessageText" class="form-control" rows="3" placeholder="Write your message here..." required></textarea>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Post Reply</button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mt-4">
+                            <a asp-controller="Account" asp-action="Login">Log in</a> to join the discussion.
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to @Model.Location?.Name
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .rating-stars {
+            color: #ffc107;
+        }
+        .message-card {
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+            padding: 1rem;
+        }
+        .initial-message .message-card {
+            background-color: #e9ecef;
+        }
+    </style>
+} 

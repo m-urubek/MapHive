@@ -8,18 +8,26 @@
 
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="ViewComponents\**" />
     <Content Remove="Data\**" />
+    <Content Remove="ViewComponents\**" />
     <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="ViewComponents\**" />
     <None Remove="Data\**" />
+    <None Remove="ViewComponents\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Data\Migrations\AddUserIdToMapLocations.sql">
+    <None Include="Data\SqlUpdates\AddUserIdToMapLocations.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\SqlUpdates\ReviewsAndDiscussions.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -31,6 +39,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" />
+    <PackageReference Include="reCAPTCHA.AspNetCore" Version="3.0.10" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.119" />
   </ItemGroup>
 

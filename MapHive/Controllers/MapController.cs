@@ -1,6 +1,6 @@
 using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Repositories;
+using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,19 +9,10 @@ namespace MapHive.Controllers
 {
     public class MapController : Controller
     {
-        private readonly IMapLocationRepository _repository;
-        private readonly IUserRepository _userRepository;
-
-        public MapController(IMapLocationRepository repository, IUserRepository userRepository)
-        {
-            this._repository = repository;
-            this._userRepository = userRepository;
-        }
-
         // GET: Map
         public async Task<IActionResult> Index()
         {
-            IEnumerable<MapLocation> locations = await this._repository.GetAllLocationsAsync();
+            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
             return this.View(locations);
         }
 
@@ -48,7 +39,7 @@ namespace MapHive.Controllers
                 }
                 location.UserId = id;
 
-                _ = await this._repository.AddLocationAsync(location);
+                _ = await CurrentRequest.MapRepository.AddLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
             return this.View(location);
@@ -58,7 +49,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -84,7 +75,7 @@ namespace MapHive.Controllers
                 return this.NotFound();
             }
 
-            MapLocation existingLocation = await this._repository.GetLocationByIdAsync(id);
+            MapLocation existingLocation = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
             if (existingLocation == null)
             {
                 return this.NotFound();
@@ -101,7 +92,7 @@ namespace MapHive.Controllers
 
             if (this.ModelState.IsValid)
             {
-                _ = await this._repository.UpdateLocationAsync(location);
+                _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
             return this.View(location);
@@ -111,7 +102,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -132,7 +123,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -147,14 +138,14 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            _ = await this._repository.DeleteLocationAsync(id);
+            _ = await CurrentRequest.MapRepository.DeleteLocationAsync(id);
             return this.RedirectToAction(nameof(Index));
         }
 
         // GET: Map/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            MapLocation location = await this._repository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -164,13 +155,44 @@ namespace MapHive.Controllers
             if (!location.IsAnonymous)
             {
                 // We'll need the username for display, so use ViewBag to pass it
-                User? user = this._userRepository.GetUserById(location.UserId);
+                User? user = CurrentRequest.UserRepository.GetUserById(location.UserId);
                 this.ViewBag.AuthorUsername = user?.Username ?? "Unknown";
             }
             else
             {
                 this.ViewBag.AuthorUsername = "Anonymous";
             }
+
+            // Get reviews for this location
+            IEnumerable<Review> reviews = await CurrentRequest.ReviewRepository.GetReviewsByLocationIdAsync(id);
+            this.ViewBag.Reviews = reviews;
+
+            // Get average rating
+            double averageRating = await CurrentRequest.ReviewRepository.GetAverageRatingForLocationAsync(id);
+            this.ViewBag.AverageRating = averageRating;
+
+            // Get review count
+            int reviewCount = await CurrentRequest.ReviewRepository.GetReviewCountForLocationAsync(id);
+            this.ViewBag.ReviewCount = reviewCount;
+
+            // Check if the current user has already reviewed this location
+            bool hasReviewed = false;
+            if (this.User.Identity?.IsAuthenticated == true)
+            {
+                string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out int currentUserId))
+                {
+                    hasReviewed = await CurrentRequest.ReviewRepository.HasUserReviewedLocationAsync(currentUserId, id);
+                }
+            }
+            this.ViewBag.HasReviewed = hasReviewed;
+
+            // Get discussion threads for this location
+            IEnumerable<DiscussionThread> discussionThreads = await CurrentRequest.DiscussionRepository.GetAllDiscussionThreadsByLocationIdAsync(id);
+            this.ViewBag.DiscussionThreads = discussionThreads;
+
+            // Calculate the count of regular discussion threads (excluding review threads)
+            this.ViewBag.RegularDiscussionCount = discussionThreads.Count(t => !t.IsReviewThread);
 
             return this.View(location);
         }
@@ -179,7 +201,7 @@ namespace MapHive.Controllers
         [HttpGet]
         public async Task<IActionResult> GetLocations()
         {
-            IEnumerable<MapLocation> locations = await this._repository.GetAllLocationsAsync();
+            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
             return this.Json(locations);
         }
     }

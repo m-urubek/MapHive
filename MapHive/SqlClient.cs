@@ -209,7 +209,7 @@ public class SqlClient
                 command.Parameters.AddRange(parameters);
             }
 
-            return await command.ExecuteNonQueryAsync();  // Return the number of rows affected
+            return await command.ExecuteNonQueryAsync();  // Return the number of affected rows
         }
         finally
         {
@@ -219,9 +219,9 @@ public class SqlClient
     }
 
     /// <summary>
-    /// Executes an ALTER query and returns the number of rows affected.
+    /// Executes an ALTER query or other schema-changing SQL statement and returns the number of rows affected.
     /// </summary>
-    /// <param name="query">The SQL query string to execute (ALTER).</param>
+    /// <param name="query">The SQL query string to execute (ALTER, CREATE, etc.).</param>
     /// <param name="parameters">An array of SQLite parameters to use in the query.</param>
     /// <returns>The number of rows affected by the query.</returns>
     public int Alter(string query, SQLiteParameter[]? parameters = null)
@@ -230,9 +230,9 @@ public class SqlClient
     }
 
     /// <summary>
-    /// Asynchronously executes an ALTER query and returns the number of rows affected.
+    /// Asynchronously executes an ALTER query or other schema-changing SQL statement and returns the number of rows affected.
     /// </summary>
-    /// <param name="query">The SQL query string to execute (ALTER).</param>
+    /// <param name="query">The SQL query string to execute (ALTER, CREATE, etc.).</param>
     /// <param name="parameters">An array of SQLite parameters to use in the query.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the number of rows affected.</returns>
     public async Task<int> AlterAsync(string query, SQLiteParameter[]? parameters = null)

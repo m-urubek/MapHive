@@ -1,5 +1,6 @@
 using MapHive.Models;
-using MapHive.Repositories;
+using MapHive.Models.Exceptions;
+using MapHive.Singletons;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -7,48 +8,18 @@ namespace MapHive.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IUserRepository _userRepository;
-        private readonly LogManager _logManager;
-
-        public AuthService(IUserRepository userRepository, LogManager logManager)
-        {
-            this._userRepository = userRepository;
-            this._logManager = logManager;
-        }
-
-        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress, string macAddress)
+        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
         {
             // Check if username already exists
-            if (this._userRepository.CheckUsernameExists(request.Username))
+            if (CurrentRequest.UserRepository.CheckUsernameExists(request.Username))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username already exists"
-                });
+                throw new OrangeUserException("Username already exists");
             }
 
-            // Check if MAC address already exists (one account per MAC address)
-            if (this._userRepository.CheckMacAddressExists(macAddress) && macAddress != "10:11:12:13:14:15")
+            // Check if IP is blacklisted
+            if (CurrentRequest.UserRepository.IsBlacklisted(ipAddress))
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "An account already exists for this device"
-                });
-            }
-
-            // Check if IP or MAC is blacklisted
-            if (this._userRepository.IsBlacklisted(ipAddress, macAddress))
-            {
-                this._logManager.Warning("Registration attempt from blacklisted IP or MAC",
-                    additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Registration is not allowed from this device or network"
-                });
+                throw new WarningException($"Registration attempt from blacklisted IP. IP: {ipAddress}");
             }
 
             // Create the user
@@ -57,17 +28,15 @@ namespace MapHive.Services
                 Username = request.Username,
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
-                IpAddress = ipAddress,
-                MacAddress = macAddress,
-                IsTrusted = false,
-                IsAdmin = false
+                Tier = UserTier.Normal,
+                IpAddressHistory = ipAddress
             };
 
-            int userId = this._userRepository.CreateUser(user);
+            int userId = CurrentRequest.UserRepository.CreateUser(user);
             user.Id = userId;
 
-            this._logManager.Information($"New user registered: {request.Username}",
-                additionalData: $"IP: {ipAddress}, MAC: {macAddress}");
+            CurrentRequest.LogManager.Information($"New user registered: {request.Username}",
+                additionalData: $"IP: {ipAddress}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -80,31 +49,21 @@ namespace MapHive.Services
         public Task<AuthResponse> LoginAsync(LoginRequest request)
         {
             // Get user by username
-            User? user = this._userRepository.GetUserByUsername(request.Username);
+            User? user = CurrentRequest.UserRepository.GetUserByUsername(request.Username);
 
             // Check if user exists
             if (user == null)
             {
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
             // Verify password
             if (!this.VerifyPassword(request.Password, user.PasswordHash))
             {
-                this._logManager.Warning($"Failed login attempt for user: {request.Username}");
-
-                return Task.FromResult(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
+                throw new OrangeUserException("Invalid username or password");
             }
 
-            this._logManager.Information($"User logged in: {request.Username}");
+            CurrentRequest.LogManager.Information($"User logged in: {request.Username}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -114,9 +73,9 @@ namespace MapHive.Services
             });
         }
 
-        public bool IsBlacklisted(string ipAddress, string macAddress)
+        public bool IsBlacklisted(string ipAddress)
         {
-            return this._userRepository.IsBlacklisted(ipAddress, macAddress);
+            return CurrentRequest.UserRepository.IsBlacklisted(ipAddress);
         }
 
         public string HashPassword(string password)

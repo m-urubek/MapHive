@@ -1,0 +1,106 @@
+@model MapHive.Models.ViewModels.ReviewViewModel
+
+@{
+    ViewData["Title"] = "Edit Review";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Edit Review for @Model.LocationName</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit" method="post">
+                        <input type="hidden" asp-for="LocationId" />
+                        <input type="hidden" asp-for="LocationName" />
+                        
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="Rating" class="form-label">Rating</label>
+                            <div class="rating-input">
+                                <div class="rating-stars">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <span class="star" data-rating="@i">
+                                            <i class="@(i <= Model.Rating ? "fas" : "far") fa-star"></i>
+                                        </span>
+                                    }
+                                </div>
+                                <input type="hidden" asp-for="Rating" id="ratingInput" />
+                            </div>
+                            <span asp-validation-for="Rating" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="ReviewText" class="form-label">Review</label>
+                            <textarea asp-for="ReviewText" class="form-control" rows="5"></textarea>
+                            <span asp-validation-for="ReviewText" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input asp-for="IsAnonymous" class="form-check-input" type="checkbox" />
+                            <label asp-for="IsAnonymous" class="form-check-label">Post anonymously</label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Update Review</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .rating-stars {
+            display: inline-flex;
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+        .rating-stars .star {
+            color: #ffc107;
+            padding: 0 5px;
+            transition: transform 0.1s ease;
+        }
+        .rating-stars .star:hover {
+            transform: scale(1.2);
+        }
+    </style>
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function() {
+            // Handle star rating selection - only click events
+            $('.star').on('click', function() {
+                var rating = $(this).data('rating');
+                $('#ratingInput').val(rating);
+                updateStars(rating);
+            });
+            
+            function updateStars(rating) {
+                $('.star').each(function() {
+                    var starRating = $(this).data('rating');
+                    if (starRating <= rating) {
+                        $(this).html('<i class="fas fa-star"></i>');
+                    } else {
+                        $(this).html('<i class="far fa-star"></i>');
+                    }
+                });
+            }
+            
+            // Initialize with existing rating
+            updateStars($('#ratingInput').val());
+        });
+    </script>
+} 

@@ -1,19 +1,13 @@
 using MapHive.Models;
+using MapHive.Singletons;
 using Newtonsoft.Json;
 using System.Data.SQLite;
 using System.Text;
 
 namespace MapHive.Services
 {
-    public class LogManager
+    public class LogManagerService
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public LogManager(IHttpContextAccessor httpContextAccessor)
-        {
-            this._httpContextAccessor = httpContextAccessor;
-        }
-
         /// <summary>
         /// Logs an informational message
         /// </summary>
@@ -63,12 +57,8 @@ namespace MapHive.Services
             string? userName = null;
             string? requestPath = null;
 
-            // Safely access HttpContext on the original request thread
-            if (this._httpContextAccessor.HttpContext != null)
-            {
-                userName = this._httpContextAccessor.HttpContext.User?.Identity?.Name;
-                requestPath = this._httpContextAccessor.HttpContext.Request?.Path;
-            }
+            userName = CurrentRequest.IsAuthenticated ? CurrentRequest.Username : null;
+            requestPath = CurrentRequest.RequestPath;
 
             // Format additional data as JSON if it's not already - do this on the current thread
             if (additionalData != null && !additionalData.StartsWith("{") && !additionalData.StartsWith("["))
@@ -160,20 +150,17 @@ namespace MapHive.Services
                 }
 
                 // Get current user and request path if available
-                if (this._httpContextAccessor.HttpContext != null)
+                string? userName = CurrentRequest.IsAuthenticated ? CurrentRequest.Username : null;
+                string? requestPath = CurrentRequest.RequestPath;
+
+                if (!string.IsNullOrEmpty(userName))
                 {
-                    string? userName = this._httpContextAccessor.HttpContext.User?.Identity?.Name;
-                    string? requestPath = this._httpContextAccessor.HttpContext.Request?.Path;
+                    _ = logBuilder.AppendLine($"USER: {userName}");
+                }
 
-                    if (!string.IsNullOrEmpty(userName))
-                    {
-                        _ = logBuilder.AppendLine($"USER: {userName}");
-                    }
-
-                    if (!string.IsNullOrEmpty(requestPath))
-                    {
-                        _ = logBuilder.AppendLine($"PATH: {requestPath}");
-                    }
+                if (!string.IsNullOrEmpty(requestPath))
+                {
+                    _ = logBuilder.AppendLine($"PATH: {requestPath}");
                 }
 
                 // Add exception details if available
@@ -192,7 +179,7 @@ namespace MapHive.Services
                 _ = logBuilder.AppendLine(new string('-', 80));
 
                 // Write to file
-                FileLogger.LogToFile(logBuilder.ToString());
+                FileLoggerService.LogToFile(logBuilder.ToString());
             }
             catch (Exception ex)
             {

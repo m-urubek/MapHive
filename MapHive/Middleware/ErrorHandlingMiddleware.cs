@@ -1,5 +1,6 @@
 using MapHive.Models.Exceptions;
 using MapHive.Services;
+using MapHive.Singletons;
 
 namespace MapHive.Middleware
 {
@@ -12,7 +13,7 @@ namespace MapHive.Middleware
             this._next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, LogManager logManager)
+        public async Task InvokeAsync(HttpContext context, LogManagerService logManager)
         {
             try
             {
