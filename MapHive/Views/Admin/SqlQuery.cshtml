@@ -1,0 +1,101 @@
+@model MapHive.Models.SqlQueryViewModel
+
+@{
+    ViewData["Title"] = "SQL Query Tool";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>SQL Query Tool</h1>
+            <p class="text-muted">Execute SQL queries directly against the database.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form asp-action="SqlQuery" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Query" class="form-label">SQL Query</label>
+                            <textarea asp-for="Query" class="form-control" rows="6" placeholder="Enter your SQL query here..." style="font-family: monospace;"></textarea>
+                            <span asp-validation-for="Query" class="text-danger"></span>
+                            <div class="form-text">
+                                Supported statement types: SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Execute Query</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert @(Model.Message.Contains("Error") ? "alert-danger" : "alert-success") mb-4">
+                    @Model.Message
+                </div>
+            }
+
+            @if (Model.HasResults && Model.DataTable != null)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        Query Results
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        @foreach (System.Data.DataColumn column in Model.DataTable.Columns)
+                                        {
+                                            <th>@column.ColumnName</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.DataTable.Rows.Count > 0)
+                                    {
+                                        @foreach (System.Data.DataRow row in Model.DataTable.Rows)
+                                        {
+                                            <tr>
+                                                @foreach (var item in row.ItemArray)
+                                                {
+                                                    <td>@(item == DBNull.Value ? "NULL" : item.ToString())</td>
+                                                }
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="@Model.DataTable.Columns.Count" class="text-center">No results found</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col">
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Admin Panel
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+} 

@@ -50,6 +50,8 @@ namespace MapHive.Singletons
         public static LogManagerService LogManager => GetService<LogManagerService>();
         public static RecaptchaService RecaptchaService => GetService<RecaptchaService>();
         public static IHttpContextAccessor HttpContext => GetService<IHttpContextAccessor>();
+        public static SqlClient SqlClient => MainClient.SqlClient;
+        public static IConfigService ConfigService => GetService<IConfigService>();
         /// <summary>
         /// Gets the current user's ID if authenticated, otherwise returns null
         /// </summary>

@@ -1,0 +1,58 @@
+@{
+    ViewData["Title"] = "Admin Panel";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">Admin Panel</h1>
+            <p class="lead">Manage your MapHive site from this admin panel.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-tags fs-1 mb-3 text-primary"></i>
+                    <h5 class="card-title">Categories</h5>
+                    <p class="card-text">Manage place categories</p>
+                    <a asp-controller="Admin" asp-action="Categories" class="btn btn-primary">Manage Categories</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 mb-3 text-success"></i>
+                    <h5 class="card-title">Users</h5>
+                    <p class="card-text">Manage user accounts</p>
+                    <a asp-controller="Admin" asp-action="Users" class="btn btn-success">Manage Users</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-database fs-1 mb-3 text-warning"></i>
+                    <h5 class="card-title">SQL Query</h5>
+                    <p class="card-text">Execute SQL queries</p>
+                    <a asp-controller="Admin" asp-action="SqlQuery" class="btn btn-warning">SQL Query Tool</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-gear fs-1 mb-3 text-info"></i>
+                    <h5 class="card-title">Configuration</h5>
+                    <p class="card-text">Manage site configuration</p>
+                    <a asp-controller="Admin" asp-action="Configuration" class="btn btn-info">Manage Configuration</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

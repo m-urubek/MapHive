@@ -1,0 +1,415 @@
+@model MapHive.Models.UsersViewModel
+
+@{
+    ViewData["Title"] = "Manage Users";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css" />
+    <style>
+        .ms-Grid { display: -ms-grid; display: grid; }
+        .ms-DetailsList { display: block; position: relative; }
+        .detailslist-container {
+            height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108);
+        }
+        .ms-DetailsHeader {
+            background-color: #f8f8f8;
+            font-weight: 600;
+        }
+        .ms-DetailsHeader .ms-DetailsRow {
+            height: auto;
+            min-height: 42px;
+        }
+        .ms-DetailsRow {
+            border-bottom: 1px solid #edebe9;
+            height: 48px;
+            display: flex;
+            align-items: center;
+        }
+        .ms-DetailsRow:hover {
+            background-color: #f3f2f1;
+        }
+        .ms-DetailsRow-cell {
+            padding: 0 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+        .user-badge {
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-admin {
+            background-color: #d13438;
+            color: white;
+        }
+        .badge-trusted {
+            background-color: #107c10;
+            color: white;
+        }
+        .badge-normal {
+            background-color: #797775;
+            color: white;
+        }
+        .control-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .username-link {
+            color: #0078d4;
+            text-decoration: none;
+        }
+        .username-link:hover {
+            text-decoration: underline;
+        }
+        .ms-DetailsHeader-cell {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            padding-right: 8px;
+            min-height: 42px;
+        }
+        .ms-DetailsHeader-cell:hover {
+            background-color: #f3f2f1;
+        }
+        .ms-DetailsHeader .ms-DetailsRow:hover {
+            background-color: transparent;
+        }
+        .col-resizer {
+            position: absolute;
+            right: -2px;
+            top: 0;
+            height: 100%;
+            width: 8px;
+            cursor: col-resize;
+            z-index: 1;
+        }
+        .col-resizer::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 2px;
+            height: 100%;
+            width: 2px;
+            background-color: #e1dfdd;
+            transition: background-color 0.2s;
+        }
+        .col-resizer:hover::after, .col-resizer.active::after {
+            background-color: #0078d4;
+        }
+        .sort-icon {
+            margin-left: 4px;
+            font-size: 10px;
+            display: inline-block;
+        }
+    </style>
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Manage Users</h1>
+            <p class="text-muted">View the list of registered users in the system.</p>
+        </div>
+    </div>
+
+    <div class="control-bar">
+        <div class="search-container">
+            <form asp-action="Users" method="get" class="d-flex">
+                <div class="input-group">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search by username..." value="@Model.SearchTerm">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                {
+                    <a asp-action="Users" class="btn btn-outline-secondary ms-2">Clear</a>
+                }
+            </form>
+        </div>
+        <div>
+            <span class="text-muted">Total users: @Model.TotalCount</span>
+        </div>
+    </div>
+
+    <div class="detailslist-container ms-Fabric">
+        <div class="ms-DetailsList">
+            <div class="ms-DetailsHeader">
+                <div class="ms-DetailsRow" style="font-weight: 600; height: auto;">
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: 0 0 60px;" data-sort="Id">
+                        ID
+                        <span class="sort-icon"></span>
+                        <div class="col-resizer" data-col="0"></div>
+                    </div>
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: 1 1 200px;" data-sort="Username">
+                        Username
+                        <span class="sort-icon"></span>
+                        <div class="col-resizer" data-col="1"></div>
+                    </div>
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: 1 1 150px;" data-sort="RegistrationDate">
+                        Registration Date
+                        <span class="sort-icon"></span>
+                        <div class="col-resizer" data-col="2"></div>
+                    </div>
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: 1 1 150px;" data-sort="IpAddress">
+                        IP Address
+                        <span class="sort-icon"></span>
+                        <div class="col-resizer" data-col="3"></div>
+                    </div>
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: 0 0 100px;" data-sort="Tier">
+                        User Tier
+                        <span class="sort-icon"></span>
+                        <!-- Last column has no resizer -->
+                    </div>
+                </div>
+            </div>
+            <div class="ms-DetailsList-contentWrapper">
+                @if (Model.Users != null && Model.Users.Any())
+                {
+                    foreach (var user in Model.Users)
+                    {
+                        <div class="ms-DetailsRow">
+                            <div class="ms-DetailsRow-cell" style="flex: 0 0 60px;">@user.Id</div>
+                            <div class="ms-DetailsRow-cell" style="flex: 1 1 200px;">
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-id="@user.Id" class="username-link">@user.Username</a>
+                            </div>
+                            <div class="ms-DetailsRow-cell" style="flex: 1 1 150px;">@user.RegistrationDate.ToString("g")</div>
+                            <div class="ms-DetailsRow-cell" style="flex: 1 1 150px;">@user.IpAddress</div>
+                            <div class="ms-DetailsRow-cell" style="flex: 0 0 100px;">
+                                <span class="user-badge @(user.Tier == UserTier.Admin ? "badge-admin" : user.Tier == UserTier.Trusted ? "badge-trusted" : "badge-normal")">
+                                    @user.Tier.ToString()
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="ms-DetailsRow">
+                        <div class="ms-DetailsRow-cell" style="width: 100%; text-align: center;">No users found</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="currentSort" value="@ViewData["SortField"]" />
+    <input type="hidden" id="currentDirection" value="@ViewData["SortDirection"]" />
+
+    @if (Model.TotalPages > 1)
+    {
+        <div class="d-flex justify-content-center">
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Users" asp-route-page="1" asp-route-searchTerm="@Model.SearchTerm" asp-route-sortField="@ViewData["SortField"]" asp-route-sortDirection="@ViewData["SortDirection"]">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Users" asp-route-page="@(Model.CurrentPage - 1)" asp-route-searchTerm="@Model.SearchTerm" asp-route-sortField="@ViewData["SortField"]" asp-route-sortDirection="@ViewData["SortDirection"]">Previous</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">First</span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">Previous</span>
+                        </li>
+                    }
+
+                    @{
+                        int startPage = Math.Max(1, Model.CurrentPage - 2);
+                        int endPage = Math.Min(Model.TotalPages, startPage + 4);
+                        if (endPage - startPage < 4 && startPage > 1)
+                        {
+                            startPage = Math.Max(1, endPage - 4);
+                        }
+                    }
+
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="Users" asp-route-page="@i" asp-route-searchTerm="@Model.SearchTerm" asp-route-sortField="@ViewData["SortField"]" asp-route-sortDirection="@ViewData["SortDirection"]">@i</a>
+                        </li>
+                    }
+
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Users" asp-route-page="@(Model.CurrentPage + 1)" asp-route-searchTerm="@Model.SearchTerm" asp-route-sortField="@ViewData["SortField"]" asp-route-sortDirection="@ViewData["SortDirection"]">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Users" asp-route-page="@Model.TotalPages" asp-route-searchTerm="@Model.SearchTerm" asp-route-sortField="@ViewData["SortField"]" asp-route-sortDirection="@ViewData["SortDirection"]">Last</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">Next</span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">Last</span>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+
+    <div class="row mt-3">
+        <div class="col">
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Admin Panel
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Column Sorting
+            const headerCells = document.querySelectorAll('.ms-DetailsHeader-cell');
+            const currentSort = document.getElementById('currentSort').value;
+            const currentDirection = document.getElementById('currentDirection').value;
+            
+            // Initialize sort icons
+            if (currentSort) {
+                const activeHeader = document.querySelector(`[data-sort="${currentSort}"]`);
+                if (activeHeader) {
+                    const sortIcon = activeHeader.querySelector('.sort-icon');
+                    sortIcon.innerHTML = currentDirection === 'desc' ? '▼' : '▲';
+                }
+            }
+            
+            headerCells.forEach(cell => {
+                cell.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('col-resizer')) return;
+                    
+                    const sortField = this.getAttribute('data-sort');
+                    let sortDirection = 'asc';
+                    
+                    // Toggle sort direction if already sorting by this field
+                    if (sortField === currentSort) {
+                        sortDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                    }
+                    
+                    // Redirect to the sorted view
+                    window.location.href = `@Url.Action("Users")?sortField=${sortField}&sortDirection=${sortDirection}&searchTerm=@Model.SearchTerm&page=@Model.CurrentPage`;
+                });
+            });
+            
+            // Column Resizing
+            const columns = document.querySelectorAll('.ms-DetailsRow-cell');
+            const resizers = document.querySelectorAll('.col-resizer');
+            let isResizing = false;
+            let currentResizer = null;
+            let startX, startWidth;
+            
+            // Get column widths from localStorage or use defaults
+            const columnWidths = JSON.parse(localStorage.getItem('userGridColumnWidths')) || [];
+            
+            // Apply stored column widths if available
+            if (columnWidths.length > 0) {
+                headerCells.forEach((cell, index) => {
+                    if (columnWidths[index]) {
+                        // Find the column style attribute
+                        const style = cell.getAttribute('style');
+                        // Replace the flex value
+                        const newStyle = style.replace(/flex:[^;]+;/, `flex: 0 0 ${columnWidths[index]}px;`);
+                        cell.setAttribute('style', newStyle);
+                        
+                        // Update all data rows with the same column width
+                        document.querySelectorAll(`.ms-DetailsRow-cell:nth-child(${index + 1})`).forEach(rowCell => {
+                            const rowStyle = rowCell.getAttribute('style');
+                            const newRowStyle = rowStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${columnWidths[index]}px;`);
+                            rowCell.setAttribute('style', newRowStyle);
+                        });
+                    }
+                });
+            }
+            
+            resizers.forEach((resizer, index) => {
+                // Prevent event propagation on resizer
+                resizer.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+                
+                resizer.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    currentResizer = this;
+                    startX = e.pageX;
+                    
+                    // Get the header cell
+                    const headerCell = this.parentElement;
+                    
+                    // Get the current width from the style attribute
+                    const styleValue = headerCell.getAttribute('style');
+                    const flexMatch = styleValue.match(/flex:[^;]*0\s+0\s+(\d+)px/);
+                    startWidth = flexMatch ? parseInt(flexMatch[1]) : headerCell.offsetWidth;
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', stopResize);
+                    
+                    this.classList.add('active');
+                    e.preventDefault();
+                    e.stopPropagation(); // Stop propagation to prevent header click
+                });
+            });
+            
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                const headerCell = currentResizer.parentElement;
+                const columnIndex = currentResizer.getAttribute('data-col');
+                const width = startWidth + (e.pageX - startX);
+                
+                if (width > 50) {  // Minimum width
+                    // Update header cell width
+                    const styleValue = headerCell.getAttribute('style');
+                    const newStyle = styleValue.replace(/flex:[^;]+;/, `flex: 0 0 ${width}px;`);
+                    headerCell.setAttribute('style', newStyle);
+                    
+                    // Update all cells in this column
+                    document.querySelectorAll(`.ms-DetailsRow-cell:nth-child(${parseInt(columnIndex) + 1})`).forEach(cell => {
+                        const cellStyle = cell.getAttribute('style');
+                        const newCellStyle = cellStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${width}px;`);
+                        cell.setAttribute('style', newCellStyle);
+                    });
+                    
+                    // Store width in column widths array
+                    columnWidths[columnIndex] = width;
+                }
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                if (currentResizer) {
+                    currentResizer.classList.remove('active');
+                    currentResizer = null;
+                    
+                    // Save column widths to localStorage
+                    localStorage.setItem('userGridColumnWidths', JSON.stringify(columnWidths));
+                }
+                
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        });
+    </script>
+} 
