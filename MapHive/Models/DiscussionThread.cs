@@ -37,4 +37,14 @@ namespace MapHive.Models
         // Property to get the initial message
         public ThreadMessage? InitialMessage => this.Messages.FirstOrDefault(m => m.IsInitialMessage);
     }
+
+    public class DiscussionReply
+    {
+        public int ReplyId { get; set; }
+        public int ThreadId { get; set; }
+        public required string Content { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int UserId { get; set; }
+        public required string Username { get; set; }
+    }
 }

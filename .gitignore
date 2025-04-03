@@ -9,3 +9,7 @@
 /MapHive/maphive.db-shm
 /MapHive/maphive.db-wal
 /MapHive/maphive.db
+
+.fake
+/poznamky.docx
+/~$znamky.docx

@@ -1,7 +1,6 @@
-using MapHive.Models.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MapHive.ViewComponents
+namespace MapHive.Models.Exceptions.UserFriendlyExceptions
 {
     public class UserFriendlyMessageViewComponent : ViewComponent
     {

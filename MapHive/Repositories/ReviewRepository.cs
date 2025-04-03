@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
 
@@ -6,13 +7,6 @@ namespace MapHive.Repositories
 {
     public class ReviewRepository : IReviewRepository
     {
-        private readonly IUserRepository _userRepository;
-
-        public ReviewRepository(IUserRepository userRepository)
-        {
-            this._userRepository = userRepository;
-        }
-
         public async Task<IEnumerable<Review>> GetReviewsByLocationIdAsync(int locationId)
         {
             string query = @"
@@ -30,7 +24,7 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
-                string username = await this._userRepository.GetUsernameByIdAsync(userId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
                 review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
                 reviews.Add(review);
@@ -54,7 +48,7 @@ namespace MapHive.Repositories
 
             // Get author name
             int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await this._userRepository.GetUsernameByIdAsync(userId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
             review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
             return review;
@@ -80,7 +74,7 @@ namespace MapHive.Repositories
             review.Id = reviewId;
 
             // Get author name
-            string username = await this._userRepository.GetUsernameByIdAsync(review.UserId);
+            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(review.UserId);
             review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
             return review;

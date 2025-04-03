@@ -2,6 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MapHive.Models
 {
+    public enum UserTier
+    {
+        Normal = 0,
+        Trusted = 1,
+        Admin = 2
+    }
+
     public class User
     {
         public int Id { get; set; }
@@ -17,8 +24,7 @@ namespace MapHive.Models
         [Required]
         public string IpAddress { get; set; } = string.Empty;
 
-        public bool IsTrusted { get; set; }
+        public UserTier Tier { get; set; } = UserTier.Normal;
 
-        public bool IsAdmin { get; set; }
     }
 }
