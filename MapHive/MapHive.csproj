@@ -8,9 +8,13 @@
 
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="ViewComponents\**" />
     <Content Remove="Data\**" />
+    <Content Remove="ViewComponents\**" />
     <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="ViewComponents\**" />
     <None Remove="Data\**" />
+    <None Remove="ViewComponents\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,10 +47,6 @@
     <None Update="maphive.db">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="ViewComponents\" />
   </ItemGroup>
 
 </Project> 

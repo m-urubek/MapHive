@@ -50,26 +50,14 @@ Those surrounded by * are finished
   *- Each place has a 5-star rating system.*
   *- Discussions can be started from published reviews.*
   *- Reviews can also be anonymous.*
-- Users can see list of their messages (with information which thread they are from) on their profile. The mesasges are clickable to open them in a thread.
 
-Admin tools:
-- The website will include an Admin Panel to manage:
-    - Place categories (Add, Delete, Update)
-    - Users
-        - list all users in a paged grid
-            - filter in the users grid
-    - Perform direct sql commands with option to view results of the commands
-    - Manage configuration in a grid
-    - verify places
-    - see all banned users in a grid
-- ban (option for admins on an user profile except for users who are admins)
-    - ip ban
-    - account ban
-    - option to choose duration (or just set permanent)
-- make an admin (option for admins on an user profile)
-- make a verified user (option for admins on an user profile)
-*- Delete a message from a thread page*
-- delete or edit a place (buttons visible only for owners or admins)
+Admin UI:
+
+The website will include an Admin Panel to manage:
+- Categories for places (Add, Delete, Update)
+- See grid of users and filter in it
+- Perform direct sql commands with option to view results of the commands
+- Manage configuration
 
 Design:
 - Dark/light theme

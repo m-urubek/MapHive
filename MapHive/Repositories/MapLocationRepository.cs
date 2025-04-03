@@ -184,5 +184,127 @@ namespace MapHive.Repositories
                 IsAnonymous = row.Table.Columns.Contains("IsAnonymous") && Convert.ToInt32(row["IsAnonymous"]) == 1
             };
         }
+
+        #region Category Methods
+
+        public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
+        {
+            return await Task.Run(() =>
+            {
+                List<Category> categories = new();
+                DataTable dataTable = MainClient.SqlClient.Select("SELECT * FROM Categories");
+
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    categories.Add(this.MapDataRowToCategory(row));
+                }
+
+                return categories;
+            });
+        }
+
+        public async Task<Category?> GetCategoryByIdAsync(int id)
+        {
+            return await Task.Run(() =>
+            {
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Id", id)
+                };
+
+                DataTable dataTable = MainClient.SqlClient.Select(
+                    "SELECT * FROM Categories WHERE Id_Category = @Id",
+                    parameters);
+
+                return dataTable.Rows.Count == 0 ? null : this.MapDataRowToCategory(dataTable.Rows[0]);
+            });
+        }
+
+        public async Task<Category> AddCategoryAsync(Category category)
+        {
+            return await Task.Run(() =>
+            {
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Name", category.Name),
+                    new("@Description", category.Description ?? (object)DBNull.Value),
+                    new("@Icon", category.Icon ?? (object)DBNull.Value)
+                };
+
+                int id = MainClient.SqlClient.Insert(
+                    @"INSERT INTO Categories (Name, Description, Icon) 
+                      VALUES (@Name, @Description, @Icon)",
+                    parameters);
+
+                category.Id = id;
+                return category;
+            });
+        }
+
+        public async Task<Category> UpdateCategoryAsync(Category category)
+        {
+            return await Task.Run(async () =>
+            {
+                Category? existingCategory = await this.GetCategoryByIdAsync(category.Id);
+
+                if (existingCategory == null)
+                {
+                    return null;
+                }
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Id", category.Id),
+                    new("@Name", category.Name),
+                    new("@Description", category.Description ?? (object)DBNull.Value),
+                    new("@Icon", category.Icon ?? (object)DBNull.Value)
+                };
+
+                _ = MainClient.SqlClient.Update(
+                    @"UPDATE Categories 
+                      SET Name = @Name, Description = @Description, Icon = @Icon 
+                      WHERE Id_Category = @Id",
+                    parameters);
+
+                return category;
+            });
+        }
+
+        public async Task<bool> DeleteCategoryAsync(int id)
+        {
+            return await Task.Run(async () =>
+            {
+                Category? category = await this.GetCategoryByIdAsync(id);
+
+                if (category == null)
+                {
+                    return false;
+                }
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Id", id)
+                };
+
+                int rowsAffected = MainClient.SqlClient.Delete(
+                    "DELETE FROM Categories WHERE Id_Category = @Id",
+                    parameters);
+
+                return rowsAffected > 0;
+            });
+        }
+
+        private Category MapDataRowToCategory(DataRow row)
+        {
+            return new Category
+            {
+                Id = Convert.ToInt32(row["Id_Category"]),
+                Name = row["Name"].ToString(),
+                Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : string.Empty,
+                Icon = row["Icon"] != DBNull.Value ? row["Icon"].ToString() : string.Empty
+            };
+        }
+
+        #endregion
     }
 }

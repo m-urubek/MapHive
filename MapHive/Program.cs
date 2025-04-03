@@ -2,6 +2,7 @@ using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
 using MapHive.Singletons;
+using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using reCAPTCHA.AspNetCore;
 
@@ -50,7 +51,20 @@ builder.Services.AddScoped<LogManagerService>();
 // Add the AuthService
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Add the ConfigService
+builder.Services.AddScoped<IConfigService, ConfigService>();
+
 WebApplication app = builder.Build();
+
+// Initialize the main client
+MainClient.Initialize();
+
+// Update the database with any new tables or columns
+using (IServiceScope serviceScope = app.Services.CreateScope())
+{
+    DatabaseManipulator databaseUpdater = new();
+    databaseUpdater.UpdateDatabase();
+}
 
 // Initialize the CurrentRequest static class with the service provider
 CurrentRequest.Initialize(app.Services);
@@ -78,8 +92,5 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-// Initialize the main client
-MainClient.Initialize();
 
 app.Run();
