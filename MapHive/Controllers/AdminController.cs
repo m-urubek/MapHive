@@ -139,7 +139,7 @@ namespace MapHive.Controllers
                 PageSize = pageSize,
                 TotalCount = totalUsers
             };
-            
+
             // Initialize the grid with columns and data
             viewModel.InitializeGrid();
 
@@ -369,7 +369,7 @@ namespace MapHive.Controllers
                 PageSize = pageSize,
                 TotalCount = totalBans
             };
-            
+
             // Initialize the grid with columns and data
             viewModel.InitializeGrid();
 
@@ -397,8 +397,6 @@ namespace MapHive.Controllers
             }
 
             string bannedUsername = string.Empty;
-            string bannedByUsername = string.Empty;
-
             if (ban.Properties.TryGetValue("BannedUsername", out string? username))
             {
                 bannedUsername = username;
@@ -409,6 +407,7 @@ namespace MapHive.Controllers
                 bannedUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.UserId.Value);
             }
 
+            string bannedByUsername;
             if (ban.Properties.TryGetValue("BannedByUsername", out string? adminUsername))
             {
                 bannedByUsername = adminUsername;
@@ -473,7 +472,7 @@ namespace MapHive.Controllers
 
             // Default page size
             int pageSize = 20;
-            
+
             if (gridId == "userGrid")
             {
                 // Load user data
@@ -488,17 +487,18 @@ namespace MapHive.Controllers
                     PageSize = pageSize,
                     TotalCount = totalUsers
                 };
-                
+
                 // Initialize grid with columns and data
                 viewModel.InitializeGrid();
-                
-                return this.Json(new { 
+
+                return this.Json(new
+                {
                     success = true,
                     totalPages = viewModel.TotalPages,
                     currentPage = page,
                     totalCount = totalUsers,
                     items = viewModel.Grid.Items,
-                    gridId = gridId
+                    gridId
                 });
             }
             else if (gridId == "banGrid")
@@ -515,17 +515,18 @@ namespace MapHive.Controllers
                     PageSize = pageSize,
                     TotalCount = totalBans
                 };
-                
+
                 // Initialize grid with columns and data
                 viewModel.InitializeGrid();
-                
-                return this.Json(new { 
+
+                return this.Json(new
+                {
                     success = true,
                     totalPages = viewModel.TotalPages,
                     currentPage = page,
                     totalCount = totalBans,
                     items = viewModel.Grid.Items,
-                    gridId = gridId
+                    gridId
                 });
             }
 

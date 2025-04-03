@@ -1,16 +1,14 @@
-using Microsoft.AspNetCore.Mvc;
-
 namespace MapHive.Models
 {
     public class DataGridViewModel
     {
         public List<DataGridColumn> Columns { get; set; } = new List<DataGridColumn>();
         public List<DataGridRow> Items { get; set; } = new List<DataGridRow>();
-        public bool HasItems => Items.Count > 0;
+        public bool HasItems => this.Items.Count > 0;
         public int CurrentPage { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public int TotalCount { get; set; } = 0;
-        public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+        public int TotalPages => (int)Math.Ceiling(this.TotalCount / (double)this.PageSize);
         public string SearchTerm { get; set; } = string.Empty;
         public string SortField { get; set; } = string.Empty;
         public string SortDirection { get; set; } = "asc";
@@ -21,13 +19,13 @@ namespace MapHive.Models
         public string GetPageUrl(int page)
         {
             // Build the URL for pagination
-            return $"/{ControllerName}/{ActionName}?page={page}&searchTerm={SearchTerm}&sortField={SortField}&sortDirection={SortDirection}";
+            return $"/{this.ControllerName}/{this.ActionName}?page={page}&searchTerm={this.SearchTerm}&sortField={this.SortField}&sortDirection={this.SortDirection}";
         }
-        
+
         // Method to fetch data via AJAX
         public string GetDataUrl()
         {
-            return $"/{ControllerName}/GetGridData?gridId={GridId}&page={CurrentPage}&searchTerm={SearchTerm}&sortField={SortField}&sortDirection={SortDirection}";
+            return $"/{this.ControllerName}/GetGridData?gridId={this.GridId}&page={this.CurrentPage}&searchTerm={this.SearchTerm}&sortField={this.SortField}&sortDirection={this.SortDirection}";
         }
     }
 
@@ -50,4 +48,4 @@ namespace MapHive.Models
         public string Content { get; set; } = string.Empty;
         public string Flex { get; set; } = "1 1 auto";
     }
-} 
+}
