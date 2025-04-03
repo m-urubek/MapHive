@@ -309,5 +309,38 @@ namespace MapHive.Singletons
             ");
 
         }
+
+        public static void v9()
+        {
+            _ = MainClient.SqlClient.Alter(@"
+                PRAGMA foreign_keys=off;
+                
+                BEGIN TRANSACTION;
+                
+                -- Create UserBans table for storing user and IP bans
+                CREATE TABLE IF NOT EXISTS 'UserBans' (
+                    'Id_UserBan' INTEGER PRIMARY KEY AUTOINCREMENT,
+                    'UserId' INTEGER,
+                    'IpAddress' TEXT,
+                    'BanType' INTEGER NOT NULL,
+                    'BannedAt' TEXT NOT NULL,
+                    'ExpiresAt' TEXT,
+                    'Reason' TEXT NOT NULL,
+                    'BannedByUserId' INTEGER NOT NULL,
+                    FOREIGN KEY('UserId') REFERENCES 'Users'('Id_User') ON DELETE CASCADE,
+                    FOREIGN KEY('BannedByUserId') REFERENCES 'Users'('Id_User') ON DELETE CASCADE
+                );
+                
+                -- Create indexes for faster lookups
+                CREATE INDEX IF NOT EXISTS idx_userbans_userid ON UserBans(UserId);
+                CREATE INDEX IF NOT EXISTS idx_userbans_ipaddress ON UserBans(IpAddress);
+                CREATE INDEX IF NOT EXISTS idx_userbans_expirydate ON UserBans(ExpiresAt);
+                CREATE INDEX IF NOT EXISTS idx_userbans_bannedby ON UserBans(BannedByUserId);
+                
+                COMMIT;
+                
+                PRAGMA foreign_keys=on;
+            ");
+        }
     }
 }

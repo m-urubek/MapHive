@@ -249,5 +249,147 @@ namespace MapHive.Repositories
         }
 
         #endregion
+
+        #region Ban Methods
+
+        public async Task<int> BanUserAsync(UserBan ban)
+        {
+            return await Task.Run(() =>
+            {
+                string query = @"
+                    INSERT INTO UserBans (UserId, IpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
+                    VALUES (@UserId, @IpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
+
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@UserId", ban.UserId.HasValue ? (object)ban.UserId.Value : DBNull.Value),
+                    new("@IpAddress", !string.IsNullOrEmpty(ban.IpAddress) ? (object)ban.IpAddress : DBNull.Value),
+                    new("@BanType", (int)ban.BanType),
+                    new("@BannedAt", ban.BannedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+                    new("@ExpiresAt", ban.ExpiresAt.HasValue ? ban.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
+                    new("@Reason", ban.Reason),
+                    new("@BannedByUserId", ban.BannedByUserId)
+                };
+
+                return MainClient.SqlClient.Insert(query, parameters);
+            });
+        }
+
+        public async Task<bool> UnbanUserAsync(int banId)
+        {
+            return await Task.Run(() =>
+            {
+                string query = "DELETE FROM UserBans WHERE Id_UserBan = @BanId";
+                SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
+
+                int rowsAffected = MainClient.SqlClient.Delete(query, parameters);
+                return rowsAffected > 0;
+            });
+        }
+
+        public async Task<UserBan?> GetActiveBanByUserIdAsync(int userId)
+        {
+            return await Task.Run(() =>
+            {
+                // Get only bans that are active (ExpiresAt is null or in the future)
+                string query = @"
+                    SELECT * FROM UserBans 
+                    WHERE UserId = @UserId 
+                    AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
+                    ORDER BY BannedAt DESC LIMIT 1";
+
+                SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
+
+                DataTable result = MainClient.SqlClient.Select(query, parameters);
+                return result.Rows.Count > 0 ? MapDataRowToUserBan(result.Rows[0]) : null;
+            });
+        }
+
+        public async Task<UserBan?> GetActiveBanByIpAddressAsync(string ipAddress)
+        {
+            return await Task.Run(() =>
+            {
+                // Get only bans that are active (ExpiresAt is null or in the future)
+                string query = @"
+                    SELECT * FROM UserBans 
+                    WHERE IpAddress = @IpAddress 
+                    AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
+                    ORDER BY BannedAt DESC LIMIT 1";
+
+                SQLiteParameter[] parameters = new SQLiteParameter[] { new("@IpAddress", ipAddress) };
+
+                DataTable result = MainClient.SqlClient.Select(query, parameters);
+                return result.Rows.Count > 0 ? MapDataRowToUserBan(result.Rows[0]) : null;
+            });
+        }
+
+        public async Task<IEnumerable<UserBan>> GetBanHistoryByUserIdAsync(int userId)
+        {
+            return await Task.Run(() =>
+            {
+                List<UserBan> bans = new();
+
+                string query = @"
+                    SELECT ub.*, u.Username as BannedByUsername 
+                    FROM UserBans ub
+                    LEFT JOIN Users u ON ub.BannedByUserId = u.Id_User
+                    WHERE ub.UserId = @UserId 
+                    ORDER BY ub.BannedAt DESC";
+
+                SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
+
+                DataTable result = MainClient.SqlClient.Select(query, parameters);
+
+                foreach (DataRow row in result.Rows)
+                {
+                    bans.Add(MapDataRowToUserBan(row));
+                }
+
+                return bans;
+            });
+        }
+
+        public async Task<IEnumerable<UserBan>> GetAllActiveBansAsync()
+        {
+            return await Task.Run(() =>
+            {
+                List<UserBan> bans = new();
+
+                string query = @"
+                    SELECT ub.*, u.Username as BannedByUsername 
+                    FROM UserBans ub
+                    LEFT JOIN Users u ON ub.BannedByUserId = u.Id_User
+                    WHERE ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now')
+                    ORDER BY ub.BannedAt DESC";
+
+                DataTable result = MainClient.SqlClient.Select(query);
+
+                foreach (DataRow row in result.Rows)
+                {
+                    bans.Add(MapDataRowToUserBan(row));
+                }
+
+                return bans;
+            });
+        }
+
+        private static UserBan MapDataRowToUserBan(DataRow row)
+        {
+            return new UserBan
+            {
+                Id = Convert.ToInt32(row["Id_UserBan"]),
+                UserId = row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : null,
+                IpAddress = row["IpAddress"] != DBNull.Value ? row["IpAddress"].ToString() : null,
+                BanType = (BanType)Convert.ToInt32(row["BanType"]),
+                BannedAt = DateTime.Parse(row["BannedAt"].ToString() ?? DateTime.MinValue.ToString()),
+                ExpiresAt = row["ExpiresAt"] != DBNull.Value
+                    ? DateTime.Parse(row["ExpiresAt"].ToString() ?? DateTime.MaxValue.ToString())
+                    : null,
+                Reason = row["Reason"].ToString() ?? string.Empty,
+                BannedByUserId = Convert.ToInt32(row["BannedByUserId"])
+            };
+        }
+
+        #endregion
     }
 }

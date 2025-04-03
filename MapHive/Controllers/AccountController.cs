@@ -27,10 +27,37 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
+            // First authenticate the user to check if they exist and credentials are valid
             AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
 
             if (response.Success && response.User != null)
             {
+                // Get client IP address
+                string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
+
+                // Check if the user is banned (account ban)
+                UserBan? userBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(response.User.Id);
+                if (userBan != null && userBan.IsActive)
+                {
+                    string banMessage = userBan.ExpiresAt.HasValue
+                        ? $"Your account has been banned until {userBan.ExpiresAt.Value.ToString("g")}. Reason: {userBan.Reason}"
+                        : $"Your account has been permanently banned. Reason: {userBan.Reason}";
+
+                    this.ModelState.AddModelError("", banMessage);
+                    return this.View(model);
+                }
+
+                // Check for IP ban only if user is not an admin
+                if (!string.IsNullOrEmpty(ipAddress) && response.User.Tier != UserTier.Admin)
+                {
+                    UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
+                    if (ipBan != null && ipBan.IsActive)
+                    {
+                        this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
+                        return this.View(model);
+                    }
+                }
+
                 // Create claims
                 List<Claim> claims = new()
                 {
@@ -124,6 +151,15 @@ namespace MapHive.Controllers
             if (string.IsNullOrEmpty(ipAddress))
             {
                 throw new RedUserException("Unable to retreive your IP address");
+            }
+
+            // Check if the IP is banned for registration
+            // Note: All new registrations are subject to IP bans since new users always start as normal users
+            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
+            if (ipBan != null && ipBan.IsActive)
+            {
+                this.ModelState.AddModelError("", $"Registration from your IP address is not allowed. Reason: {ipBan.Reason}");
+                return this.View(model);
             }
 
             // Create the user
@@ -248,16 +284,177 @@ namespace MapHive.Controllers
             // Get the user's threads
             IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(user.Id);
 
+            // Check if current user is an admin
+            bool isAdmin = false;
+            if (currentUserId != null && int.TryParse(currentUserId, out int currentId))
+            {
+                User? currentUser = CurrentRequest.UserRepository.GetUserById(currentId);
+                isAdmin = currentUser != null && currentUser.Tier == UserTier.Admin;
+            }
+
+            // Get active ban if any
+            UserBan? activeBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(user.Id);
+
             PublicProfileViewModel model = new()
             {
+                UserId = user.Id,
                 Username = user.Username,
                 Tier = user.Tier,
                 RegistrationDate = user.RegistrationDate,
+                IpAddress = user.IpAddress, // Only visible to admins in the view
                 UserLocations = userLocations,
-                UserThreads = userThreads
+                UserThreads = userThreads,
+                IsAdmin = isAdmin,
+                CurrentBan = activeBan
             };
 
             return this.View(model);
+        }
+
+        [HttpGet]
+        [Authorize]
+        public IActionResult BanUser(string username)
+        {
+            // Check if current user is an admin
+            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
+            {
+                return this.Forbid();
+            }
+
+            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
+            if (admin == null || admin.Tier != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            // Check if target user exists
+            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
+            if (user == null)
+            {
+                return this.NotFound();
+            }
+
+            // Set up viewbag data
+            this.ViewBag.Username = user.Username;
+            this.ViewBag.UserId = user.Id;
+            this.ViewBag.IpAddress = user.IpAddress;
+            this.ViewBag.UserTier = user.Tier;
+
+            return this.View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize]
+        public async Task<IActionResult> ProcessBan(int userId, string username, BanViewModel model)
+        {
+            // Check if current user is an admin
+            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
+            {
+                return this.Forbid();
+            }
+
+            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
+            if (admin == null || admin.Tier != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            // Check if the target user exists
+            User? user = CurrentRequest.UserRepository.GetUserById(userId);
+            if (user == null)
+            {
+                return this.NotFound();
+            }
+
+            // Prevent admins from banning other admins
+            if (user.Tier == UserTier.Admin)
+            {
+                this.TempData["ErrorMessage"] = "Cannot ban another administrator.";
+                return this.RedirectToAction("PublicProfile", new { username });
+            }
+
+            if (!this.ModelState.IsValid)
+            {
+                this.TempData["ErrorMessage"] = "Invalid ban parameters.";
+                return this.RedirectToAction("BanUser", new { username });
+            }
+
+            // Create the ban object
+            UserBan ban = new()
+            {
+                BannedByUserId = adminId,
+                Reason = model.Reason,
+                BanType = model.BanType,
+                BannedAt = DateTime.UtcNow
+            };
+
+            // Set expiry date if not permanent
+            if (!model.IsPermanent && model.BanDurationDays.HasValue)
+            {
+                ban.ExpiresAt = DateTime.UtcNow.AddDays(model.BanDurationDays.Value);
+            }
+
+            // Set the appropriate ID based on ban type
+            if (model.BanType == BanType.Account)
+            {
+                ban.UserId = userId;
+            }
+            else if (model.BanType == BanType.IpAddress)
+            {
+                ban.IpAddress = user.IpAddress;
+            }
+
+            // Save the ban
+            int banId = await CurrentRequest.UserRepository.BanUserAsync(ban);
+
+            if (banId > 0)
+            {
+                this.TempData["SuccessMessage"] = model.BanType == BanType.Account
+                    ? $"User {user.Username} has been banned successfully."
+                    : $"IP address {user.IpAddress} has been banned successfully.";
+            }
+            else
+            {
+                this.TempData["ErrorMessage"] = "Failed to ban user. Please try again.";
+            }
+
+            return this.RedirectToAction("PublicProfile", new { username });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize]
+        public async Task<IActionResult> UnbanUser(int banId, string username)
+        {
+            // Check if current user is an admin
+            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
+            {
+                return this.Forbid();
+            }
+
+            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
+            if (admin == null || admin.Tier != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            // Remove the ban
+            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(banId);
+
+            if (success)
+            {
+                this.TempData["SuccessMessage"] = "Ban has been removed successfully.";
+            }
+            else
+            {
+                this.TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
+            }
+
+            return this.RedirectToAction("PublicProfile", new { username });
         }
 
         [HttpPost]

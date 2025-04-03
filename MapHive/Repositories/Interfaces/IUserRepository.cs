@@ -13,6 +13,14 @@ namespace MapHive.Repositories
         void UpdateUser(User user);
         Task<string> GetUsernameByIdAsync(int userId);
 
+        // Ban related methods
+        Task<int> BanUserAsync(UserBan ban);
+        Task<bool> UnbanUserAsync(int banId);
+        Task<UserBan?> GetActiveBanByUserIdAsync(int userId);
+        Task<UserBan?> GetActiveBanByIpAddressAsync(string ipAddress);
+        Task<IEnumerable<UserBan>> GetBanHistoryByUserIdAsync(int userId);
+        Task<IEnumerable<UserBan>> GetAllActiveBansAsync();
+
         // Admin methods
         Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc");
         Task<int> GetTotalUsersCountAsync(string searchTerm);

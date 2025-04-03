@@ -29,7 +29,17 @@ namespace MapHive.Models
     // Public profile - for viewing another user's profile
     public class PublicProfileViewModel : BaseProfileViewModel
     {
-        // Any public-specific properties would go here
+        // User ID of the profile owner
+        public int UserId { get; set; }
+
+        // The user's IP address (only visible to admins)
+        public string IpAddress { get; set; } = string.Empty;
+
+        // Ban information (if the user is banned)
+        public UserBan? CurrentBan { get; set; }
+
+        // For admins to ban the user
+        public bool IsAdmin { get; set; }
     }
 
     // For backward compatibility
@@ -53,7 +63,7 @@ namespace MapHive.Models
         public string CurrentPassword { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 100 characters")]
         [DataType(DataType.Password)]
         [Display(Name = "New Password")]
         public string NewPassword { get; set; } = string.Empty;
@@ -62,6 +72,6 @@ namespace MapHive.Models
         [DataType(DataType.Password)]
         [Display(Name = "Confirm New Password")]
         [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
-        public string ConfirmPassword { get; set; } = string.Empty;
+        public string ConfirmNewPassword { get; set; } = string.Empty;
     }
 }
