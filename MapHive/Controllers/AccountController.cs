@@ -1,12 +1,10 @@
 using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Repositories;
-using MapHive.Services;
+using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
 
@@ -14,27 +12,6 @@ namespace MapHive.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly IAuthService _authService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IUserRepository _userRepository;
-        private readonly LogManager _logManager;
-        private readonly IMapLocationRepository _mapLocationRepository;
-        private readonly RecaptchaService _recaptchaService;
-        private readonly RecaptchaSettings _recaptchaSettings;
-
-        public AccountController(IAuthService authService, IHttpContextAccessor httpContextAccessor,
-            IUserRepository userRepository, LogManager logManager, IMapLocationRepository mapLocationRepository,
-            RecaptchaService recaptchaService, IOptions<RecaptchaSettings> recaptchaSettings)
-        {
-            this._authService = authService;
-            this._httpContextAccessor = httpContextAccessor;
-            this._userRepository = userRepository;
-            this._logManager = logManager;
-            this._mapLocationRepository = mapLocationRepository;
-            this._recaptchaService = recaptchaService;
-            this._recaptchaSettings = recaptchaSettings.Value;
-        }
-
         [HttpGet]
         public IActionResult Login()
         {
@@ -50,7 +27,7 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
-            AuthResponse response = await this._authService.LoginAsync(model);
+            AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
 
             if (response.Success && response.User != null)
             {
@@ -59,8 +36,7 @@ namespace MapHive.Controllers
                 {
                     new Claim(ClaimTypes.Name, response.User.Username),
                     new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("IsTrusted", response.User.IsTrusted.ToString()),
-                    new Claim(ClaimTypes.Role, response.User.IsAdmin ? "Admin" : "User")
+                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -118,24 +94,24 @@ namespace MapHive.Controllers
             }
 
             // Get reCAPTCHA settings from configuration (for test key detection)
-            RecaptchaSettings recaptchaSettings = this._recaptchaSettings;
+            RecaptchaSettings recaptchaSettings = CurrentRequest.RecaptchaService.RecaptchaSettings;
             bool isUsingTestKeys = MainClient.AppSettings.DevelopmentMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
             // For test keys, accept any non-null response
             if (isUsingTestKeys && !string.IsNullOrEmpty(model.RecaptchaResponse))
             {
                 // Using test keys with a response, so we'll consider it valid
-                this._logManager.Information("Accepting reCAPTCHA test response");
+                CurrentRequest.LogManager.Information("Accepting reCAPTCHA test response");
             }
             // Skip server-side validation when using test keys
             else if (!isUsingTestKeys)
             {
                 // Only validate if not using test keys
-                RecaptchaResponse validationResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
+                RecaptchaResponse validationResponse = await CurrentRequest.RecaptchaService.Validate(model.RecaptchaResponse);
                 if (!validationResponse.success)
                 {
                     // Log the failure
-                    this._logManager.Warning($"reCAPTCHA validation failed for user registration attempt");
+                    CurrentRequest.LogManager.Warning($"reCAPTCHA validation failed for user registration attempt");
 
                     // Add error to model state
                     this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
@@ -144,14 +120,14 @@ namespace MapHive.Controllers
             }
 
             // Get client IP address
-            string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ipAddress))
             {
                 throw new RedUserException("Unable to retreive your IP address");
             }
 
             // Create the user
-            AuthResponse response = await this._authService.RegisterAsync(model, ipAddress);
+            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, ipAddress);
 
             if (response.Success && response.User != null)
             {
@@ -160,8 +136,7 @@ namespace MapHive.Controllers
                 {
                     new Claim(ClaimTypes.Name, response.User.Username),
                     new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("IsTrusted", response.User.IsTrusted.ToString()),
-                    new Claim(ClaimTypes.Role, response.User.IsAdmin ? "Admin" : "User")
+                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -196,7 +171,15 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Profile()
+        public IActionResult Profile()
+        {
+            // Redirect to the private profile when user accesses /Account/Profile
+            return this.RedirectToAction("PrivateProfile");
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> PrivateProfile()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
@@ -205,7 +188,7 @@ namespace MapHive.Controllers
                 throw new OrangeUserException("Your session is invalid, login again.");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
@@ -213,14 +196,65 @@ namespace MapHive.Controllers
             }
 
             // Get the user's places
-            IEnumerable<MapLocation> userLocations = await this._mapLocationRepository.GetLocationsByUserIdAsync(id);
+            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id);
 
-            ProfileViewModel model = new()
+            // Get the user's threads
+            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id);
+
+            PrivateProfileViewModel model = new()
             {
                 Username = user.Username,
-                IsTrusted = user.IsTrusted,
+                Tier = user.Tier,
                 RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations
+                UserLocations = userLocations,
+                UserThreads = userThreads
+            };
+
+            return this.View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> PublicProfile(string username)
+        {
+            if (string.IsNullOrEmpty(username))
+            {
+                return this.RedirectToAction("Index", "Home");
+            }
+
+            // Check if user exists
+            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
+            if (user == null)
+            {
+                return this.NotFound();
+            }
+
+            // Only redirect to private profile if the user is viewing their own profile
+            // AND they didn't explicitly request to see their public profile
+            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            bool isOwnProfile = currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id;
+
+            // Check if the request came from the "Show Public Profile" button
+            bool isExplicitPublicProfileRequest = this.Request.Headers["Referer"].ToString().Contains("/PrivateProfile");
+
+            // Only redirect if viewing own profile and not explicitly requesting public view
+            if (isOwnProfile && !isExplicitPublicProfileRequest && !this.Request.Query.ContainsKey("viewPublic"))
+            {
+                return this.RedirectToAction("PrivateProfile");
+            }
+
+            // Get the user's places
+            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(user.Id);
+
+            // Get the user's threads
+            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(user.Id);
+
+            PublicProfileViewModel model = new()
+            {
+                Username = user.Username,
+                Tier = user.Tier,
+                RegistrationDate = user.RegistrationDate,
+                UserLocations = userLocations,
+                UserThreads = userThreads
             };
 
             return this.View(model);
@@ -233,8 +267,8 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -243,31 +277,30 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 return this.RedirectToAction("Login");
             }
 
             // Check if the username already exists
-            if (this._userRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
+            if (CurrentRequest.UserRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
             {
-                this.ModelState.AddModelError("NewUsername", "Username already exists");
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                this.ModelState.AddModelError("ChangeUsernameModel.NewUsername", "Username already exists");
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             // Update the username
             user.Username = model.NewUsername;
-            this._userRepository.UpdateUser(user);
+            CurrentRequest.UserRepository.UpdateUser(user);
 
             // Update user claims
             List<Claim> claims = new()
             {
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("IsTrusted", user.IsTrusted.ToString()),
-                new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User")
+                new Claim("UserTier", ((int)user.Tier).ToString()),
             };
 
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -286,7 +319,7 @@ namespace MapHive.Controllers
                 authProperties);
 
             this.TempData["SuccessMessage"] = "Username changed successfully";
-            return this.RedirectToAction("Profile");
+            return this.RedirectToAction("PrivateProfile");
         }
 
         [HttpPost]
@@ -296,8 +329,8 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -306,29 +339,29 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = this._userRepository.GetUserById(id);
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
             if (user == null)
             {
                 return this.RedirectToAction("Login");
             }
 
             // Verify current password
-            if (!this._authService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            if (!CurrentRequest.AuthService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
             {
-                this.ModelState.AddModelError("CurrentPassword", "Current password is incorrect");
-                ProfileViewModel? profileModel = this.GetCurrentUserProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("Profile", profileModel);
+                this.ModelState.AddModelError("ChangePasswordModel.CurrentPassword", "Current password is incorrect");
+                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
             // Update password
-            user.PasswordHash = this._authService.HashPassword(model.NewPassword);
-            this._userRepository.UpdateUser(user);
+            user.PasswordHash = CurrentRequest.AuthService.HashPassword(model.NewPassword);
+            CurrentRequest.UserRepository.UpdateUser(user);
 
             this.TempData["SuccessMessage"] = "Password changed successfully";
-            return this.RedirectToAction("Profile");
+            return this.RedirectToAction("PrivateProfile");
         }
 
-        private ProfileViewModel? GetCurrentUserProfile()
+        private PrivateProfileViewModel? GetCurrentUserPrivateProfile()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
@@ -336,15 +369,26 @@ namespace MapHive.Controllers
                 return null;
             }
 
-            User? user = this._userRepository.GetUserById(id);
-            return user == null
-                ? null
-                : new ProfileViewModel
-                {
-                    Username = user.Username,
-                    IsTrusted = user.IsTrusted,
-                    RegistrationDate = user.RegistrationDate
-                };
+            User? user = CurrentRequest.UserRepository.GetUserById(id);
+            if (user == null)
+            {
+                return null;
+            }
+
+            // Get user locations
+            IEnumerable<MapLocation> userLocations = CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
+
+            // Get user threads
+            IEnumerable<DiscussionThread> userThreads = CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
+
+            return new PrivateProfileViewModel
+            {
+                Username = user.Username,
+                Tier = user.Tier,
+                RegistrationDate = user.RegistrationDate,
+                UserLocations = userLocations,
+                UserThreads = userThreads
+            };
         }
     }
 }

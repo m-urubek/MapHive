@@ -1,0 +1,69 @@
+@model MapHive.Models.BaseProfileViewModel
+@{
+    // Default title if not provided
+    string title = ViewData["PlacesTitle"] as string ?? "My Places";
+}
+
+<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="card-title mb-0">@title</h2>
+            @if (User.Identity?.Name == Model.Username)
+            {
+                <a asp-controller="Map" asp-action="Add" class="btn btn-light">Add New Place</a>
+            }
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.UserLocations.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var location in Model.UserLocations)
+                        {
+                            <tr>
+                                <td>@location.Name</td>
+                                <td>@(location.Description.Length > 50 ? location.Description.Substring(0, 47) + "..." : location.Description)</td>
+                                <td>@location.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a asp-controller="Map" asp-action="Details" asp-route-id="@location.Id" class="btn btn-sm btn-primary">View</a>
+                                        @if (User.Identity?.Name == Model.Username)
+                                        {
+                                            <a asp-controller="Map" asp-action="Edit" asp-route-id="@location.Id" class="btn btn-sm btn-warning">Edit</a>
+                                            <a asp-controller="Map" asp-action="Delete" asp-route-id="@location.Id" class="btn btn-sm btn-danger">Delete</a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <p class="mb-0">
+                    @if (User.Identity?.Name == Model.Username)
+                    {
+                        <span>You haven't added any places yet. <a asp-controller="Map" asp-action="Add" class="alert-link">Add your first place now!</a></span>
+                    }
+                    else
+                    {
+                        <span><a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="@(User.Identity?.Name == Model.Username ? "true" : null)" class="alert-link">@Model.Username</a> hasn't added any places yet.</span>
+                    }
+                </p>
+            </div>
+        }
+    </div>
+</div> 

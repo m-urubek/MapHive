@@ -1,0 +1,19 @@
+@model MapHive.Models.PrivateProfileViewModel
+
+<div class="card shadow h-100">
+    <div class="card-header bg-info text-white">
+        <h3 class="card-title">Change Username</h3>
+    </div>
+    <div class="card-body">
+        <form asp-action="ChangeUsername" method="post">
+            <div class="mb-3">
+                <label asp-for="ChangeUsernameModel.NewUsername" class="form-label">New Username</label>
+                <input asp-for="ChangeUsernameModel.NewUsername" class="form-control" />
+                <span asp-validation-for="ChangeUsernameModel.NewUsername" class="text-danger"></span>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Update Username</button>
+            </div>
+        </form>
+    </div>
+</div> 

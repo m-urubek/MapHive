@@ -1,7 +1,7 @@
-using MapHive;
 using MapHive.Middleware;
 using MapHive.Repositories;
 using MapHive.Services;
+using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using reCAPTCHA.AspNetCore;
 
@@ -44,13 +44,16 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Add the LogManager service
-builder.Services.AddScoped<LogManager>();
+// Add the LogManagerService service
+builder.Services.AddScoped<LogManagerService>();
 
 // Add the AuthService
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 WebApplication app = builder.Build();
+
+// Initialize the CurrentRequest static class with the service provider
+CurrentRequest.Initialize(app.Services);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

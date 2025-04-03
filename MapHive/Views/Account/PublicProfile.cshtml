@@ -1,0 +1,41 @@
+@model MapHive.Models.PublicProfileViewModel
+@{
+    ViewData["Title"] = $"{Model.Username}'s Profile";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <partial name="Partials/_ProfileInfoPartial" model="Model" />
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            @{
+                ViewData["PlacesTitle"] = $"{Model.Username}'s Places";
+            }
+            <partial name="Partials/_PlacesPartial" model="Model" />
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            @{
+                ViewData["ThreadsTitle"] = $"{Model.Username}'s Threads";
+            }
+            <partial name="Partials/_ThreadsPartial" model="Model" />
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+        });
+    </script>
+} 
