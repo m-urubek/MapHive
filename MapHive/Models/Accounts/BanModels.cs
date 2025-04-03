@@ -36,6 +36,9 @@ namespace MapHive.Models
 
         // Calculated property
         public bool IsActive => this.ExpiresAt == null || this.ExpiresAt > DateTime.UtcNow;
+        
+        // Additional properties for display purposes (not stored in the database)
+        public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
     }
 
     public class BanViewModel

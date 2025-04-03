@@ -376,6 +376,166 @@ namespace MapHive.Repositories
             });
         }
 
+        public async Task<IEnumerable<UserBan>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        {
+            return await Task.Run(() =>
+            {
+                List<UserBan> bans = new();
+
+                string orderBy = "ub.BannedAt DESC";
+                if (!string.IsNullOrEmpty(sortField))
+                {
+                    string direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+                    
+                    orderBy = sortField switch
+                    {
+                        "Id" => $"ub.Id_UserBan {direction}",
+                        "BanType" => $"ub.BanType {direction}",
+                        "BannedAt" => $"ub.BannedAt {direction}",
+                        "ExpiresAt" => $"ub.ExpiresAt {direction}",
+                        "Status" => $"CASE WHEN ub.ExpiresAt IS NULL OR datetime(ub.ExpiresAt) > datetime('now') THEN 1 ELSE 0 END {direction}",
+                        _ => $"ub.BannedAt DESC"
+                    };
+                }
+
+                string whereClause = "";
+                SQLiteParameter[] parameters = Array.Empty<SQLiteParameter>();
+
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    whereClause = @" AND (
+                        u.Username LIKE @SearchTerm OR
+                        u2.Username LIKE @SearchTerm OR
+                        ub.IpAddress LIKE @SearchTerm OR
+                        ub.Reason LIKE @SearchTerm
+                    )";
+                    parameters = new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
+                }
+
+                string query = $@"
+                    SELECT 
+                        ub.*,
+                        u.Username as BannedUsername,
+                        u2.Username as BannedByUsername 
+                    FROM UserBans ub
+                    LEFT JOIN Users u ON ub.UserId = u.Id_User
+                    LEFT JOIN Users u2 ON ub.BannedByUserId = u2.Id_User
+                    WHERE 1=1 {whereClause}
+                    ORDER BY {orderBy}
+                    LIMIT @PageSize OFFSET @Offset";
+
+                SQLiteParameter[] fullParameters;
+                if (parameters.Length > 0)
+                {
+                    fullParameters = new SQLiteParameter[parameters.Length + 2];
+                    Array.Copy(parameters, fullParameters, parameters.Length);
+                    fullParameters[parameters.Length] = new SQLiteParameter("@PageSize", pageSize);
+                    fullParameters[parameters.Length + 1] = new SQLiteParameter("@Offset", (page - 1) * pageSize);
+                }
+                else
+                {
+                    fullParameters = new SQLiteParameter[]
+                    {
+                        new("@PageSize", pageSize),
+                        new("@Offset", (page - 1) * pageSize)
+                    };
+                }
+
+                DataTable result = MainClient.SqlClient.Select(query, fullParameters);
+
+                foreach (DataRow row in result.Rows)
+                {
+                    UserBan ban = MapDataRowToUserBan(row);
+
+                    // Add additional info from join
+                    if (row["BannedUsername"] != DBNull.Value)
+                    {
+                        // Store username in a temporary field for display purposes
+                        ban.Properties["BannedUsername"] = row["BannedUsername"].ToString() ?? string.Empty;
+                    }
+
+                    if (row["BannedByUsername"] != DBNull.Value)
+                    {
+                        // Store admin username in a temporary field for display purposes
+                        ban.Properties["BannedByUsername"] = row["BannedByUsername"].ToString() ?? string.Empty;
+                    }
+
+                    bans.Add(ban);
+                }
+
+                return bans;
+            });
+        }
+
+        public async Task<int> GetTotalBansCountAsync(string searchTerm = "")
+        {
+            return await Task.Run(() =>
+            {
+                string whereClause = "";
+                SQLiteParameter[] parameters = Array.Empty<SQLiteParameter>();
+
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    whereClause = @" AND (
+                        u.Username LIKE @SearchTerm OR
+                        u2.Username LIKE @SearchTerm OR
+                        ub.IpAddress LIKE @SearchTerm OR
+                        ub.Reason LIKE @SearchTerm
+                    )";
+                    parameters = new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
+                }
+
+                string query = $@"
+                    SELECT COUNT(*) 
+                    FROM UserBans ub
+                    LEFT JOIN Users u ON ub.UserId = u.Id_User
+                    LEFT JOIN Users u2 ON ub.BannedByUserId = u2.Id_User
+                    WHERE 1=1 {whereClause}";
+
+                DataTable result = MainClient.SqlClient.Select(query, parameters);
+                return Convert.ToInt32(result.Rows[0][0]);
+            });
+        }
+
+        public async Task<UserBan?> GetBanByIdAsync(int banId)
+        {
+            return await Task.Run(() =>
+            {
+                string query = @"
+                    SELECT 
+                        ub.*,
+                        u.Username as BannedUsername,
+                        u2.Username as BannedByUsername 
+                    FROM UserBans ub
+                    LEFT JOIN Users u ON ub.UserId = u.Id_User
+                    LEFT JOIN Users u2 ON ub.BannedByUserId = u2.Id_User
+                    WHERE ub.Id_UserBan = @BanId";
+
+                SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
+
+                DataTable result = MainClient.SqlClient.Select(query, parameters);
+                if (result.Rows.Count == 0)
+                {
+                    return null;
+                }
+
+                UserBan ban = MapDataRowToUserBan(result.Rows[0]);
+
+                // Add additional info from join
+                if (result.Rows[0]["BannedUsername"] != DBNull.Value)
+                {
+                    ban.Properties["BannedUsername"] = result.Rows[0]["BannedUsername"].ToString() ?? string.Empty;
+                }
+
+                if (result.Rows[0]["BannedByUsername"] != DBNull.Value)
+                {
+                    ban.Properties["BannedByUsername"] = result.Rows[0]["BannedByUsername"].ToString() ?? string.Empty;
+                }
+
+                return ban;
+            });
+        }
+
         private static UserBan MapDataRowToUserBan(DataRow row)
         {
             return new UserBan
