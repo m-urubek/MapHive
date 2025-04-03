@@ -342,5 +342,49 @@ namespace MapHive.Singletons
                 PRAGMA foreign_keys=on;
             ");
         }
+
+        public static void v10()
+        {
+            _ = MainClient.SqlClient.ExecuteScript(@"
+                PRAGMA foreign_keys=off;
+                
+                BEGIN TRANSACTION;
+                
+                -- Step 1: Add the new IpAddressHistory column
+                ALTER TABLE Users ADD COLUMN IpAddressHistory TEXT DEFAULT '';
+                
+                -- Step 2: Copy the existing registration IP to the new history column
+                -- Only update if IpAddressHistory is currently the default empty string
+                UPDATE Users SET IpAddressHistory = IpAddress WHERE IpAddressHistory = '';
+                
+                -- Step 3: Create a temporary table with the final schema (without IpAddress)
+                CREATE TABLE Users_temp (
+                    Id_User INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Username TEXT NOT NULL UNIQUE,
+                    PasswordHash TEXT NOT NULL,
+                    RegistrationDate TEXT NOT NULL,
+                    Tier INTEGER NOT NULL DEFAULT 0,
+                    IpAddressHistory TEXT DEFAULT '' -- Keep the new column
+                );
+                
+                -- Step 4: Copy data from the old table to the temporary table
+                INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
+                SELECT Id_User, Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory FROM Users;
+                
+                -- Step 5: Drop the old Users table
+                DROP TABLE Users;
+                
+                -- Step 6: Rename the temporary table to Users
+                ALTER TABLE Users_temp RENAME TO Users;
+                
+                -- Step 7: Recreate necessary indexes (excluding the one for the dropped IpAddress column)
+                CREATE INDEX IF NOT EXISTS idx_username ON Users(Username);
+                -- Do NOT recreate idx_ip_address
+                
+                COMMIT;
+                
+                PRAGMA foreign_keys=on;
+            ");
+        }
     }
 }

@@ -27,54 +27,40 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
-            // First authenticate the user to check if they exist and credentials are valid
+            // Authenticate the user
             AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
 
             if (response.Success && response.User != null)
             {
                 // Get client IP address
-                string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
+                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
-                // Check if the user is banned (account ban)
-                UserBan? userBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(response.User.Id);
-                if (userBan != null && userBan.IsActive)
+                // Check for account ban
+                if (await this.CheckForUserBanAsync(response.User.Id))
                 {
-                    string banMessage = userBan.ExpiresAt.HasValue
-                        ? $"Your account has been banned until {userBan.ExpiresAt.Value.ToString("g")}. Reason: {userBan.Reason}"
-                        : $"Your account has been permanently banned. Reason: {userBan.Reason}";
-
-                    this.ModelState.AddModelError("", banMessage);
-                    return this.View(model);
+                    return this.View(model); // Return if user banned
                 }
 
-                // Check for IP ban only if user is not an admin
-                if (!string.IsNullOrEmpty(ipAddress) && response.User.Tier != UserTier.Admin)
+                // Check for IP ban (skipped for admins)
+                if (await this.CheckForIpBanAsync(currentIpAddress, response.User.Tier))
                 {
-                    UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
-                    if (ipBan != null && ipBan.IsActive)
-                    {
-                        this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
-                        return this.View(model);
-                    }
+                    return this.View(model); // Return if IP banned
                 }
 
-                // Create claims
-                List<Claim> claims = new()
-                {
-                    new Claim(ClaimTypes.Name, response.User.Username),
-                    new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
-                };
+                // Create claims principal
+                ClaimsPrincipal principal = this.CreatePrincipal(response.User);
 
-                ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                ClaimsPrincipal principal = new(identity);
-
+                // Define authentication properties
                 AuthenticationProperties authProperties = new()
                 {
                     IsPersistent = true,
                     ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
                 };
 
+                // Record the login IP address if it's new
+                this.RecordLoginIpAddress(response.User, currentIpAddress);
+
+                // Sign in the user
                 await this.HttpContext.SignInAsync(
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     principal,
@@ -83,6 +69,7 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Index", "Home");
             }
 
+            // If authentication failed or user is null, add error and return view
             this.ModelState.AddModelError("", response.Message);
             return this.View(model);
         }
@@ -183,6 +170,33 @@ namespace MapHive.Controllers
                     IsPersistent = true,
                     ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
                 };
+
+                // Record the IP address if it's new for this user
+                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
+                if (!string.IsNullOrEmpty(currentIpAddress))
+                {
+                    // Ensure IpAddressHistory is not null before processing (Renamed)
+                    response.User.IpAddressHistory ??= string.Empty;
+
+                    // Split the known IPs by newline, handling potential carriage returns as well (Renamed)
+                    List<string> knownIPs = response.User.IpAddressHistory
+                        .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                        .ToList();
+
+                    // Check if the current IP is already known (case-insensitive comparison)
+                    if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
+                    {
+                        // Append the new IP address (Renamed)
+                        if (!string.IsNullOrEmpty(response.User.IpAddressHistory))
+                        {
+                            response.User.IpAddressHistory += "\n"; // Add newline separator if not empty
+                        }
+                        response.User.IpAddressHistory += currentIpAddress;
+
+                        // Save the updated user information
+                        CurrentRequest.UserRepository.UpdateUser(response.User);
+                    }
+                }
 
                 await this.HttpContext.SignInAsync(
                     CookieAuthenticationDefaults.AuthenticationScheme,
@@ -301,7 +315,6 @@ namespace MapHive.Controllers
                 Username = user.Username,
                 Tier = user.Tier,
                 RegistrationDate = user.RegistrationDate,
-                IpAddress = user.IpAddress, // Only visible to admins in the view
                 UserLocations = userLocations,
                 UserThreads = userThreads,
                 IsAdmin = isAdmin,
@@ -338,7 +351,9 @@ namespace MapHive.Controllers
             // Set up viewbag data
             this.ViewBag.Username = user.Username;
             this.ViewBag.UserId = user.Id;
-            this.ViewBag.IpAddress = user.IpAddress;
+            // Add registration IP to ViewBag for potential IP ban
+            string registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "N/A";
+            this.ViewBag.RegistrationIp = registrationIp;
             this.ViewBag.UserTier = user.Tier;
 
             return this.View();
@@ -397,14 +412,21 @@ namespace MapHive.Controllers
                 ban.ExpiresAt = DateTime.UtcNow.AddDays(model.BanDurationDays.Value);
             }
 
-            // Set the appropriate ID based on ban type
+            // Set the appropriate ID or IP based on ban type
             if (model.BanType == BanType.Account)
             {
                 ban.UserId = userId;
             }
             else if (model.BanType == BanType.IpAddress)
             {
-                ban.IpAddress = user.IpAddress;
+                // Get registration IP from history
+                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                if (string.IsNullOrEmpty(registrationIp))
+                {
+                    this.TempData["ErrorMessage"] = "Could not determine registration IP for IP ban.";
+                    return this.RedirectToAction("PublicProfile", new { username });
+                }
+                ban.IpAddress = registrationIp;
             }
 
             // Save the ban
@@ -414,7 +436,7 @@ namespace MapHive.Controllers
             {
                 this.TempData["SuccessMessage"] = model.BanType == BanType.Account
                     ? $"User {user.Username} has been banned successfully."
-                    : $"IP address {user.IpAddress} has been banned successfully.";
+                    : $"IP address {ban.IpAddress} has been banned successfully.";
             }
             else
             {
@@ -587,5 +609,82 @@ namespace MapHive.Controllers
                 UserThreads = userThreads
             };
         }
+
+        #region Login Helpers
+
+        private async Task<bool> CheckForUserBanAsync(int userId)
+        {
+            UserBan? userBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(userId);
+            if (userBan != null && userBan.IsActive)
+            {
+                string banMessage = userBan.ExpiresAt.HasValue
+                    ? $"Your account has been banned until {userBan.ExpiresAt.Value.ToString("g")}. Reason: {userBan.Reason}"
+                    : $"Your account has been permanently banned. Reason: {userBan.Reason}";
+                this.ModelState.AddModelError("", banMessage);
+                return true; // User is banned
+            }
+            return false; // User is not banned
+        }
+
+        private async Task<bool> CheckForIpBanAsync(string? ipAddress, UserTier userTier)
+        {
+            // Skip IP ban check for admins or if IP is missing
+            if (userTier == UserTier.Admin || string.IsNullOrEmpty(ipAddress))
+            {
+                return false; // Not banned (or check skipped)
+            }
+
+            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
+            if (ipBan != null && ipBan.IsActive)
+            {
+                this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
+                return true; // IP is banned
+            }
+            return false; // IP is not banned
+        }
+
+        private ClaimsPrincipal CreatePrincipal(User user)
+        {
+            List<Claim> claims = new()
+            {
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim("UserTier", ((int)user.Tier).ToString()),
+            };
+            ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            return new ClaimsPrincipal(identity);
+        }
+
+        private void RecordLoginIpAddress(User user, string? currentIpAddress)
+        {
+            if (string.IsNullOrEmpty(currentIpAddress))
+            {
+                return; // Cannot record if IP is missing
+            }
+
+            // Ensure IpAddressHistory is not null before processing
+            user.IpAddressHistory ??= string.Empty;
+
+            // Split the known IPs by newline, handling potential carriage returns as well
+            List<string> knownIPs = user.IpAddressHistory
+                .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            // Check if the current IP is already known (case-insensitive comparison)
+            if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
+            {
+                // Append the new IP address
+                if (!string.IsNullOrEmpty(user.IpAddressHistory))
+                {
+                    user.IpAddressHistory += "\n"; // Add newline separator if not empty
+                }
+                user.IpAddressHistory += currentIpAddress;
+
+                // Save the updated user information
+                CurrentRequest.UserRepository.UpdateUser(user);
+            }
+        }
+
+        #endregion
     }
 }

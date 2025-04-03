@@ -32,9 +32,6 @@ namespace MapHive.Models
         // User ID of the profile owner
         public int UserId { get; set; }
 
-        // The user's IP address (only visible to admins)
-        public string IpAddress { get; set; } = string.Empty;
-
         // Ban information (if the user is banned)
         public UserBan? CurrentBan { get; set; }
 

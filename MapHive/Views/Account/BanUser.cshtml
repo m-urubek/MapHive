@@ -3,129 +3,78 @@
     ViewData["Title"] = $"Ban User: {ViewBag.Username}";
 }
 
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header bg-danger text-white">
-                    <h3><i class="bi bi-shield-exclamation"></i> Ban User: @ViewBag.Username</h3>
-                </div>
-                <div class="card-body">
-                    @if (ViewBag.UserTier == UserTier.Admin)
-                    {
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i> Cannot ban another administrator.
-                        </div>
-                        <a href="@Url.Action("PublicProfile", new { username = ViewBag.Username })" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back to Profile
-                        </a>
-                    }
-                    else
-                    {
-                        <form asp-action="ProcessBan" method="post">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="userId" value="@ViewBag.UserId" />
-                            <input type="hidden" name="username" value="@ViewBag.Username" />
-                            
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-header bg-dark text-white">
-                                            <h5 class="mb-0">Ban Type</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="radio" name="BanType" value="@((int)BanType.Account)" id="accountBan" checked>
-                                                <label class="form-check-label" for="accountBan">
-                                                    <strong>Ban Account</strong><br>
-                                                    <small class="text-muted">User: @ViewBag.Username</small>
-                                                </label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="BanType" value="@((int)BanType.IpAddress)" id="ipBan">
-                                                <label class="form-check-label" for="ipBan">
-                                                    <strong>Ban IP Address</strong><br>
-                                                    <small class="text-muted">IP: @ViewBag.IpAddress</small>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-header bg-dark text-white">
-                                            <h5 class="mb-0">Ban Duration</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="radio" name="IsPermanent" value="true" id="permanentBan" checked>
-                                                <label class="form-check-label" for="permanentBan">
-                                                    <strong>Permanent Ban</strong><br>
-                                                    <small class="text-muted">User will be banned indefinitely</small>
-                                                </label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="IsPermanent" value="false" id="temporaryBan">
-                                                <label class="form-check-label" for="temporaryBan">
-                                                    <strong>Temporary Ban</strong>
-                                                </label>
-                                            </div>
-                                            <div class="mt-3 duration-input" style="display:none;">
-                                                <label class="form-label">Ban Duration (days)</label>
-                                                <div class="input-group">
-                                                    <input type="number" class="form-control" name="BanDurationDays" id="banDuration" min="1" max="365" value="7">
-                                                    <span class="input-group-text">days</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label class="form-label" for="banReason">Reason for ban</label>
-                                <textarea class="form-control" id="banReason" name="Reason" rows="3" required></textarea>
-                                <div class="form-text">This reason will be visible to the user when they attempt to log in.</div>
-                            </div>
-                            
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-danger">
-                                    <i class="bi bi-lock-fill"></i> Ban User
-                                </button>
-                                <a href="@Url.Action("PublicProfile", new { username = ViewBag.Username })" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-left"></i> Cancel
-                                </a>
-                            </div>
-                        </form>
-                    }
-                </div>
-            </div>
-        </div>
+<h2>@ViewData["Title"]</h2>
+
+<p>You are about to ban user <strong>@ViewBag.Username</strong>.</p>
+<p>User Tier: <strong>@ViewBag.UserTier</strong></p>
+<!-- Display Registration IP from ViewBag -->
+<p>Registration IP: <strong>@ViewBag.RegistrationIp</strong></p>
+
+@if (ViewBag.UserTier == UserTier.Admin)
+{
+    <div class="alert alert-warning" role="alert">
+        Cannot ban an administrator.
     </div>
-</div>
+    <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Back to Profile</a>
+}
+else
+{
+    <form asp-action="ProcessBan" method="post">
+        <input type="hidden" name="userId" value="@ViewBag.UserId" />
+        <input type="hidden" name="username" value="@ViewBag.Username" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-group mb-3">
+            <label asp-for="BanType" class="control-label"></label>
+            <select asp-for="BanType" class="form-control">
+                <option value="@BanType.Account">Account Ban</option>
+                <option value="@BanType.IpAddress">IP Address Ban (using Registration IP: @ViewBag.RegistrationIp)</option>
+            </select>
+            <span asp-validation-for="BanType" class="text-danger"></span>
+        </div>
+
+        <div class="form-group mb-3">
+            <label asp-for="Reason" class="control-label"></label>
+            <textarea asp-for="Reason" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Reason" class="text-danger"></span>
+        </div>
+
+        <div class="form-check mb-3">
+            <input asp-for="IsPermanent" class="form-check-input" type="checkbox" id="isPermanentCheck" checked="checked" />
+            <label asp-for="IsPermanent" class="form-check-label" for="isPermanentCheck"></label>
+        </div>
+
+        <div class="form-group mb-3" id="banDurationGroup">
+            <label asp-for="BanDurationDays" class="control-label">Ban Duration (Days)</label>
+            <input asp-for="BanDurationDays" class="form-control" type="number" min="1" />
+            <span asp-validation-for="BanDurationDays" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-danger">Confirm Ban</button>
+            <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+}
 
 @section Scripts {
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Toggle duration input for temporary bans
-            const permanentBan = document.getElementById('permanentBan');
-            const temporaryBan = document.getElementById('temporaryBan');
-            const durationInput = document.querySelector('.duration-input');
-            
-            if (permanentBan && temporaryBan && durationInput) {
-                permanentBan.addEventListener('change', function() {
-                    if (this.checked) {
-                        durationInput.style.display = 'none';
-                    }
-                });
-                
-                temporaryBan.addEventListener('change', function() {
-                    if (this.checked) {
-                        durationInput.style.display = 'block';
-                    }
-                });
+        $(document).ready(function () {
+            function toggleDuration() {
+                if ($('#isPermanentCheck').is(':checked')) {
+                    $('#banDurationGroup').hide();
+                    $('#BanDurationDays').val(''); // Clear value when hiding
+                } else {
+                    $('#banDurationGroup').show();
+                }
             }
+
+            // Initial state
+            toggleDuration();
+
+            // Toggle on change
+            $('#isPermanentCheck').change(toggleDuration);
         });
     </script>
 } 

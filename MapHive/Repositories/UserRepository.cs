@@ -10,16 +10,16 @@ namespace MapHive.Repositories
         public int CreateUser(User user)
         {
             string query = @"
-                INSERT INTO Users (Username, PasswordHash, RegistrationDate, IpAddress, Tier)
-                VALUES (@Username, @PasswordHash, @RegistrationDate, @IpAddress, @Tier)";
+                INSERT INTO Users (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
+                VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
                 new("@Username", user.Username),
                 new("@PasswordHash", user.PasswordHash),
                 new("@RegistrationDate", user.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
-                new("@IpAddress", user.IpAddress),
-                new("@Tier", (int)user.Tier)
+                new("@Tier", (int)user.Tier),
+                new("@IpAddressHistory", user.IpAddressHistory)
             };
 
             return MainClient.SqlClient.Insert(query, parameters);
@@ -93,8 +93,8 @@ namespace MapHive.Repositories
                 UPDATE Users 
                 SET Username = @Username, 
                     PasswordHash = @PasswordHash, 
-                    IpAddress = @IpAddress, 
-                    Tier = @Tier
+                    Tier = @Tier,
+                    IpAddressHistory = @IpAddressHistory
                 WHERE Id_User = @Id";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
@@ -102,8 +102,8 @@ namespace MapHive.Repositories
                 new("@Id", user.Id),
                 new("@Username", user.Username),
                 new("@PasswordHash", user.PasswordHash),
-                new("@IpAddress", user.IpAddress),
-                new("@Tier", (int)user.Tier)
+                new("@Tier", (int)user.Tier),
+                new("@IpAddressHistory", user.IpAddressHistory)
             };
 
             _ = MainClient.SqlClient.Update(query, parameters);
@@ -121,15 +121,19 @@ namespace MapHive.Repositories
 
         private static User MapDataRowToUser(DataRow row)
         {
-            return new User
+            User user = new()
             {
                 Id = Convert.ToInt32(row["Id_User"]),
                 Username = row["Username"].ToString() ?? string.Empty,
                 PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
                 RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
-                IpAddress = row["IpAddress"].ToString() ?? string.Empty,
-                Tier = (UserTier)Convert.ToInt32(row["Tier"])
+                Tier = (UserTier)Convert.ToInt32(row["Tier"]),
+                IpAddressHistory = row.Table.Columns.Contains("IpAddressHistory") && row["IpAddressHistory"] != DBNull.Value
+                    ? row["IpAddressHistory"].ToString() ?? string.Empty
+                    : string.Empty
             };
+
+            return user;
         }
 
         #region Admin Methods
@@ -155,7 +159,6 @@ namespace MapHive.Repositories
                         "Id" => "Id_User",
                         "Username" => "Username",
                         "RegistrationDate" => "RegistrationDate",
-                        "IpAddress" => "IpAddress",
                         "Tier" => "Tier",
                         _ => "Id_User"
                     };
