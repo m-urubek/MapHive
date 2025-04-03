@@ -14,7 +14,7 @@ namespace MapHive.Repositories
         Task<string> GetUsernameByIdAsync(int userId);
 
         // Admin methods
-        Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize);
+        Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc");
         Task<int> GetTotalUsersCountAsync(string searchTerm);
         Task<bool> UpdateUserTierAsync(int userId, UserTier tier);
     }

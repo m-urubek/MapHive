@@ -131,7 +131,7 @@ namespace MapHive.Controllers
         #region Users Management
 
         [HttpGet]
-        public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20)
+        public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
@@ -140,7 +140,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize);
+            var users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
             var totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
             
             var viewModel = new UsersViewModel
@@ -152,6 +152,10 @@ namespace MapHive.Controllers
                 TotalCount = totalUsers,
                 TotalPages = (int)Math.Ceiling(totalUsers / (double)pageSize)
             };
+
+            // Store sort information in ViewData to be used in the view
+            ViewData["SortField"] = sortField;
+            ViewData["SortDirection"] = sortDirection;
 
             return this.View(viewModel);
         }

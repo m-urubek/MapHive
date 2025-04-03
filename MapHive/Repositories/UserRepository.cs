@@ -134,7 +134,7 @@ namespace MapHive.Repositories
 
         #region Admin Methods
 
-        public async Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize)
+        public async Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc")
         {
             return await Task.Run(() =>
             {
@@ -145,13 +145,32 @@ namespace MapHive.Repositories
                 // Calculate offset for pagination
                 int offset = (page - 1) * pageSize;
 
+                // Build sort clause
+                string sortClause = "ORDER BY Id_User DESC";
+                
+                if (!string.IsNullOrEmpty(sortField))
+                {
+                    string sortColumn = sortField switch
+                    {
+                        "Id" => "Id_User",
+                        "Username" => "Username",
+                        "RegistrationDate" => "RegistrationDate",
+                        "IpAddress" => "IpAddress",
+                        "Tier" => "Tier",
+                        _ => "Id_User"
+                    };
+                    
+                    string sortOrder = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+                    sortClause = $"ORDER BY {sortColumn} {sortOrder}";
+                }
+
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
                     // Search by username
-                    query = @"
+                    query = $@"
                         SELECT * FROM Users 
                         WHERE Username LIKE @SearchTerm 
-                        ORDER BY Id_User DESC 
+                        {sortClause}
                         LIMIT @PageSize OFFSET @Offset";
 
                     parameters = new SQLiteParameter[]
@@ -164,9 +183,9 @@ namespace MapHive.Repositories
                 else
                 {
                     // Get all users with pagination
-                    query = @"
+                    query = $@"
                         SELECT * FROM Users 
-                        ORDER BY Id_User DESC 
+                        {sortClause}
                         LIMIT @PageSize OFFSET @Offset";
 
                     parameters = new SQLiteParameter[]
