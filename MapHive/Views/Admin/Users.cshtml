@@ -183,7 +183,7 @@
                         <div class="ms-DetailsRow">
                             <div class="ms-DetailsRow-cell" style="flex: 0 0 60px;">@user.Id</div>
                             <div class="ms-DetailsRow-cell" style="flex: 1 1 200px;">
-                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-id="@user.Id" class="username-link">@user.Username</a>
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@user.Username" class="username-link">@user.Username</a>
                             </div>
                             <div class="ms-DetailsRow-cell" style="flex: 1 1 150px;">@user.RegistrationDate.ToString("g")</div>
                             <div class="ms-DetailsRow-cell" style="flex: 1 1 150px;">@user.IpAddress</div>
