@@ -131,5 +131,104 @@ namespace MapHive.Repositories
                 Tier = (UserTier)Convert.ToInt32(row["Tier"])
             };
         }
+
+        #region Admin Methods
+
+        public async Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize)
+        {
+            return await Task.Run(() =>
+            {
+                List<User> users = new();
+                string query;
+                SQLiteParameter[] parameters;
+
+                // Calculate offset for pagination
+                int offset = (page - 1) * pageSize;
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    // Search by username
+                    query = @"
+                        SELECT * FROM Users 
+                        WHERE Username LIKE @SearchTerm 
+                        ORDER BY Id_User DESC 
+                        LIMIT @PageSize OFFSET @Offset";
+
+                    parameters = new SQLiteParameter[]
+                    {
+                        new("@SearchTerm", $"%{searchTerm}%"),
+                        new("@PageSize", pageSize),
+                        new("@Offset", offset)
+                    };
+                }
+                else
+                {
+                    // Get all users with pagination
+                    query = @"
+                        SELECT * FROM Users 
+                        ORDER BY Id_User DESC 
+                        LIMIT @PageSize OFFSET @Offset";
+
+                    parameters = new SQLiteParameter[]
+                    {
+                        new("@PageSize", pageSize),
+                        new("@Offset", offset)
+                    };
+                }
+
+                DataTable dataTable = MainClient.SqlClient.Select(query, parameters);
+
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    users.Add(MapDataRowToUser(row));
+                }
+
+                return users;
+            });
+        }
+
+        public async Task<int> GetTotalUsersCountAsync(string searchTerm)
+        {
+            return await Task.Run(() =>
+            {
+                string query;
+                SQLiteParameter[] parameters;
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    // Count users matching search term
+                    query = "SELECT COUNT(*) FROM Users WHERE Username LIKE @SearchTerm";
+                    parameters = new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
+                }
+                else
+                {
+                    // Count all users
+                    query = "SELECT COUNT(*) FROM Users";
+                    parameters = Array.Empty<SQLiteParameter>();
+                }
+
+                DataTable dataTable = MainClient.SqlClient.Select(query, parameters);
+                return Convert.ToInt32(dataTable.Rows[0][0]);
+            });
+        }
+
+        public async Task<bool> UpdateUserTierAsync(int userId, UserTier tier)
+        {
+            return await Task.Run(() =>
+            {
+                string query = "UPDATE Users SET Tier = @Tier WHERE Id_User = @Id";
+                
+                SQLiteParameter[] parameters = new SQLiteParameter[]
+                {
+                    new("@Id", userId),
+                    new("@Tier", (int)tier)
+                };
+
+                int rowsAffected = MainClient.SqlClient.Update(query, parameters);
+                return rowsAffected > 0;
+            });
+        }
+
+        #endregion
     }
 }

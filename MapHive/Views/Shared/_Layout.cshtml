@@ -34,6 +34,12 @@
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-controller="Map" asp-action="Add">Add Place</a>
                             </li>
+                            @if (User.HasClaim("UserTier", "2"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-danger" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
+                                </li>
+                            }
                         }
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
@@ -48,6 +54,11 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                     <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">My Profile</a></li>
+                                    @if (User.HasClaim("UserTier", "2"))
+                                    {
+                                        <li><a class="dropdown-item text-danger" asp-controller="Admin" asp-action="Index">Admin Panel</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                    }
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form asp-controller="Account" asp-action="Logout" method="post">
