@@ -309,6 +309,16 @@ namespace MapHive.Controllers
             // Get active ban if any
             UserBan? activeBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(user.Id);
 
+            // If no account ban, check for IP ban based on registration IP
+            if (activeBan == null || !activeBan.IsActive)
+            {
+                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                if (!string.IsNullOrEmpty(registrationIp))
+                {
+                    activeBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(registrationIp);
+                }
+            }
+
             PublicProfileViewModel model = new()
             {
                 UserId = user.Id,
