@@ -11,6 +11,8 @@ Name IDs of new database tables by this pattern "Id_{table name}".
 
 Always run dotnet build after your suggested changes in .cs files to check whether you caused any compilations errors.
 
+Never run "dotnet run".
+
 **********************************************************
 Beggining of project context
 

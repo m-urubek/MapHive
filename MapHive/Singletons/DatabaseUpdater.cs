@@ -2,7 +2,7 @@
 using System.Data.SQLite;
 using System.Reflection;
 
-namespace MapHive.Utilities
+namespace MapHive.Singletons
 {
     public static class DatabaseUpdater
     {
@@ -26,7 +26,7 @@ namespace MapHive.Utilities
                     continue;
                 }
 
-                int methodVersion = int.Parse(method.Name.Remove(0, 1));
+                int methodVersion = int.Parse(method.Name[1..]);
                 if (methodVersion > dbVersion)
                 {
                     _ = method.Invoke(null, null);
@@ -260,6 +260,54 @@ namespace MapHive.Utilities
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
             _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+        }
+
+        public static void v8()
+        {
+            // Step 1: Add the Tier column if it doesn't exist
+            _ = MainClient.SqlClient.Alter(@"
+                PRAGMA foreign_keys=off;
+
+                BEGIN TRANSACTION;
+
+                -- Add Tier column to Users table
+                ALTER TABLE Users ADD COLUMN Tier INTEGER DEFAULT 0;
+
+                -- Update Tier values based on existing boolean flags
+                UPDATE Users SET Tier = 
+                    CASE 
+                        WHEN IsAdmin = 1 THEN 2
+                        WHEN IsTrusted = 1 THEN 1
+                        ELSE 0
+                    END;
+
+                -- Create a temporary table without the old columns
+                CREATE TABLE Users_temp (
+                    Id_User INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Username TEXT NOT NULL UNIQUE,
+                    PasswordHash TEXT NOT NULL,
+                    RegistrationDate TEXT NOT NULL,
+                    IpAddress TEXT NOT NULL,
+                    Tier INTEGER NOT NULL DEFAULT 0
+                );
+
+                -- Copy data to the new table structure
+                INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, Tier)
+                SELECT Id_User, Username, PasswordHash, RegistrationDate, IpAddress, Tier FROM Users;
+
+                -- Drop the old table and rename the new one
+                DROP TABLE Users;
+                ALTER TABLE Users_temp RENAME TO Users;
+
+                -- Recreate indexes
+                CREATE INDEX idx_username ON Users(Username);
+                CREATE INDEX idx_ip_address ON Users(IpAddress);
+
+                COMMIT;
+
+                PRAGMA foreign_keys=on;
+            ");
+
         }
     }
 }

@@ -1,0 +1,48 @@
+@model MapHive.Models.BaseProfileViewModel
+@{
+    // Determine if this is the current user's private profile
+    bool isPrivateProfile = User.Identity?.Name == Model.Username && Context.Request.Path.Value?.Contains("/PrivateProfile") == true;
+}
+
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Profile Information</h2>
+            @if (isPrivateProfile)
+            {
+                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="true" class="btn btn-light btn-sm">
+                    <i class="bi bi-eye"></i> Show Public Profile
+                </a>
+            }
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-4 fw-bold">Username:</div>
+            <div class="col-md-8">@Model.Username</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4 fw-bold">Registration Date:</div>
+            <div class="col-md-8">@Model.RegistrationDate.ToString("MMMM dd, yyyy")</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4 fw-bold">
+                User Tier:
+                <span class="ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Normal: Standard user access. Trusted: User's places are automatically approved. Admin: Full administrative privileges.">
+                    <i class="bi bi-info-circle"></i>
+                </span>
+            </div>
+            <div class="col-md-8">
+                @{
+                    string tierClass = Model.Tier switch
+                    {
+                        UserTier.Admin => "bg-danger",
+                        UserTier.Trusted => "bg-success",
+                        _ => "bg-warning text-dark"
+                    };
+                }
+                <span class="badge @tierClass">@Model.Tier</span>
+            </div>
+        </div>
+    </div>
+</div> 

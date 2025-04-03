@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
 
