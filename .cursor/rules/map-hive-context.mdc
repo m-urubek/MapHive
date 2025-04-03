@@ -52,9 +52,8 @@ Those surrounded by * are finished
 Admin UI:
 
 The website will include an Admin Panel to manage:
-- Categories (Add, Delete, Update)
-- Users
-- Places
+- Categories for places (Add, Delete, Update)
+- See grid of users and filter in it
 - Perform direct sql commands with option to view results of the commands
 - Manage configuration
 
