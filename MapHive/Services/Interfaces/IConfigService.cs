@@ -10,4 +10,4 @@ namespace MapHive.Services
         Task<int> UpdateConfigurationItemAsync(ConfigurationItem item);
         Task<bool> DeleteConfigurationItemAsync(string key);
     }
-} 
+}

@@ -21,7 +21,7 @@ namespace MapHive.Services
 
         public async Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync()
         {
-            return await Task.Run(() => this._configRepository.GetAllConfigurationItems());
+            return await Task.Run(this._configRepository.GetAllConfigurationItems);
         }
 
         public async Task<int> AddConfigurationItemAsync(ConfigurationItem item)
@@ -49,4 +49,4 @@ namespace MapHive.Services
             });
         }
     }
-} 
+}

@@ -1,7 +1,5 @@
-using System;
-using System.Data;
-using System.Data.SQLite;
 using MapHive.Singletons;
+using System.Data;
 
 namespace MapHive.Utilities
 {
@@ -48,4 +46,4 @@ namespace MapHive.Utilities
             return result.Rows.Count > 0;
         }
     }
-} 
+}

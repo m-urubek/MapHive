@@ -3,7 +3,6 @@ using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Data;
-using System.Security.Claims;
 
 namespace MapHive.Controllers
 {
@@ -15,12 +14,9 @@ namespace MapHive.Controllers
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            return this.View();
+            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
+                ? this.Forbid()
+                : this.View();
         }
 
         #region Categories Management
@@ -35,7 +31,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
             return this.View(categories);
         }
 
@@ -44,12 +40,9 @@ namespace MapHive.Controllers
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            return this.View();
+            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
+                ? this.Forbid()
+                : this.View();
         }
 
         [HttpPost]
@@ -68,7 +61,7 @@ namespace MapHive.Controllers
                 return this.View(category);
             }
 
-            await CurrentRequest.MapRepository.AddCategoryAsync(category);
+            _ = await CurrentRequest.MapRepository.AddCategoryAsync(category);
             return this.RedirectToAction("Categories");
         }
 
@@ -82,13 +75,8 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var category = await CurrentRequest.MapRepository.GetCategoryByIdAsync(id);
-            if (category == null)
-            {
-                return this.NotFound();
-            }
-
-            return this.View(category);
+            Category? category = await CurrentRequest.MapRepository.GetCategoryByIdAsync(id);
+            return category == null ? this.NotFound() : this.View(category);
         }
 
         [HttpPost]
@@ -107,7 +95,7 @@ namespace MapHive.Controllers
                 return this.View(category);
             }
 
-            await CurrentRequest.MapRepository.UpdateCategoryAsync(category);
+            _ = await CurrentRequest.MapRepository.UpdateCategoryAsync(category);
             return this.RedirectToAction("Categories");
         }
 
@@ -122,7 +110,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            await CurrentRequest.MapRepository.DeleteCategoryAsync(id);
+            _ = await CurrentRequest.MapRepository.DeleteCategoryAsync(id);
             return this.RedirectToAction("Categories");
         }
 
@@ -140,10 +128,10 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            var totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
-            
-            var viewModel = new UsersViewModel
+            IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
+            int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
+
+            UsersViewModel viewModel = new()
             {
                 Users = users,
                 SearchTerm = searchTerm,
@@ -154,8 +142,8 @@ namespace MapHive.Controllers
             };
 
             // Store sort information in ViewData to be used in the view
-            ViewData["SortField"] = sortField;
-            ViewData["SortDirection"] = sortDirection;
+            this.ViewData["SortField"] = sortField;
+            this.ViewData["SortDirection"] = sortDirection;
 
             return this.View(viewModel);
         }
@@ -171,7 +159,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            await CurrentRequest.UserRepository.UpdateUserTierAsync(userId, tier);
+            _ = await CurrentRequest.UserRepository.UpdateUserTierAsync(userId, tier);
             return this.RedirectToAction("Users");
         }
 
@@ -184,12 +172,9 @@ namespace MapHive.Controllers
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            return this.View(new SqlQueryViewModel());
+            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
+                ? this.Forbid()
+                : this.View(new SqlQueryViewModel());
         }
 
         [HttpPost]
@@ -211,7 +196,7 @@ namespace MapHive.Controllers
             try
             {
                 string query = model.Query.Trim();
-                
+
                 // Execute based on query type
                 if (query.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
                 {
@@ -274,7 +259,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var configurations = await CurrentRequest.ConfigService.GetAllConfigurationItemsAsync();
+            List<ConfigurationItem> configurations = await CurrentRequest.ConfigService.GetAllConfigurationItemsAsync();
             return this.View(configurations);
         }
 
@@ -283,12 +268,9 @@ namespace MapHive.Controllers
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            return this.View(new ConfigurationItem());
+            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
+                ? this.Forbid()
+                : this.View(new ConfigurationItem());
         }
 
         [HttpPost]
@@ -307,7 +289,7 @@ namespace MapHive.Controllers
                 return this.View(configItem);
             }
 
-            await CurrentRequest.ConfigService.AddConfigurationItemAsync(configItem);
+            _ = await CurrentRequest.ConfigService.AddConfigurationItemAsync(configItem);
             return this.RedirectToAction("Configuration");
         }
 
@@ -321,13 +303,8 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            var configItem = await CurrentRequest.ConfigService.GetConfigurationItemAsync(key);
-            if (configItem == null)
-            {
-                return this.NotFound();
-            }
-
-            return this.View(configItem);
+            ConfigurationItem? configItem = await CurrentRequest.ConfigService.GetConfigurationItemAsync(key);
+            return configItem == null ? this.NotFound() : this.View(configItem);
         }
 
         [HttpPost]
@@ -346,7 +323,7 @@ namespace MapHive.Controllers
                 return this.View(configItem);
             }
 
-            await CurrentRequest.ConfigService.UpdateConfigurationItemAsync(configItem);
+            _ = await CurrentRequest.ConfigService.UpdateConfigurationItemAsync(configItem);
             return this.RedirectToAction("Configuration");
         }
 
@@ -361,10 +338,10 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            await CurrentRequest.ConfigService.DeleteConfigurationItemAsync(key);
+            _ = await CurrentRequest.ConfigService.DeleteConfigurationItemAsync(key);
             return this.RedirectToAction("Configuration");
         }
 
         #endregion
     }
-} 
+}

@@ -60,9 +60,9 @@ WebApplication app = builder.Build();
 MainClient.Initialize();
 
 // Update the database with any new tables or columns
-using (var serviceScope = app.Services.CreateScope())
+using (IServiceScope serviceScope = app.Services.CreateScope())
 {
-    var databaseUpdater = new MapHive.Utilities.DatabaseManipulator();
+    DatabaseManipulator databaseUpdater = new();
     databaseUpdater.UpdateDatabase();
 }
 

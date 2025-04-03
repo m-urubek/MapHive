@@ -147,7 +147,7 @@ namespace MapHive.Repositories
 
                 // Build sort clause
                 string sortClause = "ORDER BY Id_User DESC";
-                
+
                 if (!string.IsNullOrEmpty(sortField))
                 {
                     string sortColumn = sortField switch
@@ -159,7 +159,7 @@ namespace MapHive.Repositories
                         "Tier" => "Tier",
                         _ => "Id_User"
                     };
-                    
+
                     string sortOrder = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
                     sortClause = $"ORDER BY {sortColumn} {sortOrder}";
                 }
@@ -236,7 +236,7 @@ namespace MapHive.Repositories
             return await Task.Run(() =>
             {
                 string query = "UPDATE Users SET Tier = @Tier WHERE Id_User = @Id";
-                
+
                 SQLiteParameter[] parameters = new SQLiteParameter[]
                 {
                     new("@Id", userId),
