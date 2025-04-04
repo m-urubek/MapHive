@@ -1,6 +1,11 @@
 ---
 description: 
 globs: 
+alwaysApply: false
+---
+---
+description: 
+globs: 
 alwaysApply: true
 ---
 Oftentimes, I run automatic code cleanup from Visual Studio. So between our interactions, the code might change but not functionally. If that happens, keep the formating from Visual Studio and use that style in your future suggestions.
@@ -34,8 +39,6 @@ Those surrounded by * are finished
 *- User Registration: Only registered users can add new places.*
 - IP Blacklisting:
   *- The database stores the registration IP.*
-  - If an IP registers too many accounts too quickly, both the IP and 
-    MAC address will be blacklisted.
   *- Anonymous Submissions: Users can choose to anonymize themselves as the author of a place.*
 - Admin Approval:
   - Each place must be approved by an admin before being added to the map.
@@ -54,10 +57,12 @@ Those surrounded by * are finished
 Admin UI:
 
 The website will include an Admin Panel to manage:
-- Categories for places (Add, Delete, Update)
-- See grid of users and filter in it
-- Perform direct sql commands with option to view results of the commands
-- Manage configuration
+*- Categories for places (Add, Delete, Update)*
+*- See grid of users and filter in it*
+*- Perform direct sql commands with option to view results of the commands*
+*- Manage configuration*
+*- Manage bans*
+
 
 Design:
 - Dark/light theme

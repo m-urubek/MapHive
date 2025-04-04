@@ -386,23 +386,5 @@ namespace MapHive.Repositories
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"])
             };
         }
-
-        public DiscussionThread GetThreadById(int threadId)
-        {
-            // Comment out until the needed methods are implemented
-            throw new NotImplementedException("GetThreadById is not implemented yet");
-        }
-
-        public IEnumerable<DiscussionThread> GetThreadsByLocationId(int locationId)
-        {
-            // Comment out until the needed methods are implemented
-            throw new NotImplementedException("GetThreadsByLocationId is not implemented yet");
-        }
-
-        public void CreateThread(DiscussionThread thread)
-        {
-            // Implementation will be added later
-            throw new NotImplementedException("CreateThread is not implemented yet");
-        }
     }
 }

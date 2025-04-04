@@ -21,10 +21,8 @@ namespace MapHive.Models
 
         public DateTime RegistrationDate { get; set; }
 
-        [Required]
-        public string IpAddress { get; set; } = string.Empty;
-
         public UserTier Tier { get; set; } = UserTier.Normal;
 
+        public string IpAddressHistory { get; set; } = string.Empty;
     }
 }

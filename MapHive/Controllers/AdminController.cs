@@ -131,15 +131,17 @@ namespace MapHive.Controllers
             IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
             int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
 
-            UsersViewModel viewModel = new()
+            UsersGridViewModel viewModel = new()
             {
                 Users = users,
                 SearchTerm = searchTerm,
                 CurrentPage = page,
                 PageSize = pageSize,
-                TotalCount = totalUsers,
-                TotalPages = (int)Math.Ceiling(totalUsers / (double)pageSize)
+                TotalCount = totalUsers
             };
+
+            // Initialize the grid with columns and data
+            viewModel.InitializeGrid();
 
             // Store sort information in ViewData to be used in the view
             this.ViewData["SortField"] = sortField;
@@ -340,6 +342,195 @@ namespace MapHive.Controllers
 
             _ = await CurrentRequest.ConfigService.DeleteConfigurationItemAsync(key);
             return this.RedirectToAction("Configuration");
+        }
+
+        #endregion
+
+        #region Ban Management
+
+        [HttpGet]
+        public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            IEnumerable<UserBan> bans = await CurrentRequest.UserRepository.GetAllBansAsync(searchTerm, page, pageSize, sortField, sortDirection);
+            int totalBans = await CurrentRequest.UserRepository.GetTotalBansCountAsync(searchTerm);
+
+            BansGridViewModel viewModel = new()
+            {
+                Bans = bans,
+                SearchTerm = searchTerm,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalCount = totalBans
+            };
+
+            // Initialize the grid with columns and data
+            viewModel.InitializeGrid();
+
+            // Store sort information in ViewData to be used in the view
+            this.ViewData["SortField"] = sortField;
+            this.ViewData["SortDirection"] = sortDirection;
+
+            return this.View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> BanDetails(int id)
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            if (ban == null)
+            {
+                return this.NotFound();
+            }
+
+            string bannedUsername = string.Empty;
+            if (ban.Properties.TryGetValue("BannedUsername", out string? username))
+            {
+                bannedUsername = username;
+            }
+            else if (ban.UserId.HasValue)
+            {
+                // Get username from UserId
+                bannedUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.UserId.Value);
+            }
+
+            string bannedByUsername;
+            if (ban.Properties.TryGetValue("BannedByUsername", out string? adminUsername))
+            {
+                bannedByUsername = adminUsername;
+            }
+            else
+            {
+                // Get admin username
+                bannedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.BannedByUserId);
+            }
+
+            BanDetailViewModel viewModel = new()
+            {
+                Ban = ban,
+                BannedUsername = bannedUsername,
+                BannedByUsername = bannedByUsername
+            };
+
+            return this.View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveBan(int id)
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            if (ban == null)
+            {
+                return this.NotFound();
+            }
+
+            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(id);
+
+            if (success)
+            {
+                this.TempData["SuccessMessage"] = "Ban has been removed successfully.";
+            }
+            else
+            {
+                this.TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
+            }
+
+            return this.RedirectToAction("Bans");
+        }
+
+        // AJAX endpoint for grid data
+        [HttpGet]
+        public async Task<IActionResult> GetGridData(string gridId, int page = 1, string searchTerm = "", string sortField = "", string sortDirection = "asc")
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            // Default page size
+            int pageSize = 20;
+
+            if (gridId == "userGrid")
+            {
+                // Load user data
+                IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
+                int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
+
+                UsersGridViewModel viewModel = new()
+                {
+                    Users = users,
+                    SearchTerm = searchTerm,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalCount = totalUsers
+                };
+
+                // Initialize grid with columns and data
+                viewModel.InitializeGrid();
+
+                return this.Json(new
+                {
+                    success = true,
+                    totalPages = viewModel.TotalPages,
+                    currentPage = page,
+                    totalCount = totalUsers,
+                    items = viewModel.Grid.Items,
+                    gridId
+                });
+            }
+            else if (gridId == "banGrid")
+            {
+                // Load ban data
+                IEnumerable<UserBan> bans = await CurrentRequest.UserRepository.GetAllBansAsync(searchTerm, page, pageSize, sortField, sortDirection);
+                int totalBans = await CurrentRequest.UserRepository.GetTotalBansCountAsync(searchTerm);
+
+                BansGridViewModel viewModel = new()
+                {
+                    Bans = bans,
+                    SearchTerm = searchTerm,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalCount = totalBans
+                };
+
+                // Initialize grid with columns and data
+                viewModel.InitializeGrid();
+
+                return this.Json(new
+                {
+                    success = true,
+                    totalPages = viewModel.TotalPages,
+                    currentPage = page,
+                    totalCount = totalBans,
+                    items = viewModel.Grid.Items,
+                    gridId
+                });
+            }
+
+            return this.Json(new { success = false, message = "Invalid grid ID" });
         }
 
         #endregion

@@ -7,6 +7,52 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <partial name="Partials/_ProfileInfoPartial" model="Model" />
+            
+            @if (Model.CurrentBan != null && Model.CurrentBan.IsActive)
+            {
+                <div class="alert alert-danger mt-3">
+                    <h5><i class="bi bi-exclamation-triangle-fill"></i> This user is currently banned</h5>
+                    <p><strong>Reason:</strong> @Model.CurrentBan.Reason</p>
+                    <p><strong>Ban type:</strong> @(Model.CurrentBan.BanType == BanType.Account ? "Account ban" : "IP address ban")</p>
+                    <p>
+                        <strong>Status:</strong>
+                        @if (Model.CurrentBan.ExpiresAt.HasValue)
+                        {
+                            <span>Temporary (expires on @Model.CurrentBan.ExpiresAt.Value.ToString("g"))</span>
+                        }
+                        else
+                        {
+                            <span>Permanent</span>
+                        }
+                    </p>
+                    
+                    @if (Model.IsAdmin)
+                    {
+                        <form asp-action="UnbanUser" method="post" class="mt-2">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="banId" value="@Model.CurrentBan.Id" />
+                            <input type="hidden" name="username" value="@Model.Username" />
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-unlock"></i> Remove Ban
+                            </button>
+                        </form>
+                    }
+                </div>
+            }
+            
+            @if (Model.IsAdmin && Model.Tier != UserTier.Admin && (Model.CurrentBan == null || !Model.CurrentBan.IsActive))
+            {
+                <div class="card mt-3">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-shield-exclamation"></i> Admin Actions
+                    </div>
+                    <div class="card-body">
+                        <a asp-action="BanUser" asp-route-username="@Model.Username" class="btn btn-danger">
+                            <i class="bi bi-lock-fill"></i> Ban User
+                        </a>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 
@@ -32,10 +78,11 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl)
-            })
+            });
         });
     </script>
 } 
