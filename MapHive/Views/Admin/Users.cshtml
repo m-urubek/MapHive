@@ -1,14 +1,16 @@
-@model MapHive.Models.UsersGridViewModel
+@model MapHive.Models.DataGrid.DataGrid
 
 @{
     ViewData["Title"] = "Manage Users";
+    // Select different columns to display for the Users page
+    ViewData["ColumnsToDisplay"] = new[] { "Username", "RegistrationDate", "Tier" };
 }
 
 <div class="container">
     <div class="row mb-4">
         <div class="col">
             <h1>Manage Users</h1>
-            <p class="text-muted">View the list of registered users in the system.</p>
+            <p class="text-muted">View and manage all users in the system.</p>
         </div>
     </div>
 
@@ -16,7 +18,7 @@
         <div class="search-container">
             <form asp-action="Users" method="get" class="d-flex">
                 <div class="input-group">
-                    <input type="text" name="searchTerm" class="form-control" placeholder="Search by username..." value="@Model.SearchTerm">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search users..." value="@Model.SearchTerm">
                     <button class="btn btn-primary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -32,7 +34,15 @@
         </div>
     </div>
 
-    @await Html.PartialAsync("/Views/Shared/_DataGrid.cshtml", Model.Grid)
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @await Html.PartialAsync("/Views/Shared/_DataGrid.cshtml", Model)
 
     <div class="row mt-3">
         <div class="col">

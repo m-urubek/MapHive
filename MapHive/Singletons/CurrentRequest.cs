@@ -1,4 +1,5 @@
 using MapHive.Repositories;
+using MapHive.Repositories.Interfaces;
 using MapHive.Services;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
@@ -44,6 +45,7 @@ namespace MapHive.Singletons
         public static IConfigurationRepository ConfigRepository => GetService<IConfigurationRepository>();
         public static IReviewRepository ReviewRepository => GetService<IReviewRepository>();
         public static IDiscussionRepository DiscussionRepository => GetService<IDiscussionRepository>();
+        public static IDataGridRepository DataGridRepository => GetService<IDataGridRepository>();
 
         // Services
         public static IAuthService AuthService => GetService<IAuthService>();

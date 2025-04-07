@@ -24,7 +24,7 @@ namespace MapHive.Repositories
 
                 // Get author name
                 int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
+                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId); //TODO use join instead of doing extra request
                 review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
                 reviews.Add(review);

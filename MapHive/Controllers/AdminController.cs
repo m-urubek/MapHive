@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Models.DataGrid;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -128,24 +129,15 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
+            // Get users using the DataGridRepository
+            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+                "Users",
+                page,
+                pageSize,
+                searchTerm,
+                sortField,
+                sortDirection);
 
-            UsersGridViewModel viewModel = new()
-            {
-                Users = users,
-                SearchTerm = searchTerm,
-                CurrentPage = page,
-                PageSize = pageSize,
-                TotalCount = totalUsers
-            };
-
-            // Initialize the grid with columns and data
-            viewModel.InitializeGrid();
-
-            // Store sort information in ViewData to be used in the view
-            this.ViewData["SortField"] = sortField;
-            this.ViewData["SortDirection"] = sortDirection;
 
             return this.View(viewModel);
         }
@@ -358,20 +350,15 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            IEnumerable<UserBan> bans = await CurrentRequest.UserRepository.GetAllBansAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            int totalBans = await CurrentRequest.UserRepository.GetTotalBansCountAsync(searchTerm);
+            // Get bans using the DataGridRepository
+            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+                "UserBans",
+                page,
+                pageSize,
+                searchTerm,
+                sortField,
+                sortDirection);
 
-            BansGridViewModel viewModel = new()
-            {
-                Bans = bans,
-                SearchTerm = searchTerm,
-                CurrentPage = page,
-                PageSize = pageSize,
-                TotalCount = totalBans
-            };
-
-            // Initialize the grid with columns and data
-            viewModel.InitializeGrid();
 
             // Store sort information in ViewData to be used in the view
             this.ViewData["SortField"] = sortField;
@@ -457,80 +444,6 @@ namespace MapHive.Controllers
             }
 
             return this.RedirectToAction("Bans");
-        }
-
-        // AJAX endpoint for grid data
-        [HttpGet]
-        public async Task<IActionResult> GetGridData(string gridId, int page = 1, string searchTerm = "", string sortField = "", string sortDirection = "asc")
-        {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            // Default page size
-            int pageSize = 20;
-
-            if (gridId == "userGrid")
-            {
-                // Load user data
-                IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
-                int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
-
-                UsersGridViewModel viewModel = new()
-                {
-                    Users = users,
-                    SearchTerm = searchTerm,
-                    CurrentPage = page,
-                    PageSize = pageSize,
-                    TotalCount = totalUsers
-                };
-
-                // Initialize grid with columns and data
-                viewModel.InitializeGrid();
-
-                return this.Json(new
-                {
-                    success = true,
-                    totalPages = viewModel.TotalPages,
-                    currentPage = page,
-                    totalCount = totalUsers,
-                    items = viewModel.Grid.Items,
-                    gridId
-                });
-            }
-            else if (gridId == "banGrid")
-            {
-                // Load ban data
-                IEnumerable<UserBan> bans = await CurrentRequest.UserRepository.GetAllBansAsync(searchTerm, page, pageSize, sortField, sortDirection);
-                int totalBans = await CurrentRequest.UserRepository.GetTotalBansCountAsync(searchTerm);
-
-                BansGridViewModel viewModel = new()
-                {
-                    Bans = bans,
-                    SearchTerm = searchTerm,
-                    CurrentPage = page,
-                    PageSize = pageSize,
-                    TotalCount = totalBans
-                };
-
-                // Initialize grid with columns and data
-                viewModel.InitializeGrid();
-
-                return this.Json(new
-                {
-                    success = true,
-                    totalPages = viewModel.TotalPages,
-                    currentPage = page,
-                    totalCount = totalBans,
-                    items = viewModel.Grid.Items,
-                    gridId
-                });
-            }
-
-            return this.Json(new { success = false, message = "Invalid grid ID" });
         }
 
         #endregion

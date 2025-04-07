@@ -1,5 +1,6 @@
 using MapHive.Middleware;
 using MapHive.Repositories;
+using MapHive.Repositories.Interfaces;
 using MapHive.Services;
 using MapHive.Singletons;
 using MapHive.Utilities;
@@ -17,6 +18,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
+builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();

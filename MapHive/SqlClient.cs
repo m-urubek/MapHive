@@ -2,7 +2,7 @@
 using System.Data;
 using System.Data.SQLite;
 
-public class SqlClient
+public class SqlClient //TODO change to unscoped singleton
 {
     private readonly string _connectionString;
 
