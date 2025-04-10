@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0"><i class="bi bi-shield-lock-fill me-2"></i>Access Denied</h2>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+                    </div>
+                    <h3 class="mb-4">You do not have permission to access this resource</h3>
+                    <p class="lead mb-4">
+                        This page is restricted to administrators only. If you believe you should have access,
+                        please contact an administrator.
+                    </p>
+                    <div class="mt-4">
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-primary me-2">
+                            <i class="bi bi-house-door-fill me-1"></i> Return to Home
+                        </a>
+                        @if (!User.Identity?.IsAuthenticated == true)
+                        {
+                            <a asp-controller="Account" asp-action="Login" class="btn btn-secondary">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Log In
+                            </a>
+                        }
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    If you believe this is an error, please contact site support.
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

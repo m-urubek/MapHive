@@ -1,6 +1,8 @@
+using MapHive.Models;
 using MapHive.Models.Exceptions;
 using MapHive.Repositories.Interfaces;
 using MapHive.Singletons;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -8,6 +10,7 @@ using System.Threading.Tasks;
 
 namespace MapHive.Controllers
 {
+    [Authorize]
     public class DisplayController : Controller
     {
         /// <summary>
@@ -21,6 +24,13 @@ namespace MapHive.Controllers
         {
             try
             {
+                // Check if the user is an admin
+                string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+                if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+                {
+                    return this.RedirectToAction("AccessDenied", "Account");
+                }
+                
                 // Validate table exists
                 if (string.IsNullOrEmpty(tableName))
                 {

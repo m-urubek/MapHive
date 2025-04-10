@@ -620,6 +620,12 @@ namespace MapHive.Controllers
             };
         }
 
+        [HttpGet]
+        public IActionResult AccessDenied()
+        {
+            return this.View();
+        }
+
         #region Login Helpers
 
         private async Task<bool> CheckForUserBanAsync(int userId)
