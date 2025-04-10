@@ -46,6 +46,7 @@ namespace MapHive.Singletons
         public static IReviewRepository ReviewRepository => GetService<IReviewRepository>();
         public static IDiscussionRepository DiscussionRepository => GetService<IDiscussionRepository>();
         public static IDataGridRepository DataGridRepository => GetService<IDataGridRepository>();
+        public static IDisplayRepository DisplayRepository => GetService<IDisplayRepository>();
 
         // Services
         public static IAuthService AuthService => GetService<IAuthService>();
