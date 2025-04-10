@@ -179,6 +179,17 @@ namespace MapHive.Repositories
             foreach (DataRow dataRow in dataTable.Rows)
             {
                 DataGridRow row = new();
+                
+                // Find the ID column
+                string idColumnName = FindIdColumnName(dataTable.Columns, dataRow);
+                if (!string.IsNullOrEmpty(idColumnName) && dataRow[idColumnName] != DBNull.Value)
+                {
+                    // Parse the ID value if possible
+                    if (int.TryParse(dataRow[idColumnName].ToString(), out int idValue))
+                    {
+                        row.RowId = idValue;
+                    }
+                }
 
                 foreach (DataGridColumn column in columns)
                 {
@@ -203,6 +214,44 @@ namespace MapHive.Repositories
             }
 
             return rows;
+        }
+        
+        // Helper method to find the ID column name in a table
+        private static string FindIdColumnName(DataColumnCollection columns, DataRow row)
+        {
+            // Common patterns for ID column names
+            string[] idPatterns = new[] 
+            { 
+                "Id", 
+                "ID", 
+                "_id",
+                "id_"
+            };
+            
+            // First, look for columns starting with "Id_"
+            foreach (DataColumn column in columns)
+            {
+                if (column.ColumnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return column.ColumnName;
+                }
+            }
+            
+            // Then look for plain "Id" or "{TableName}Id"
+            foreach (DataColumn column in columns)
+            {
+                foreach (string pattern in idPatterns)
+                {
+                    if (column.ColumnName.Equals(pattern, StringComparison.OrdinalIgnoreCase) ||
+                        column.ColumnName.EndsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return column.ColumnName;
+                    }
+                }
+            }
+            
+            // If no ID column is found, return the first column as a fallback
+            return columns.Count > 0 ? columns[0].ColumnName : string.Empty;
         }
 
         // Get total count of rows for pagination

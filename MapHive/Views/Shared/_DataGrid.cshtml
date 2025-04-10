@@ -51,6 +51,7 @@
         height: 48px;
         display: flex;
         align-items: center;
+        cursor: pointer; /* Make rows appear clickable */
     }
 
         .ms-DetailsRow:hover {
@@ -276,7 +277,7 @@
             {
                 foreach (var item in Model.Items)
                 {
-                    <div class="ms-DetailsRow">
+                    <div class="ms-DetailsRow" data-table="@Model.TableName" data-id="@(item.RowId)">
                         @foreach (var column in displayColumns)
                         {
                             if (item.CellsByColumnNames.TryGetValue(column.InternalName, out var cell))
@@ -390,6 +391,37 @@
         let searchTerm = document.getElementById('searchTerm').value;
         let currentPage = document.getElementById('currentPage').value;
         const tableName = document.getElementById('tableName').value;
+
+        // Add click event handler for grid rows to navigate to display page
+        function addRowClickHandlers() {
+            document.querySelectorAll('.ms-DetailsRow').forEach(row => {
+                // Don't add click handler to header row or search row
+                if (row.closest('.ms-DetailsHeader')) {
+                    return;
+                }
+                
+                // Get the row's data-id and data-table attributes
+                const id = row.getAttribute('data-id');
+                const table = row.getAttribute('data-table');
+                
+                // Only add click handler if we have both id and table
+                if (id && table) {
+                    row.addEventListener('click', function(e) {
+                        // Don't navigate if we clicked on a link or button within the row
+                        if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                            e.target.closest('a') || e.target.closest('button')) {
+                            return;
+                        }
+                        
+                        // Navigate to display page
+                        window.location.href = `/Display/Item?tableName=${table}&id=${id}`;
+                    });
+                }
+            });
+        }
+        
+        // Add click handlers for initial rows
+        addRowClickHandlers();
 
         // Current column searches
         let currentSearches = {};
@@ -658,6 +690,13 @@
                     data.items.forEach(item => {
                         const rowElement = document.createElement('div');
                         rowElement.className = 'ms-DetailsRow';
+                        
+                        // Add data attributes for the row ID and table name
+                        const rowId = item.rowId || item.RowId || item.id || item.Id;
+                        if (rowId) {
+                            rowElement.setAttribute('data-id', rowId);
+                            rowElement.setAttribute('data-table', data.tableName);
+                        }
 
                         // Use filtered columns to maintain order
                         displayColumns.forEach(column => {
@@ -693,6 +732,9 @@
 
                         contentWrapper.appendChild(rowElement);
                     });
+                    
+                    // Add click handlers to the new rows
+                    addRowClickHandlers();
                 } else {
                     // Show "no items" message
                     const emptyRow = document.createElement('div');
