@@ -20,6 +20,7 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 builder.Services.AddScoped<IDisplayRepository, DisplayRepository>();
+builder.Services.AddScoped<ILogRepository, LogRepository>();
 
 // Add SqlClient as a singleton
 builder.Services.AddSingleton(sp => {
