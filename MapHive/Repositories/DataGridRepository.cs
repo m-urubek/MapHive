@@ -194,7 +194,6 @@ namespace MapHive.Repositories
                     DataGridCell cell = new()
                     {
                         Content = cellContent,
-                        Flex = column.Flex
                     };
 
                     row.CellsByColumnNames[columnName] = cell;

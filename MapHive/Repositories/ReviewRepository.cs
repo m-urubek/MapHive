@@ -10,9 +10,11 @@ namespace MapHive.Repositories
         public async Task<IEnumerable<Review>> GetReviewsByLocationIdAsync(int locationId)
         {
             string query = @"
-                SELECT * FROM Reviews 
-                WHERE LocationId = @LocationId
-                ORDER BY CreatedAt DESC";
+                SELECT r.*, u.Username
+                FROM Reviews r
+                LEFT JOIN Users u ON r.UserId = u.Id_User
+                WHERE r.LocationId = @LocationId
+                ORDER BY r.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
             DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
@@ -23,8 +25,7 @@ namespace MapHive.Repositories
                 Review review = this.MapRowToReview(row);
 
                 // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId); //TODO use join instead of doing extra request
+                string username = row["Username"]?.ToString() ?? "Unknown User"; // Get username from JOIN
                 review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
                 reviews.Add(review);

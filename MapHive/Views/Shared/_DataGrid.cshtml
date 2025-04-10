@@ -281,7 +281,7 @@
                         {
                             if (item.CellsByColumnNames.TryGetValue(column.InternalName, out var cell))
                             {
-                                <div class="ms-DetailsRow-cell" style="flex: @cell.Flex;">
+                                <div class="ms-DetailsRow-cell" style="flex: @column.Flex;">
                                     @Html.Raw(cell.Content)
                                 </div>
                             }
@@ -681,7 +681,7 @@
                             }
 
                             if (cell) {
-                                cellElement.style.flex = cell.flex || column.flex;
+                                cellElement.style.flex = column.flex;
                                 cellElement.innerHTML = cell.content || cell.Content || '';
                             } else {
                                 // Empty cell if data is missing
