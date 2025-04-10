@@ -20,6 +20,16 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 
+// Add SqlClient as a singleton
+builder.Services.AddSingleton(sp => {
+    string dbFilePath = "D:\\MapHive\\MapHive\\maphive.db";
+    if (!File.Exists(dbFilePath))
+    {
+        dbFilePath = "maphive.db";
+    }
+    return MapHive.SqlClient.GetInstance(dbFilePath);
+});
+
 // Add HTTP context accessor for accessing request information in services
 builder.Services.AddHttpContextAccessor();
 
@@ -58,6 +68,9 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 
 WebApplication app = builder.Build();
 
+// Initialize the CurrentRequest static class with the service provider
+CurrentRequest.Initialize(app.Services);
+
 // Initialize the main client
 MainClient.Initialize();
 
@@ -67,9 +80,6 @@ using (IServiceScope serviceScope = app.Services.CreateScope())
     DatabaseManipulator databaseUpdater = new();
     databaseUpdater.UpdateDatabase();
 }
-
-// Initialize the CurrentRequest static class with the service provider
-CurrentRequest.Initialize(app.Services);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

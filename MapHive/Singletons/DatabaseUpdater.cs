@@ -8,7 +8,7 @@ namespace MapHive.Singletons
     {
         public static void Run()
         {
-            DataTable versionRawData = MainClient.SqlClient.Select("select * from VersionNumber");
+            DataTable versionRawData = CurrentRequest.SqlClient.Select("select * from VersionNumber");
             if (versionRawData.Rows.Count == 0)
             {
                 throw new Exception("Version data has no rows");
@@ -42,7 +42,7 @@ namespace MapHive.Singletons
                     new("@Value", lastUpdateNumber),
                     new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
                 };
-                if (MainClient.SqlClient.Update(query, parameters) != 1)
+                if (CurrentRequest.SqlClient.Update(query, parameters) != 1)
                 {
                     throw new Exception("Unable to update database number");
                 }
@@ -51,7 +51,7 @@ namespace MapHive.Singletons
 
         public static void v1()
         {
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'MapLocations' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'MapLocations' (
                 'Id_MapLocation'	INTEGER,
                 'Name'	TEXT NOT NULL,
                 'Description'	TEXT NOT NULL,
@@ -69,7 +69,7 @@ namespace MapHive.Singletons
         public static void v2()
         {
             // Create LogSeverity table to store different log levels
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'LogSeverity' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'LogSeverity' (
                 'Id_LogSeverity'	INTEGER,
                 'Name'	TEXT NOT NULL,
                 'Description' TEXT,
@@ -87,7 +87,7 @@ namespace MapHive.Singletons
 
             for (int i = 0; i < severityLevels.Length; i++)
             {
-                _ = MainClient.SqlClient.Insert(
+                _ = CurrentRequest.SqlClient.Insert(
                     "INSERT INTO LogSeverity (Name, Description) VALUES (@Name, @Description);",
                     new SQLiteParameter[] {
                         new("@Name", severityLevels[i]),
@@ -97,7 +97,7 @@ namespace MapHive.Singletons
             }
 
             // Create Logs table
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Logs' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Logs' (
                 'Id_Log'	INTEGER,
                 'Timestamp' TEXT NOT NULL,
                 'SeverityId' INTEGER NOT NULL,
@@ -115,7 +115,7 @@ namespace MapHive.Singletons
         public static void v3()
         {
             // Create Users table
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users' (
                 'Id_User'	INTEGER,
                 'Username'	TEXT NOT NULL UNIQUE,
                 'PasswordHash'	TEXT NOT NULL,
@@ -128,7 +128,7 @@ namespace MapHive.Singletons
             )");
 
             // Create blacklist table for IP and MAC addresses
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist' (
                 'Id_Blacklist'	INTEGER,
                 'IpAddress'	TEXT,
                 'MacAddress'	TEXT,
@@ -138,19 +138,19 @@ namespace MapHive.Singletons
             )");
 
             // Create an index on Username for faster lookups
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
 
             // Create indexes on IP and MAC addresses for blacklist checks
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_mac_address ON Users(MacAddress)");
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_mac ON Blacklist(MacAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_mac_address ON Users(MacAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_mac ON Blacklist(MacAddress)");
         }
 
         public static void v4()
         {
             // Create Configuration table
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Configuration' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Configuration' (
                 'Id_Configuration'	INTEGER,
                 'Key'	TEXT NOT NULL UNIQUE,
                 'Value'	TEXT NOT NULL,
@@ -159,7 +159,7 @@ namespace MapHive.Singletons
             )");
 
             // Create an index on the Key column for faster lookups
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_configuration_key ON Configuration(Key)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_configuration_key ON Configuration(Key)");
 
             // Add DevelopmentMode configuration with default value of false
             string query = @"
@@ -173,7 +173,7 @@ namespace MapHive.Singletons
                 new("@Description", "Enable development features and debugging tools when true")
             };
 
-            _ = MainClient.SqlClient.Insert(query, parameters);
+            _ = CurrentRequest.SqlClient.Insert(query, parameters);
         }
 
         public static void v5()
@@ -191,7 +191,7 @@ namespace MapHive.Singletons
             string migrationScript = File.ReadAllText(sqlUpdateScriptPath);
 
             // Execute the migration script
-            int statementsExecuted = MainClient.SqlClient.ExecuteScript(migrationScript);
+            int statementsExecuted = CurrentRequest.SqlClient.ExecuteScript(migrationScript);
 
             // Log the migration result
             Console.WriteLine($"Executed {statementsExecuted} statements from MapLocations migration script.");
@@ -211,7 +211,7 @@ namespace MapHive.Singletons
             string migrationScript = File.ReadAllText(sqlUpdateScriptPath);
 
             // Execute the migration script
-            int statementsExecuted = MainClient.SqlClient.ExecuteScript(migrationScript);
+            int statementsExecuted = CurrentRequest.SqlClient.ExecuteScript(migrationScript);
 
             // Log the migration result
             Console.WriteLine($"Executed {statementsExecuted} statements from ReviewsAndDiscussions sql update script.");
@@ -222,7 +222,7 @@ namespace MapHive.Singletons
             // Remove MAC address functionality
 
             // Create temporary tables without MAC address
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users_temp' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Users_temp' (
                 'Id_User'	INTEGER,
                 'Username'	TEXT NOT NULL UNIQUE,
                 'PasswordHash'	TEXT NOT NULL,
@@ -233,7 +233,7 @@ namespace MapHive.Singletons
                 PRIMARY KEY('Id_User' AUTOINCREMENT)
             )");
 
-            _ = MainClient.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist_temp' (
+            _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist_temp' (
                 'Id_Blacklist'	INTEGER,
                 'IpAddress'	TEXT,
                 'Reason'	TEXT NOT NULL,
@@ -242,30 +242,30 @@ namespace MapHive.Singletons
             )");
 
             // Copy data to temporary tables without MAC address
-            _ = MainClient.SqlClient.Alter(@"INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
+            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
                 SELECT Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin FROM Users");
 
-            _ = MainClient.SqlClient.Alter(@"INSERT INTO Blacklist_temp (Id_Blacklist, IpAddress, Reason, BlacklistedDate)
+            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Blacklist_temp (Id_Blacklist, IpAddress, Reason, BlacklistedDate)
                 SELECT Id_Blacklist, IpAddress, Reason, BlacklistedDate FROM Blacklist");
 
             // Drop original tables
-            _ = MainClient.SqlClient.Alter("DROP TABLE Users");
-            _ = MainClient.SqlClient.Alter("DROP TABLE Blacklist");
+            _ = CurrentRequest.SqlClient.Alter("DROP TABLE Users");
+            _ = CurrentRequest.SqlClient.Alter("DROP TABLE Blacklist");
 
             // Rename temporary tables to original names
-            _ = MainClient.SqlClient.Alter("ALTER TABLE Users_temp RENAME TO Users");
-            _ = MainClient.SqlClient.Alter("ALTER TABLE Blacklist_temp RENAME TO Blacklist");
+            _ = CurrentRequest.SqlClient.Alter("ALTER TABLE Users_temp RENAME TO Users");
+            _ = CurrentRequest.SqlClient.Alter("ALTER TABLE Blacklist_temp RENAME TO Blacklist");
 
             // Recreate indexes
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
-            _ = MainClient.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
         }
 
         public static void v8()
         {
             // Step 1: Add the Tier column if it doesn't exist
-            _ = MainClient.SqlClient.Alter(@"
+            _ = CurrentRequest.SqlClient.Alter(@"
                 PRAGMA foreign_keys=off;
 
                 BEGIN TRANSACTION;
@@ -312,7 +312,7 @@ namespace MapHive.Singletons
 
         public static void v9()
         {
-            _ = MainClient.SqlClient.Alter(@"
+            _ = CurrentRequest.SqlClient.Alter(@"
                 PRAGMA foreign_keys=off;
                 
                 BEGIN TRANSACTION;
@@ -345,7 +345,7 @@ namespace MapHive.Singletons
 
         public static void v10()
         {
-            _ = MainClient.SqlClient.ExecuteScript(@"
+            _ = CurrentRequest.SqlClient.ExecuteScript(@"
                 PRAGMA foreign_keys=off;
                 
                 BEGIN TRANSACTION;

@@ -33,7 +33,7 @@ namespace MapHive.Utilities
                     Icon TEXT
                 );";
 
-            _ = MainClient.SqlClient.Alter(query);
+            _ = CurrentRequest.SqlClient.Alter(query);
         }
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace MapHive.Utilities
         private bool TableExists(string tableName)
         {
             string query = $"SELECT name FROM sqlite_master WHERE type='table' AND name='{tableName}';";
-            DataTable result = MainClient.SqlClient.Select(query);
+            DataTable result = CurrentRequest.SqlClient.Select(query);
             return result.Rows.Count > 0;
         }
     }

@@ -19,7 +19,7 @@ namespace MapHive.Repositories
             }
 
             string query = $"PRAGMA table_info({tableName})";
-            return await MainClient.SqlClient.SelectAsync(query);
+            return await CurrentRequest.SqlClient.SelectAsync(query);
         }
 
         // Get schema information about foreign keys for a table
@@ -32,7 +32,7 @@ namespace MapHive.Repositories
             }
 
             string query = $"PRAGMA foreign_key_list({tableName})";
-            return await MainClient.SqlClient.SelectAsync(query);
+            return await CurrentRequest.SqlClient.SelectAsync(query);
         }
 
         // Get columns for a table
@@ -160,7 +160,7 @@ namespace MapHive.Repositories
             );
 
             // Execute query to get data
-            DataTable dataTable = await MainClient.SqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters.ToArray());
 
             // Convert data to grid rows
             viewModel.Items = ConvertDataTableToGridRows(dataTable, viewModel.Columns);
@@ -222,7 +222,7 @@ namespace MapHive.Repositories
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
             // Execute query
-            DataTable resultTable = await MainClient.SqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable resultTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters.ToArray());
 
             // Get total count
             return Convert.ToInt32(resultTable.Rows[0][0]);

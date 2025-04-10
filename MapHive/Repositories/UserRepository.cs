@@ -22,7 +22,7 @@ namespace MapHive.Repositories
                 new("@IpAddressHistory", user.IpAddressHistory)
             };
 
-            return MainClient.SqlClient.Insert(query, parameters);
+            return CurrentRequest.SqlClient.Insert(query, parameters);
         }
 
         public User? GetUserById(int id)
@@ -30,7 +30,7 @@ namespace MapHive.Repositories
             string query = "SELECT * FROM Users WHERE Id_User = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
 
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
+            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
 
             return result.Rows.Count > 0 ? MapDataRowToUser(result.Rows[0]) : null;
         }
@@ -40,7 +40,7 @@ namespace MapHive.Repositories
             string query = "SELECT * FROM Users WHERE Username = @Username";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
 
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
+            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
 
             return result.Rows.Count > 0 ? MapDataRowToUser(result.Rows[0]) : null;
         }
@@ -50,7 +50,7 @@ namespace MapHive.Repositories
             string query = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
 
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
+            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
 
             return Convert.ToInt32(result.Rows[0][0]) > 0;
         }
@@ -66,7 +66,7 @@ namespace MapHive.Repositories
                 new("@IpAddress", ipAddress)
             };
 
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
+            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
 
             return Convert.ToInt32(result.Rows[0][0]) > 0;
         }
@@ -84,7 +84,7 @@ namespace MapHive.Repositories
                 new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
             };
 
-            return MainClient.SqlClient.Insert(query, parameters);
+            return CurrentRequest.SqlClient.Insert(query, parameters);
         }
 
         public void UpdateUser(User user)
@@ -106,7 +106,7 @@ namespace MapHive.Repositories
                 new("@IpAddressHistory", user.IpAddressHistory)
             };
 
-            _ = MainClient.SqlClient.Update(query, parameters);
+            _ = CurrentRequest.SqlClient.Update(query, parameters);
         }
 
         public async Task<string> GetUsernameByIdAsync(int userId)
@@ -114,7 +114,7 @@ namespace MapHive.Repositories
             string query = "SELECT Username FROM Users WHERE Id_User = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", userId) };
 
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             return result.Rows.Count > 0 ? result.Rows[0]["Username"].ToString() ?? "Unknown" : "Unknown";
         }
@@ -197,7 +197,7 @@ namespace MapHive.Repositories
             }
 
             // Use SelectAsync directly
-            DataTable dataTable = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             foreach (DataRow row in dataTable.Rows)
             {
@@ -226,7 +226,7 @@ namespace MapHive.Repositories
             }
 
             // Use SelectAsync directly
-            DataTable dataTable = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
             return Convert.ToInt32(dataTable.Rows[0][0]);
         }
 
@@ -241,7 +241,7 @@ namespace MapHive.Repositories
             };
 
             // Use UpdateAsync directly
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -267,7 +267,7 @@ namespace MapHive.Repositories
             };
 
             // Use InsertAsync directly
-            return await MainClient.SqlClient.InsertAsync(query, parameters);
+            return await CurrentRequest.SqlClient.InsertAsync(query, parameters);
         }
 
         public async Task<bool> UnbanUserAsync(int banId)
@@ -276,7 +276,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
 
             // Use DeleteAsync directly
-            int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -292,7 +292,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count > 0)
             {
@@ -314,7 +314,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@IpAddress", ipAddress) };
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count > 0)
             {
@@ -335,7 +335,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             foreach (DataRow row in result.Rows)
             {
@@ -355,7 +355,7 @@ namespace MapHive.Repositories
                     ORDER BY BannedAt DESC";
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query);
 
             foreach (DataRow row in result.Rows)
             {
@@ -437,7 +437,7 @@ namespace MapHive.Repositories
             parametersList.Add(new SQLiteParameter("@Offset", offset));
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parametersList.ToArray());
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parametersList.ToArray());
 
             foreach (DataRow row in result.Rows)
             {
@@ -481,7 +481,7 @@ namespace MapHive.Repositories
             }
 
             // Use SelectAsync directly
-            DataTable dataTable = await MainClient.SqlClient.SelectAsync(query, parametersList.ToArray());
+            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parametersList.ToArray());
             return Convert.ToInt32(dataTable.Rows[0][0]);
         }
 
@@ -491,7 +491,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
 
             // Use SelectAsync directly
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count > 0)
             {

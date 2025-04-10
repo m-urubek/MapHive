@@ -97,7 +97,7 @@ namespace MapHive.Services
                         new("@AdditionalData", capturedAdditionalData ?? "")
                     };
 
-                    _ = MainClient.SqlClient.Insert(query, parameters);
+                    _ = CurrentRequest.SqlClient.Insert(query, parameters);
                 }
                 catch (Exception ex)
                 {
