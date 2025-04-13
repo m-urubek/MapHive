@@ -293,8 +293,17 @@
             crossorigin=""></script>
     <script>
         $(document).ready(function() {
-            // Initialize the map
-            var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
+            // Initialize the map with only zoom buttons enabled, all other interactions disabled
+            var map = L.map('map', {
+                dragging: false,
+                zoomControl: true,
+                scrollWheelZoom: false,
+                doubleClickZoom: false,
+                touchZoom: false,
+                boxZoom: false,
+                keyboard: false,
+                tap: false
+            }).setView([@Model.Latitude, @Model.Longitude], 13);
 
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
