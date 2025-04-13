@@ -304,15 +304,6 @@
 
             // Add a marker for the location
             var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
-
-            // Add a popup to the marker
-            marker.bindPopup(
-                '<strong>@Model.Name</strong><br>' +
-                '@Model.Description<br>' +
-                '@(string.IsNullOrEmpty(Model.Address) ? "" : Model.Address + "<br>")' +
-                '@(string.IsNullOrEmpty(Model.Website) ? "" : "<a href=\"" + Model.Website + "\" target=\"_blank\">Website</a><br>")' +
-                '@(string.IsNullOrEmpty(Model.PhoneNumber) ? "" : "Phone: " + Model.PhoneNumber)'
-            ).openPopup();
         });
     </script>
 } 
