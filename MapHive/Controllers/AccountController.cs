@@ -162,6 +162,12 @@ namespace MapHive.Controllers
                     new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
+                // Add role claims based on UserTier
+                if (response.User.Tier == UserTier.Admin)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                }
+
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 ClaimsPrincipal principal = new(identity);
 
@@ -532,6 +538,17 @@ namespace MapHive.Controllers
                 new Claim("UserTier", ((int)user.Tier).ToString()),
             };
 
+            // Add role claims based on UserTier
+            if (user.Tier == UserTier.Admin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+            // Add other role claims if needed, e.g.:
+            // else if (user.Tier == UserTier.Trusted)
+            // {
+            //     claims.Add(new Claim(ClaimTypes.Role, "TrustedUser"));
+            // }
+
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal principal = new(identity);
 
@@ -667,6 +684,18 @@ namespace MapHive.Controllers
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim("UserTier", ((int)user.Tier).ToString()),
             };
+
+            // Add role claims based on UserTier
+            if (user.Tier == UserTier.Admin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+            // Add other role claims if needed, e.g.:
+            // else if (user.Tier == UserTier.Trusted)
+            // {
+            //     claims.Add(new Claim(ClaimTypes.Role, "TrustedUser"));
+            // }
+
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             return new ClaimsPrincipal(identity);
         }
