@@ -28,8 +28,8 @@ namespace MapHive.Services
                 Username = request.Username,
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
-                IpAddress = ipAddress,
-                Tier = UserTier.Normal
+                Tier = UserTier.Normal,
+                IpAddressHistory = ipAddress
             };
 
             int userId = CurrentRequest.UserRepository.CreateUser(user);

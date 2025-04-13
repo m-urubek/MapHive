@@ -12,7 +12,7 @@ namespace MapHive.Repositories
             return await Task.Run(() =>
             {
                 List<MapLocation> locations = new();
-                DataTable dataTable = MainClient.SqlClient.Select("SELECT * FROM MapLocations");
+                DataTable dataTable = CurrentRequest.SqlClient.Select("SELECT * FROM MapLocations");
 
                 foreach (DataRow row in dataTable.Rows)
                 {
@@ -32,7 +32,7 @@ namespace MapHive.Repositories
                     new("@Id", id)
                 };
 
-                DataTable dataTable = MainClient.SqlClient.Select(
+                DataTable dataTable = CurrentRequest.SqlClient.Select(
                     "SELECT * FROM MapLocations WHERE Id_MapLocation = @Id",
                     parameters);
 
@@ -62,7 +62,7 @@ namespace MapHive.Repositories
                     new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
                 };
 
-                int id = MainClient.SqlClient.Insert(
+                int id = CurrentRequest.SqlClient.Insert(
                     @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, 
                       Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous) 
                       VALUES (@Name, @Description, @Latitude, @Longitude, 
@@ -105,7 +105,7 @@ namespace MapHive.Repositories
                     new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
                 };
 
-                _ = MainClient.SqlClient.Update(
+                _ = CurrentRequest.SqlClient.Update(
                     @"UPDATE MapLocations 
                       SET Name = @Name, Description = @Description, 
                       Latitude = @Latitude, Longitude = @Longitude, 
@@ -135,7 +135,7 @@ namespace MapHive.Repositories
                     new("@Id", id)
                 };
 
-                int rowsAffected = MainClient.SqlClient.Delete(
+                int rowsAffected = CurrentRequest.SqlClient.Delete(
                     "DELETE FROM MapLocations WHERE Id_MapLocation = @Id",
                     parameters);
 
@@ -153,7 +153,7 @@ namespace MapHive.Repositories
                     new("@UserId", userId)
                 };
 
-                DataTable dataTable = MainClient.SqlClient.Select(
+                DataTable dataTable = CurrentRequest.SqlClient.Select(
                     "SELECT * FROM MapLocations WHERE UserId = @UserId",
                     parameters);
 
@@ -192,7 +192,7 @@ namespace MapHive.Repositories
             return await Task.Run(() =>
             {
                 List<Category> categories = new();
-                DataTable dataTable = MainClient.SqlClient.Select("SELECT * FROM Categories");
+                DataTable dataTable = CurrentRequest.SqlClient.Select("SELECT * FROM Categories");
 
                 foreach (DataRow row in dataTable.Rows)
                 {
@@ -212,7 +212,7 @@ namespace MapHive.Repositories
                     new("@Id", id)
                 };
 
-                DataTable dataTable = MainClient.SqlClient.Select(
+                DataTable dataTable = CurrentRequest.SqlClient.Select(
                     "SELECT * FROM Categories WHERE Id_Category = @Id",
                     parameters);
 
@@ -231,7 +231,7 @@ namespace MapHive.Repositories
                     new("@Icon", category.Icon ?? (object)DBNull.Value)
                 };
 
-                int id = MainClient.SqlClient.Insert(
+                int id = CurrentRequest.SqlClient.Insert(
                     @"INSERT INTO Categories (Name, Description, Icon) 
                       VALUES (@Name, @Description, @Icon)",
                     parameters);
@@ -260,7 +260,7 @@ namespace MapHive.Repositories
                     new("@Icon", category.Icon ?? (object)DBNull.Value)
                 };
 
-                _ = MainClient.SqlClient.Update(
+                _ = CurrentRequest.SqlClient.Update(
                     @"UPDATE Categories 
                       SET Name = @Name, Description = @Description, Icon = @Icon 
                       WHERE Id_Category = @Id",
@@ -286,7 +286,7 @@ namespace MapHive.Repositories
                     new("@Id", id)
                 };
 
-                int rowsAffected = MainClient.SqlClient.Delete(
+                int rowsAffected = CurrentRequest.SqlClient.Delete(
                     "DELETE FROM Categories WHERE Id_Category = @Id",
                     parameters);
 

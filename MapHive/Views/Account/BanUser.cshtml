@@ -1,0 +1,80 @@
+@model MapHive.Models.BanViewModel
+@{
+    ViewData["Title"] = $"Ban User: {ViewBag.Username}";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<p>You are about to ban user <strong>@ViewBag.Username</strong>.</p>
+<p>User Tier: <strong>@ViewBag.UserTier</strong></p>
+<!-- Display Registration IP from ViewBag -->
+<p>Registration IP: <strong>@ViewBag.RegistrationIp</strong></p>
+
+@if (ViewBag.UserTier == UserTier.Admin)
+{
+    <div class="alert alert-warning" role="alert">
+        Cannot ban an administrator.
+    </div>
+    <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Back to Profile</a>
+}
+else
+{
+    <form asp-action="ProcessBan" method="post">
+        <input type="hidden" name="userId" value="@ViewBag.UserId" />
+        <input type="hidden" name="username" value="@ViewBag.Username" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-group mb-3">
+            <label asp-for="BanType" class="control-label"></label>
+            <select asp-for="BanType" class="form-control">
+                <option value="@BanType.Account">Account Ban</option>
+                <option value="@BanType.IpAddress">IP Address Ban (using Registration IP: @ViewBag.RegistrationIp)</option>
+            </select>
+            <span asp-validation-for="BanType" class="text-danger"></span>
+        </div>
+
+        <div class="form-group mb-3">
+            <label asp-for="Reason" class="control-label"></label>
+            <textarea asp-for="Reason" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Reason" class="text-danger"></span>
+        </div>
+
+        <div class="form-check mb-3">
+            <input asp-for="IsPermanent" class="form-check-input" type="checkbox" id="isPermanentCheck" checked="checked" />
+            <label asp-for="IsPermanent" class="form-check-label" for="isPermanentCheck"></label>
+        </div>
+
+        <div class="form-group mb-3" id="banDurationGroup">
+            <label asp-for="BanDurationDays" class="control-label">Ban Duration (Days)</label>
+            <input asp-for="BanDurationDays" class="form-control" type="number" min="1" />
+            <span asp-validation-for="BanDurationDays" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-danger">Confirm Ban</button>
+            <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            function toggleDuration() {
+                if ($('#isPermanentCheck').is(':checked')) {
+                    $('#banDurationGroup').hide();
+                    $('#BanDurationDays').val(''); // Clear value when hiding
+                } else {
+                    $('#banDurationGroup').show();
+                }
+            }
+
+            // Initial state
+            toggleDuration();
+
+            // Toggle on change
+            $('#isPermanentCheck').change(toggleDuration);
+        });
+    </script>
+} 

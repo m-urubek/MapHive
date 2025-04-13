@@ -12,7 +12,7 @@ namespace MapHive.Repositories
             string query = "SELECT * FROM Configuration WHERE Key = @Key";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
 
-            DataTable result = MainClient.SqlClient.Select(query, parameters);
+            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
 
             return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(result.Rows[0]) : null;
         }
@@ -21,7 +21,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM Configuration";
 
-            DataTable result = MainClient.SqlClient.Select(query);
+            DataTable result = CurrentRequest.SqlClient.Select(query);
             List<ConfigurationItem> items = new();
 
             foreach (DataRow row in result.Rows)
@@ -45,7 +45,7 @@ namespace MapHive.Repositories
                 new("@Description", item.Description as object ?? DBNull.Value)
             };
 
-            return MainClient.SqlClient.Insert(query, parameters);
+            return CurrentRequest.SqlClient.Insert(query, parameters);
         }
 
         public int UpdateConfigurationItem(ConfigurationItem item)
@@ -63,7 +63,7 @@ namespace MapHive.Repositories
                 new("@Key", item.Key)
             };
 
-            return MainClient.SqlClient.Update(query, parameters);
+            return CurrentRequest.SqlClient.Update(query, parameters);
         }
 
         public AppSettings GetAppSettings()

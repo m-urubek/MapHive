@@ -15,7 +15,7 @@ namespace MapHive.Repositories
                 ORDER BY CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             List<DiscussionThread> threads = new();
             foreach (DataRow row in result.Rows)
@@ -44,7 +44,7 @@ namespace MapHive.Repositories
                 ORDER BY CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             List<DiscussionThread> threads = new();
             foreach (DataRow row in result.Rows)
@@ -69,7 +69,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {
@@ -108,7 +108,7 @@ namespace MapHive.Repositories
                     new("@CreatedAt", thread.CreatedAt)
                 };
 
-                int threadId = await MainClient.SqlClient.InsertAsync(threadQuery, threadParameters);
+                int threadId = await CurrentRequest.SqlClient.InsertAsync(threadQuery, threadParameters);
                 thread.Id = threadId;
 
                 // Insert the initial message
@@ -126,7 +126,7 @@ namespace MapHive.Repositories
                     new("@CreatedAt", DateTime.UtcNow)
                 };
 
-                int messageId = await MainClient.SqlClient.InsertAsync(messageQuery, messageParameters);
+                int messageId = await CurrentRequest.SqlClient.InsertAsync(messageQuery, messageParameters);
 
                 // Load messages
                 thread.Messages = (await this.GetMessagesByThreadIdAsync(threadId)).ToList();
@@ -169,7 +169,7 @@ namespace MapHive.Repositories
                 new("@CreatedAt", thread.CreatedAt)
             };
 
-            int threadId = await MainClient.SqlClient.InsertAsync(query, parameters);
+            int threadId = await CurrentRequest.SqlClient.InsertAsync(query, parameters);
             thread.Id = threadId;
 
             // Get author name
@@ -184,7 +184,7 @@ namespace MapHive.Repositories
             string query = "DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
 
-            int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -198,7 +198,7 @@ namespace MapHive.Repositories
                 ORDER BY dt.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@UserId", userId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             List<DiscussionThread> threads = new();
             foreach (DataRow row in result.Rows)
@@ -227,7 +227,7 @@ namespace MapHive.Repositories
                 ORDER BY CreatedAt ASC";
 
             SQLiteParameter[] parameters = { new("@ThreadId", threadId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             List<ThreadMessage> messages = new();
             foreach (DataRow row in result.Rows)
@@ -255,7 +255,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {
@@ -294,7 +294,7 @@ namespace MapHive.Repositories
                 new("@CreatedAt", message.CreatedAt)
             };
 
-            int messageId = await MainClient.SqlClient.InsertAsync(query, parameters);
+            int messageId = await CurrentRequest.SqlClient.InsertAsync(query, parameters);
             message.Id = messageId;
 
             // Get author name
@@ -316,7 +316,7 @@ namespace MapHive.Repositories
                 new("@DeletedByUserId", deletedByUserId)
             };
 
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -329,7 +329,7 @@ namespace MapHive.Repositories
 
             SQLiteParameter[] parameters = { new("@Id", threadId) };
 
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
 
             if (rowsAffected > 0)
             {
@@ -385,24 +385,6 @@ namespace MapHive.Repositories
                 DeletedByUserId = row["DeletedByUserId"] == DBNull.Value ? null : Convert.ToInt32(row["DeletedByUserId"]),
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"])
             };
-        }
-
-        public DiscussionThread GetThreadById(int threadId)
-        {
-            // Comment out until the needed methods are implemented
-            throw new NotImplementedException("GetThreadById is not implemented yet");
-        }
-
-        public IEnumerable<DiscussionThread> GetThreadsByLocationId(int locationId)
-        {
-            // Comment out until the needed methods are implemented
-            throw new NotImplementedException("GetThreadsByLocationId is not implemented yet");
-        }
-
-        public void CreateThread(DiscussionThread thread)
-        {
-            // Implementation will be added later
-            throw new NotImplementedException("CreateThread is not implemented yet");
         }
     }
 }

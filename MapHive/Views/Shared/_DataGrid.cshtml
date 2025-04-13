@@ -1,0 +1,1106 @@
+@model MapHive.Models.DataGrid.DataGrid
+
+@{
+    // Set displayColumns
+    var displayColumns = Model.Columns;
+    if (ViewData["ColumnsToDisplay"] is string[] columnsToDisplay && columnsToDisplay.Length > 0)
+    {
+        displayColumns = Model.Columns.Where(c => columnsToDisplay.Contains(c.InternalName)).ToList();
+    }
+}
+
+@* Styles moved here *@
+<link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css" />
+<style>
+    .ms-Grid {
+        display: -ms-grid;
+        display: grid;
+    }
+
+    .ms-DetailsList {
+        display: block;
+        position: relative;
+    }
+
+    .detailslist-container {
+        height: 60vh;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108);
+        position: relative;
+        opacity: 0; /* Start invisible */
+        transition: opacity 0.15s ease-in; /* Smooth fade-in */
+    }
+
+        .detailslist-container.ready {
+            opacity: 1; /* Will be added once layout is ready */
+        }
+
+    .ms-DetailsHeader {
+        background-color: #f8f8f8;
+        font-weight: 600;
+    }
+
+        .ms-DetailsHeader .ms-DetailsRow {
+            height: auto;
+            min-height: 42px;
+        }
+
+    .ms-DetailsRow {
+        border-bottom: 1px solid #edebe9;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        cursor: pointer; /* Make rows appear clickable */
+    }
+
+        .ms-DetailsRow:hover {
+            background-color: #f3f2f1;
+        }
+
+    .ms-DetailsRow-cell {
+        padding: 0 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        height: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .control-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .ms-DetailsHeader-cell {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+        padding-right: 8px;
+        min-height: 42px;
+    }
+
+        .ms-DetailsHeader-cell:hover {
+            background-color: #f3f2f1;
+        }
+
+    .ms-DetailsHeader .ms-DetailsRow:hover {
+        background-color: transparent;
+    }
+
+    .col-resizer {
+        position: absolute;
+        right: -2px;
+        top: 0;
+        height: 100%;
+        width: 8px;
+        cursor: col-resize;
+        z-index: 1;
+    }
+
+        .col-resizer::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 2px;
+            height: 100%;
+            width: 2px;
+            background-color: #e1dfdd;
+            transition: background-color 0.2s;
+        }
+
+        .col-resizer:hover::after, .col-resizer.active::after {
+            background-color: #0078d4;
+        }
+
+    .sort-icon {
+        margin-left: 4px;
+        font-size: 10px;
+        display: inline-block;
+    }
+
+    /* Badge styles */
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 2px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .badge-active, .badge-admin {
+        background-color: #d13438;
+        color: white;
+    }
+
+    .badge-expired, .badge-normal {
+        background-color: #797775;
+        color: white;
+    }
+
+    .badge-trusted {
+        background-color: #107c10;
+        color: white;
+    }
+
+    /* Link styles */
+    .grid-link {
+        color: #0078d4;
+        text-decoration: none;
+    }
+
+        .grid-link:hover {
+            text-decoration: underline;
+        }
+
+    /* Loading styles */
+    .detailslist-container.loading {
+        opacity: 0.7;
+    }
+
+        .detailslist-container.loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            margin-top: -20px;
+            margin-left: -20px;
+            border-radius: 50%;
+            border: 3px solid #f3f2f1;
+            border-top-color: #0078d4;
+            animation: spin 0.8s linear infinite;
+        }
+
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Search styles */
+    .search-row {
+        border-bottom: 1px solid #edebe9;
+        display: flex;
+        align-items: center;
+        padding: 8px 0;
+    }
+
+    .search-cell {
+        padding: 0 12px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #8a8886;
+        border-radius: 2px;
+        font-size: 12px;
+        height: 28px;
+    }
+
+        .search-input:focus {
+            border-color: #0078d4;
+            outline: none;
+        }
+
+    .search-button {
+        margin-left: 8px;
+        background-color: #f3f2f1;
+        border: 1px solid #8a8886;
+        border-radius: 2px;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+        .search-button:hover {
+            background-color: #e1dfdd;
+        }
+
+        .search-button.active {
+            background-color: #0078d4;
+            color: white;
+            border-color: #0078d4;
+        }
+</style>
+
+<div class="detailslist-container ms-Fabric" id="grid-@Model.GetHashCode()">
+    <div class="ms-DetailsList">
+        <div class="ms-DetailsHeader">
+            <div class="ms-DetailsRow" style="font-weight: 600; height: auto;">
+                @{
+                    var displayIndex = 0;
+                }
+                @foreach (var column in displayColumns)
+                {
+                    <div class="ms-DetailsRow-cell ms-DetailsHeader-cell" style="flex: @column.Flex;" data-sort="@column.InternalName">
+                        @column.DisplayName
+                        <span class="sort-icon"></span>
+                        @if (column != displayColumns.Last())
+                        {
+                            <div class="col-resizer" data-col="@displayIndex"></div>
+                        }
+                    </div>
+                    displayIndex++;
+                }
+            </div>
+            <!-- Search Row -->
+            <div class="search-row">
+                @foreach (var column in displayColumns)
+                {
+                    <div class="search-cell" style="flex: @column.Flex;">
+                        <div class="d-flex">
+                            <input type="text" class="search-input" data-field="@column.InternalName" placeholder="Search @column.DisplayName..."
+                                   value="@(Model.SearchColumn == column.InternalName ? Model.SearchTerm : string.Empty)" />
+                            <button class="search-button" type="button">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="ms-DetailsList-contentWrapper">
+            @if (Model.HasItems)
+            {
+                foreach (var item in Model.Items)
+                {
+                    <div class="ms-DetailsRow" data-table="@Model.TableName" data-id="@(item.RowId)">
+                        @foreach (var column in displayColumns)
+                        {
+                            if (item.CellsByColumnNames.TryGetValue(column.InternalName, out var cell))
+                            {
+                                <div class="ms-DetailsRow-cell" style="flex: @column.Flex;">
+                                    @Html.Raw(cell.Content)
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="ms-DetailsRow-cell" style="flex: @column.Flex;">
+                                    <!-- Empty cell for missing data -->
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="ms-DetailsRow">
+                    <div class="ms-DetailsRow-cell" style="width: 100%; text-align: center;">No items found</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="currentSort" value="@Model.SortField" />
+<input type="hidden" id="currentDirection" value="@Model.SortDirection" />
+<input type="hidden" id="searchTerm" value="@Model.SearchTerm" />
+<input type="hidden" id="currentPage" value="@Model.CurrentPage" />
+<input type="hidden" id="tableName" value="@Model.TableName" />
+
+@if (Model.TotalPages > 1)
+{
+    <div class="d-flex justify-content-center pagination-container">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                @if (Model.CurrentPage > 1)
+                {
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="1">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="@(Model.CurrentPage - 1)">Previous</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">First</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Previous</span>
+                    </li>
+                }
+
+                @{
+                    int startPage = Math.Max(1, Model.CurrentPage - 2);
+                    int endPage = Math.Min(Model.TotalPages, startPage + 4);
+                    if (endPage - startPage < 4 && startPage > 1)
+                    {
+                        startPage = Math.Max(1, endPage - 4);
+                    }
+                }
+
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link" href="#" data-page="@i">@i</a>
+                    </li>
+                }
+
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="@(Model.CurrentPage + 1)">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="@Model.TotalPages">Last</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">Next</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Last</span>
+                    </li>
+                }
+            </ul>
+        </nav>
+    </div>
+}
+
+@* Script moved to the end *@
+<script>
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get a reference to the displayColumns for JavaScript
+        const displayColumnFields = [@Html.Raw(string.Join(",", displayColumns.Select(c => $"'{c.InternalName}'").ToArray()))];
+
+        // Grid container reference
+        const gridContainer = document.getElementById(`grid-@Model.GetHashCode()`);
+
+        // Initialize variables
+        let currentSort = document.getElementById('currentSort').value;
+        let currentDirection = document.getElementById('currentDirection').value;
+        let searchTerm = document.getElementById('searchTerm').value;
+        let currentPage = document.getElementById('currentPage').value;
+        const tableName = document.getElementById('tableName').value;
+
+        // Add click event handler for grid rows to navigate to display page
+        function addRowClickHandlers() {
+            document.querySelectorAll('.ms-DetailsRow').forEach(row => {
+                // Don't add click handler to header row or search row
+                if (row.closest('.ms-DetailsHeader')) {
+                    return;
+                }
+                
+                // Get the row's data-id and data-table attributes
+                const id = row.getAttribute('data-id');
+                const table = row.getAttribute('data-table');
+                
+                // Only add click handler if we have both id and table
+                if (id && table) {
+                    row.addEventListener('click', function(e) {
+                        // Don't navigate if we clicked on a link or button within the row
+                        if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                            e.target.closest('a') || e.target.closest('button')) {
+                            return;
+                        }
+                        
+                        // Navigate to display page
+                        window.location.href = `/Display/Item?tableName=${table}&id=${id}`;
+                    });
+                }
+            });
+        }
+        
+        // Add click handlers for initial rows
+        addRowClickHandlers();
+
+        // Current column searches
+        let currentSearches = {};
+
+        // Get all search inputs and initialize currentSearches
+        document.querySelectorAll('.search-input').forEach(input => {
+            const field = input.getAttribute('data-field');
+            const value = input.value.trim();
+            if (value) {
+                currentSearches[field] = value;
+            }
+
+            // Add event listener for search input
+            input.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    applySearches();
+                }
+            });
+        });
+
+        // Column Sorting - Initialize sort icons
+        if (currentSort) {
+            const activeHeader = document.querySelector(`[data-sort="${currentSort}"]`);
+            if (activeHeader) {
+                const sortIcon = activeHeader.querySelector('.sort-icon');
+                sortIcon.innerHTML = currentDirection === 'desc' ? '▼' : '▲';
+            }
+        }
+
+        // AJAX Pagination
+        document.querySelectorAll('.pagination .page-link').forEach(link => {
+            if (!link.hasAttribute('data-page')) return;
+
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.getAttribute('data-page');
+                loadGridData(page);
+            });
+        });
+
+        // Grid key for localStorage
+        const gridKey = `grid-@Model.GetHashCode()`;
+
+        // Load stored column widths
+        let columnWidths = JSON.parse(localStorage.getItem(`${gridKey}-columnWidths`)) || [];
+        console.log("Loaded stored columnWidths:", columnWidths);
+
+        // SIMULATE A RESIZE: Instead of trying to fix the layout with applyStoredColumnWidths,
+        // we'll trigger the resize operation that we know works correctly
+
+        // First, clear any stored widths that might have accumulated from previous failed attempts
+        localStorage.removeItem(`${gridKey}-columnWidths`);
+        columnWidths = [];
+
+        // Use requestAnimationFrame to do the resize at the optimal time
+        // This runs after the browser has done its initial layout
+        requestAnimationFrame(runSimulatedResize);
+
+        function runSimulatedResize() {
+            console.log("Running simulated resize operation");
+
+            // Get all header cells
+            const headerCells = document.querySelectorAll('.ms-DetailsHeader-cell');
+            if (!headerCells.length) {
+                console.log("No header cells found, retrying on next frame");
+                requestAnimationFrame(runSimulatedResize);
+                return;
+            }
+
+            // For each header cell, simulate a resize to its current width
+            headerCells.forEach((headerCell, index) => {
+                // Get current width
+                const currentWidth = headerCell.offsetWidth;
+                console.log(`Column ${index} initial width: ${currentWidth}px`);
+
+                // Manufacture resize parameters
+                const fakeResizer = headerCell.querySelector('.col-resizer');
+                if (!fakeResizer && index < headerCells.length - 1) {
+                    console.log(`No resizer found for column ${index}`);
+                    return;
+                }
+
+                // Temporarily store key variables to simulate resize
+                if (!isResizing) {
+                    // Set up the resize simulation
+                    isResizing = true;
+                    currentResizer = fakeResizer || { parentElement: headerCell, getAttribute: () => index.toString() };
+                    startX = 0; // Fake starting X
+
+                    // Get current width
+                    const styleValue = headerCell.getAttribute('style');
+                    const flexMatch = styleValue?.match(/flex:[^;]*0\s+0\s+(\d+)px/);
+                    startWidth = flexMatch ? parseInt(flexMatch[1]) : currentWidth;
+
+                    // Apply the actual width
+                    handleSimulatedResize(currentWidth);
+
+                    // Clean up
+                    isResizing = false;
+                    currentResizer = null;
+                }
+            });
+
+            console.log("Simulated resize completed");
+
+            // Mark the grid as ready - this will trigger the fade-in
+            if (gridContainer) {
+                gridContainer.classList.add('ready');
+            }
+        }
+
+        // Add global function for simulated resize
+        function handleSimulatedResize(targetWidth) {
+            if (!isResizing) return;
+
+            const headerCell = currentResizer.parentElement;
+            const columnIndex = parseInt(currentResizer.getAttribute('data-col'));
+
+            // Apply the width to header cell
+            const styleValue = headerCell.getAttribute('style');
+            const newStyle = styleValue ? styleValue.replace(/flex:[^;]+;/, `flex: 0 0 ${targetWidth}px;`) : `flex: 0 0 ${targetWidth}px;`;
+            headerCell.setAttribute('style', newStyle);
+
+            // Apply to search cell
+            const searchCell = document.querySelector(`.search-cell:nth-child(${columnIndex + 1})`);
+            if (searchCell) {
+                const searchStyle = searchCell.getAttribute('style');
+                const newSearchStyle = searchStyle ? searchStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${targetWidth}px;`) : `flex: 0 0 ${targetWidth}px;`;
+                searchCell.setAttribute('style', newSearchStyle);
+            }
+
+            // Apply to all data cells
+            document.querySelectorAll(`.ms-DetailsRow-cell:nth-child(${columnIndex + 1})`).forEach(rowCell => {
+                const rowStyle = rowCell.getAttribute('style');
+                const newRowStyle = rowStyle ? rowStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${targetWidth}px;`) : `flex: 0 0 ${targetWidth}px;`;
+                rowCell.setAttribute('style', newRowStyle);
+            });
+
+            // Save the new width for this column
+            columnWidths[columnIndex] = targetWidth;
+            localStorage.setItem(`${gridKey}-columnWidths`, JSON.stringify(columnWidths));
+        }
+
+        // Apply searches function
+        function applySearches() {
+            // Reset searches
+            currentSearches = {};
+
+            // Reset main search term
+            searchTerm = '';
+
+            // Get all search values
+            document.querySelectorAll('.search-input').forEach(input => {
+                const field = input.getAttribute('data-field');
+                const value = input.value.trim();
+                if (value) {
+                    currentSearches[field] = value;
+                    // Update the main search term to the value of the first non-empty search field
+                    if (searchTerm === '') {
+                        searchTerm = value;
+                    }
+                }
+            });
+
+            console.log('Applying search with term:', searchTerm);
+
+            // Reset to page 1 when applying searches
+            loadGridData(1);
+        }
+
+        // Add search button event listener (if you want to add search buttons later)
+        document.querySelectorAll('.search-button').forEach(button => {
+            button.addEventListener('click', function() {
+                applySearches();
+            });
+        });
+
+        function loadGridData(page) {
+            // Show loading indicator
+            const gridElement = document.getElementById(`grid-@Model.GetHashCode()`);
+            if (gridElement) {
+                gridElement.classList.add('loading');
+
+                // Build the URL with all parameters
+                const url = `/DataGrid/GetGridData?tableName=${tableName}&page=${page}&searchTerm=${encodeURIComponent(searchTerm)}&sortField=${currentSort}&sortDirection=${currentDirection}`;
+
+                console.log('Fetching data from URL:', url);
+                console.log('Current sort field:', currentSort);
+                console.log('Current sort direction:', currentDirection);
+
+                // Fetch the data
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Received grid data:', data);
+
+                            // Verify data structure before updating
+                            if (data.items && Array.isArray(data.items)) {
+                                console.log('Items count:', data.items.length);
+                                if (data.items.length > 0) {
+                                    console.log('First item structure:', data.items[0]);
+                                    console.log('Column structures:', data.columns);
+                                }
+                            } else {
+                                console.error('No items array in response or empty items');
+                            }
+
+                            updateGrid(data);
+                        } else {
+                            console.error('Error loading grid data:', data.message);
+                        }
+                        gridElement.classList.remove('loading');
+                    })
+                    .catch(error => {
+                        console.error('Error fetching grid data:', error);
+                        gridElement.classList.remove('loading');
+                    });
+            }
+        }
+
+        function updateGrid(data) {
+            // Update grid content
+            const contentWrapper = document.querySelector(`#grid-@Model.GetHashCode() .ms-DetailsList-contentWrapper`);
+            if (contentWrapper) {
+                // Clear existing content
+                contentWrapper.innerHTML = '';
+
+                if (data.items && data.items.length > 0) {
+                    // Filter the returned columns to match our display columns
+                    console.log('Display column fields:', displayColumnFields);
+
+                    // Find all possible column field name variations
+                    const displayColumns = [];
+
+                    if (data.columns && Array.isArray(data.columns)) {
+                        // Try to match columns by field, internalName, or name
+                        displayColumnFields.forEach(fieldName => {
+                            // Look for exact match first
+                            let match = data.columns.find(col =>
+                                col.field === fieldName ||
+                                col.internalName === fieldName ||
+                                col.Field === fieldName ||
+                                col.InternalName === fieldName
+                            );
+
+                            if (match) {
+                                displayColumns.push(match);
+                            } else {
+                                // If no match found, create a default column
+                                displayColumns.push({
+                                    field: fieldName,
+                                    internalName: fieldName,
+                                    flex: "1",
+                                    displayName: fieldName
+                                });
+                            }
+                        });
+                    } else {
+                        console.error('No columns data in response');
+                    }
+
+                    console.log('Mapped display columns:', displayColumns);
+
+                    // Add new rows
+                    data.items.forEach(item => {
+                        const rowElement = document.createElement('div');
+                        rowElement.className = 'ms-DetailsRow';
+                        
+                        // Add data attributes for the row ID and table name
+                        const rowId = item.rowId || item.RowId || item.id || item.Id;
+                        if (rowId) {
+                            rowElement.setAttribute('data-id', rowId);
+                            rowElement.setAttribute('data-table', data.tableName);
+                        }
+
+                        // Use filtered columns to maintain order
+                        displayColumns.forEach(column => {
+                            const cellElement = document.createElement('div');
+                            cellElement.className = 'ms-DetailsRow-cell';
+
+                            // Get column identifiers
+                            const columnName = column.field || column.internalName || column.Field || column.InternalName;
+
+                            console.log('Accessing column:', columnName);
+
+                            // Try to get cell by using column name
+                            let cell = null;
+
+                            if (item.cellsByColumnNames && item.cellsByColumnNames[columnName]) {
+                                cell = item.cellsByColumnNames[columnName];
+                            } else if (item.CellsByColumnNames && item.CellsByColumnNames[columnName]) {
+                                cell = item.CellsByColumnNames[columnName];
+                            } else if (item.cells && item.cells[columnName]) {
+                                cell = item.cells[columnName];
+                            }
+
+                            if (cell) {
+                                cellElement.style.flex = column.flex;
+                                cellElement.innerHTML = cell.content || cell.Content || '';
+                            } else {
+                                // Empty cell if data is missing
+                                cellElement.style.flex = column.flex;
+                            }
+
+                            rowElement.appendChild(cellElement);
+                        });
+
+                        contentWrapper.appendChild(rowElement);
+                    });
+                    
+                    // Add click handlers to the new rows
+                    addRowClickHandlers();
+                } else {
+                    // Show "no items" message
+                    const emptyRow = document.createElement('div');
+                    emptyRow.className = 'ms-DetailsRow';
+
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'ms-DetailsRow-cell';
+                    emptyCell.style.width = '100%';
+                    emptyCell.style.textAlign = 'center';
+                    emptyCell.textContent = 'No items found';
+
+                    emptyRow.appendChild(emptyCell);
+                    contentWrapper.appendChild(emptyRow);
+                }
+            }
+
+            // Update current page indicator
+            document.getElementById('currentPage').value = data.currentPage;
+            currentPage = data.currentPage;
+
+            // Update pagination
+            updatePagination(data);
+
+            // Reapply column resizing
+            applyStoredColumnWidths();
+        }
+
+        function updatePagination(data) {
+            const paginationContainer = document.querySelector('.pagination-container');
+            if (!paginationContainer) return;
+
+            // Create new pagination element
+            const nav = document.createElement('nav');
+            nav.setAttribute('aria-label', 'Page navigation');
+
+            const ul = document.createElement('ul');
+            ul.className = 'pagination';
+
+            // First and Previous buttons
+            if (data.currentPage > 1) {
+                ul.appendChild(createPageItem('First', 1));
+                ul.appendChild(createPageItem('Previous', data.currentPage - 1));
+            } else {
+                ul.appendChild(createDisabledPageItem('First'));
+                ul.appendChild(createDisabledPageItem('Previous'));
+            }
+
+            // Page numbers
+            let startPage = Math.max(1, data.currentPage - 2);
+            let endPage = Math.min(data.totalPages, startPage + 4);
+            if (endPage - startPage < 4 && startPage > 1) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === data.currentPage) {
+                    ul.appendChild(createActivePageItem(i));
+                } else {
+                    ul.appendChild(createPageItem(i, i));
+                }
+            }
+
+            // Next and Last buttons
+            if (data.currentPage < data.totalPages) {
+                ul.appendChild(createPageItem('Next', data.currentPage + 1));
+                ul.appendChild(createPageItem('Last', data.totalPages));
+            } else {
+                ul.appendChild(createDisabledPageItem('Next'));
+                ul.appendChild(createDisabledPageItem('Last'));
+            }
+
+            nav.appendChild(ul);
+
+            // Replace existing pagination
+            paginationContainer.innerHTML = '';
+            paginationContainer.appendChild(nav);
+
+            // Add event listeners to new pagination links
+            paginationContainer.querySelectorAll('.page-link').forEach(link => {
+                if (!link.hasAttribute('data-page')) return;
+
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const page = this.getAttribute('data-page');
+                    loadGridData(page);
+                });
+            });
+        }
+
+        function createPageItem(text, page) {
+            const li = document.createElement('li');
+            li.className = 'page-item';
+
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.setAttribute('data-page', page);
+            a.textContent = text;
+
+            li.appendChild(a);
+            return li;
+        }
+
+        function createActivePageItem(page) {
+            const li = document.createElement('li');
+            li.className = 'page-item active';
+
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.setAttribute('data-page', page);
+            a.textContent = page;
+
+            li.appendChild(a);
+            return li;
+        }
+
+        function createDisabledPageItem(text) {
+            const li = document.createElement('li');
+            li.className = 'page-item disabled';
+
+            const span = document.createElement('span');
+            span.className = 'page-link';
+            span.textContent = text;
+
+            li.appendChild(span);
+            return li;
+        }
+
+        // Column Sorting - Event Handlers
+        const headerCells = document.querySelectorAll('.ms-DetailsHeader-cell');
+        headerCells.forEach(cell => {
+            cell.addEventListener('click', function(e) {
+                if (e.target.classList.contains('col-resizer')) return;
+
+                const sortField = this.getAttribute('data-sort');
+                if (!sortField) return; // Skip columns without sort attribute
+
+                let sortDirection = 'asc';
+
+                // Toggle sort direction if already sorting by this field
+                if (sortField === currentSort) {
+                    sortDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    // Reset direction to ascending if changing sort column
+                    sortDirection = 'asc';
+                }
+
+                // Update current sort state variables
+                currentSort = sortField;
+                currentDirection = sortDirection;
+
+                // Update sort icons
+                updateSortIcons(sortField, sortDirection);
+
+                // Reload grid data using AJAX
+                loadGridData(currentPage);
+            });
+        });
+
+        // Function to update sort icons
+        function updateSortIcons(sortField, sortDirection) {
+            // Clear existing icons
+            document.querySelectorAll('.ms-DetailsHeader-cell .sort-icon').forEach(icon => {
+                icon.innerHTML = '';
+            });
+
+            // Set icon for the active column
+            const activeHeader = document.querySelector(`[data-sort="${sortField}"]`);
+            if (activeHeader) {
+                const sortIcon = activeHeader.querySelector('.sort-icon');
+                if (sortIcon) {
+                    sortIcon.innerHTML = sortDirection === 'desc' ? '▼' : '▲';
+                }
+            }
+
+            // Update hidden fields if necessary
+            document.getElementById('currentSort').value = sortField;
+            document.getElementById('currentDirection').value = sortDirection;
+        }
+
+        // Apply stored column widths if available
+        // Return true if successful, false if not
+        function applyStoredColumnWidths() {
+            console.log("Attempting to apply stored column widths:", columnWidths);
+
+            // If the array is empty or doesn't represent stored widths, exit.
+            if (!Array.isArray(columnWidths) || columnWidths.length === 0) {
+                console.log("No stored column widths to apply or array is empty.");
+                return false;
+            }
+
+            const headerCells = document.querySelectorAll('.ms-DetailsHeader-cell');
+            const searchRowElement = document.querySelector('.search-row');
+            const contentWrapper = document.querySelector('.ms-DetailsList-contentWrapper');
+
+            // Check if necessary elements exist
+            if (!headerCells.length || !searchRowElement || !contentWrapper) {
+                console.log("Required DOM elements not found yet");
+                return false;
+            }
+
+            // Get search cells
+            const searchCells = searchRowElement.querySelectorAll('.search-cell');
+            if (!searchCells.length) {
+                console.log("Search cells not found");
+                return false;
+            }
+
+            // Get data rows
+            const dataRows = contentWrapper.querySelectorAll('.ms-DetailsRow');
+
+            // Start applying widths
+            let successCount = 0;
+
+            // Forcibly apply widths to all element types at once
+            headerCells.forEach((headerCell, displayIndex) => {
+                // Only apply if a width exists for this specific index
+                const width = columnWidths[displayIndex];
+                if (!width) {
+                    // If no specific width stored, ensure default flex is applied or leave as is
+                    // Optional: Reset to default flex if needed, but likely handled by initial render
+                    // headerCell.style.flex = initialFlexValue; // Need a way to get initial flex if resetting
+                    console.log(`No stored width for column ${displayIndex}, using default flex.`);
+                    return; // Skip applying fixed width
+                }
+
+                // Ensure width is a number before applying
+                if (typeof width !== 'number' || width <= 0) {
+                    console.log(`Invalid stored width for column ${displayIndex}: ${width}`);
+                    return; // Skip invalid width
+                }
+
+                console.log(`Setting stored width for column ${displayIndex} to ${width}px`);
+
+                // Set all at once
+                try {
+                    const styleFlexFixed = `0 0 ${width}px`;
+                    const styleFlexAuto = '1 1 auto'; // A standard flexible value
+
+                    // 1. Header cell
+                    headerCell.style.flex = styleFlexAuto; // Reset
+                    void headerCell.offsetWidth;          // Reflow
+                    headerCell.style.flex = styleFlexFixed; // Apply fixed
+                    void headerCell.offsetWidth;           // Reflow
+
+                    // 2. Search cell
+                    if (displayIndex < searchCells.length) {
+                        const searchCell = searchCells[displayIndex];
+                        if (searchCell) {
+                            searchCell.style.flex = styleFlexAuto; // Reset
+                            void searchCell.offsetWidth;          // Reflow
+                            searchCell.style.flex = styleFlexFixed; // Apply fixed
+                            void searchCell.offsetWidth;           // Reflow
+                        }
+                    }
+
+                    // 3. All data cells in this column
+                    dataRows.forEach(row => {
+                        const cells = row.querySelectorAll('.ms-DetailsRow-cell');
+                        if (cells && displayIndex < cells.length) {
+                            const cell = cells[displayIndex];
+                            if (cell) {
+                                cell.style.flex = styleFlexAuto; // Reset (no reflow needed in loop typically)
+                                cell.style.flex = styleFlexFixed; // Apply fixed
+                            }
+                        }
+                    });
+
+                    successCount++;
+                } catch (e) {
+                    console.error(`Error setting width for column ${displayIndex}:`, e);
+                }
+            });
+
+            console.log(`Successfully applied widths to ${successCount} of ${headerCells.length} columns`);
+            return successCount > 0;
+        }
+
+        // Column Resizing
+        const resizers = document.querySelectorAll('.col-resizer');
+        let isResizing = false;
+        let currentResizer = null;
+        let startX, startWidth;
+
+        resizers.forEach((resizer, index) => {
+            // Prevent event propagation on resizer
+            resizer.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+
+            resizer.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                currentResizer = this;
+                startX = e.pageX;
+
+                // Get the header cell
+                const headerCell = this.parentElement;
+
+                // Get the current width from the style attribute
+                const styleValue = headerCell.getAttribute('style');
+                const flexMatch = styleValue?.match(/flex:[^;]*0\s+0\s+(\d+)px/);
+                startWidth = flexMatch ? parseInt(flexMatch[1]) : headerCell.offsetWidth;
+
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', stopResize);
+
+                this.classList.add('active');
+                e.preventDefault();
+                e.stopPropagation(); // Stop propagation to prevent header click
+            });
+        });
+
+        function handleMouseMove(e) {
+            if (!isResizing) return;
+
+            const headerCell = currentResizer.parentElement;
+            const columnIndex = currentResizer.getAttribute('data-col');
+            const width = startWidth + (e.pageX - startX);
+
+            if (width > 50) {  // Minimum width
+                // Update header cell width
+                const styleValue = headerCell.getAttribute('style');
+                const newStyle = styleValue ? styleValue.replace(/flex:[^;]+;/, `flex: 0 0 ${width}px;`) : `flex: 0 0 ${width}px;`;
+                headerCell.setAttribute('style', newStyle);
+
+                // Update search cell width
+                const searchCell = document.querySelector(`.search-cell:nth-child(${parseInt(columnIndex) + 1})`);
+                if (searchCell) {
+                    const searchStyle = searchCell.getAttribute('style');
+                    const newSearchStyle = searchStyle ? searchStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${width}px;`) : `flex: 0 0 ${width}px;`;
+                    searchCell.setAttribute('style', newSearchStyle);
+                }
+
+                // Update all cells in this column
+                document.querySelectorAll(`.ms-DetailsRow-cell:nth-child(${parseInt(columnIndex) + 1})`).forEach(rowCell => {
+                    const rowStyle = rowCell.getAttribute('style');
+                    const newRowStyle = rowStyle ? rowStyle.replace(/flex:[^;]+;/, `flex: 0 0 ${width}px;`) : `flex: 0 0 ${width}px;`;
+                    rowCell.setAttribute('style', newRowStyle);
+                });
+            }
+        }
+
+        function stopResize(e) {
+            isResizing = false;
+            currentResizer.classList.remove('active');
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', stopResize);
+
+            // Save the final width to columnWidths array
+            const headerCell = currentResizer.parentElement;
+            const columnIndex = parseInt(currentResizer.getAttribute('data-col'));
+
+            // Get the current width from the style attribute
+            const styleValue = headerCell.getAttribute('style');
+            const flexMatch = styleValue?.match(/flex:[^;]*0\s+0\s+(\d+)px/);
+            const finalWidth = flexMatch ? parseInt(flexMatch[1]) : headerCell.offsetWidth;
+
+            // Update columnWidths array
+            columnWidths[columnIndex] = finalWidth;
+
+            // Save to localStorage
+            localStorage.setItem(`${gridKey}-columnWidths`, JSON.stringify(columnWidths));
+
+            // Re-apply all stored widths to ensure consistency after resize
+            applyStoredColumnWidths();
+        }
+    });
+</script>

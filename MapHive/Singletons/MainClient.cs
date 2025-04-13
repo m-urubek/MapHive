@@ -6,24 +6,10 @@ namespace MapHive.Singletons
 {
     public static class MainClient
     {
-        public static SqlClient? SqlClient { get; private set; }
         public static AppSettings? AppSettings { get; private set; }
 
         public static void Initialize()
         {
-            string dbFilePath = "D:\\MapHive\\MapHive\\maphive.db";
-            if (!File.Exists(dbFilePath))
-            {
-                dbFilePath = "maphive.db";
-            }
-
-            if (!File.Exists(dbFilePath))
-            {
-                CreateNewDatabase(dbFilePath);
-            }
-
-            SqlClient = new(dbFilePath);
-
             DatabaseUpdater.Run();
 
             // Initialize AppSettings after database is updated

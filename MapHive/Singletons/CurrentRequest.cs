@@ -1,4 +1,5 @@
 using MapHive.Repositories;
+using MapHive.Repositories.Interfaces;
 using MapHive.Services;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
@@ -44,13 +45,16 @@ namespace MapHive.Singletons
         public static IConfigurationRepository ConfigRepository => GetService<IConfigurationRepository>();
         public static IReviewRepository ReviewRepository => GetService<IReviewRepository>();
         public static IDiscussionRepository DiscussionRepository => GetService<IDiscussionRepository>();
+        public static IDataGridRepository DataGridRepository => GetService<IDataGridRepository>();
+        public static IDisplayRepository DisplayRepository => GetService<IDisplayRepository>();
+        public static ILogRepository LogRepository => GetService<ILogRepository>();
 
         // Services
         public static IAuthService AuthService => GetService<IAuthService>();
         public static LogManagerService LogManager => GetService<LogManagerService>();
         public static RecaptchaService RecaptchaService => GetService<RecaptchaService>();
         public static IHttpContextAccessor HttpContext => GetService<IHttpContextAccessor>();
-        public static SqlClient SqlClient => MainClient.SqlClient;
+        public static SqlClient SqlClient => GetService<SqlClient>();
         public static IConfigService ConfigService => GetService<IConfigService>();
         /// <summary>
         /// Gets the current user's ID if authenticated, otherwise returns null

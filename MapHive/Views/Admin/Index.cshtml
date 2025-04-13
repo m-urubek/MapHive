@@ -54,5 +54,27 @@
                 </div>
             </div>
         </div>
+        
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-shield-x fs-1 mb-3 text-danger"></i>
+                    <h5 class="card-title">Bans</h5>
+                    <p class="card-text">Manage user bans</p>
+                    <a asp-controller="Admin" asp-action="Bans" class="btn btn-danger">Manage Bans</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-journal-text fs-1 mb-3 text-secondary"></i>
+                    <h5 class="card-title">System Logs</h5>
+                    <p class="card-text">View and filter system logs</p>
+                    <a asp-controller="Logs" asp-action="Index" class="btn btn-secondary">View Logs</a>
+                </div>
+            </div>
+        </div>
     </div>
 </div> 

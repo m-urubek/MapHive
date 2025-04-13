@@ -44,7 +44,7 @@ namespace MapHive.Services
                     new("@Key", key)
                 };
 
-                int rowsAffected = MainClient.SqlClient.Delete(query, parameters);
+                int rowsAffected = CurrentRequest.SqlClient.Delete(query, parameters);
                 return rowsAffected > 0;
             });
         }

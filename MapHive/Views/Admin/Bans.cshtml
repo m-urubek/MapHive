@@ -1,36 +1,35 @@
 @model MapHive.Models.DataGrid.DataGrid
 
 @{
-    ViewData["Title"] = "Manage Users";
-    // Select different columns to display for the Users page
-    ViewData["ColumnsToDisplay"] = new[] { "Username", "RegistrationDate", "Tier" };
+    ViewData["Title"] = "Manage Bans";
+    ViewData["ColumnsToDisplay"] = new[] { "Id", "BanType", "BannedAt", "ExpiresAt", "Status" };
 }
 
 <div class="container">
     <div class="row mb-4">
         <div class="col">
-            <h1>Manage Users</h1>
-            <p class="text-muted">View and manage all users in the system.</p>
+            <h1>Manage Bans</h1>
+            <p class="text-muted">View and manage all user and IP bans in the system.</p>
         </div>
     </div>
 
     <div class="control-bar">
         <div class="search-container">
-            <form asp-action="Users" method="get" class="d-flex">
+            <form asp-action="Bans" method="get" class="d-flex">
                 <div class="input-group">
-                    <input type="text" name="searchTerm" class="form-control" placeholder="Search users..." value="@Model.SearchTerm">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search bans..." value="@Model.SearchTerm">
                     <button class="btn btn-primary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
                 </div>
                 @if (!string.IsNullOrEmpty(Model.SearchTerm))
                 {
-                    <a asp-action="Users" class="btn btn-outline-secondary ms-2">Clear</a>
+                    <a asp-action="Bans" class="btn btn-outline-secondary ms-2">Clear</a>
                 }
             </form>
         </div>
         <div>
-            <span class="text-muted">Total users: @Model.TotalCount</span>
+            <span class="text-muted">Total bans: @Model.TotalCount</span>
         </div>
     </div>
 
@@ -38,6 +37,14 @@
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }

@@ -10,12 +10,14 @@ namespace MapHive.Repositories
         public async Task<IEnumerable<Review>> GetReviewsByLocationIdAsync(int locationId)
         {
             string query = @"
-                SELECT * FROM Reviews 
-                WHERE LocationId = @LocationId
-                ORDER BY CreatedAt DESC";
+                SELECT r.*, u.Username
+                FROM Reviews r
+                LEFT JOIN Users u ON r.UserId = u.Id_User
+                WHERE r.LocationId = @LocationId
+                ORDER BY r.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             List<Review> reviews = new();
             foreach (DataRow row in result.Rows)
@@ -23,8 +25,7 @@ namespace MapHive.Repositories
                 Review review = this.MapRowToReview(row);
 
                 // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
+                string username = row["Username"]?.ToString() ?? "Unknown User"; // Get username from JOIN
                 review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
 
                 reviews.Add(review);
@@ -37,7 +38,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {
@@ -70,7 +71,7 @@ namespace MapHive.Repositories
                 new("@UpdatedAt", review.UpdatedAt)
             };
 
-            int reviewId = await MainClient.SqlClient.InsertAsync(query, parameters);
+            int reviewId = await CurrentRequest.SqlClient.InsertAsync(query, parameters);
             review.Id = reviewId;
 
             // Get author name
@@ -99,7 +100,7 @@ namespace MapHive.Repositories
                 new("@UserId", review.UserId)
             };
 
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -108,7 +109,7 @@ namespace MapHive.Repositories
             string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
 
-            int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
+            int rowsAffected = await CurrentRequest.SqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -117,7 +118,7 @@ namespace MapHive.Repositories
             string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
 
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
                 ? 0
@@ -129,7 +130,7 @@ namespace MapHive.Repositories
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
 
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 ? 0 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
         }
@@ -142,7 +143,7 @@ namespace MapHive.Repositories
                 new("@LocationId", locationId)
             };
 
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {

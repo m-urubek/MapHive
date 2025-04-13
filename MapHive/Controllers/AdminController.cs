@@ -1,4 +1,5 @@
 using MapHive.Models;
+using MapHive.Models.DataGrid;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -128,22 +129,15 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            IEnumerable<User> users = await CurrentRequest.UserRepository.GetUsersAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            int totalUsers = await CurrentRequest.UserRepository.GetTotalUsersCountAsync(searchTerm);
+            // Get users using the DataGridRepository
+            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+                "Users",
+                page,
+                pageSize,
+                searchTerm,
+                sortField,
+                sortDirection);
 
-            UsersViewModel viewModel = new()
-            {
-                Users = users,
-                SearchTerm = searchTerm,
-                CurrentPage = page,
-                PageSize = pageSize,
-                TotalCount = totalUsers,
-                TotalPages = (int)Math.Ceiling(totalUsers / (double)pageSize)
-            };
-
-            // Store sort information in ViewData to be used in the view
-            this.ViewData["SortField"] = sortField;
-            this.ViewData["SortDirection"] = sortDirection;
 
             return this.View(viewModel);
         }
@@ -340,6 +334,116 @@ namespace MapHive.Controllers
 
             _ = await CurrentRequest.ConfigService.DeleteConfigurationItemAsync(key);
             return this.RedirectToAction("Configuration");
+        }
+
+        #endregion
+
+        #region Ban Management
+
+        [HttpGet]
+        public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            // Get bans using the DataGridRepository
+            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+                "UserBans",
+                page,
+                pageSize,
+                searchTerm,
+                sortField,
+                sortDirection);
+
+
+            // Store sort information in ViewData to be used in the view
+            this.ViewData["SortField"] = sortField;
+            this.ViewData["SortDirection"] = sortDirection;
+
+            return this.View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> BanDetails(int id)
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            if (ban == null)
+            {
+                return this.NotFound();
+            }
+
+            string bannedUsername = string.Empty;
+            if (ban.Properties.TryGetValue("BannedUsername", out string? username))
+            {
+                bannedUsername = username;
+            }
+            else if (ban.UserId.HasValue)
+            {
+                // Get username from UserId
+                bannedUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.UserId.Value);
+            }
+
+            string bannedByUsername;
+            if (ban.Properties.TryGetValue("BannedByUsername", out string? adminUsername))
+            {
+                bannedByUsername = adminUsername;
+            }
+            else
+            {
+                // Get admin username
+                bannedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.BannedByUserId);
+            }
+
+            BanDetailViewModel viewModel = new()
+            {
+                Ban = ban,
+                BannedUsername = bannedUsername,
+                BannedByUsername = bannedByUsername
+            };
+
+            return this.View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveBan(int id)
+        {
+            // Check if the user is an admin
+            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            {
+                return this.Forbid();
+            }
+
+            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            if (ban == null)
+            {
+                return this.NotFound();
+            }
+
+            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(id);
+
+            if (success)
+            {
+                this.TempData["SuccessMessage"] = "Ban has been removed successfully.";
+            }
+            else
+            {
+                this.TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
+            }
+
+            return this.RedirectToAction("Bans");
         }
 
         #endregion
