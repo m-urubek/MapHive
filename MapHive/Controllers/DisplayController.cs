@@ -16,7 +16,7 @@ namespace MapHive.Controllers
         /// <param name="id">ID of the item</param>
         /// <returns>View with item data</returns>
         [HttpGet]
-        public async Task<IActionResult> Item(string tableName, int id)
+        public IActionResult Item(string tableName, int id)
         {
             try
             {
@@ -34,14 +34,14 @@ namespace MapHive.Controllers
                 }
 
                 // Check if the table exists
-                bool tableExists = await CurrentRequest.DisplayRepository.TableExistsAsync(tableName);
+                bool tableExists = CurrentRequest.DisplayRepository.TableExistsAsync(tableName).GetAwaiter().GetResult();
                 if (!tableExists)
                 {
                     throw new RedUserException($"Table '{tableName}' does not exist");
                 }
 
                 // Get data for the item
-                Dictionary<string, string> itemData = await CurrentRequest.DisplayRepository.GetItemDataAsync(tableName, id);
+                Dictionary<string, string> itemData = CurrentRequest.DisplayRepository.GetItemDataAsync(tableName, id).GetAwaiter().GetResult();
 
                 // Check if data was found
                 if (itemData.Count == 0)

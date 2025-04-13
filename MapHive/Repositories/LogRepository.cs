@@ -45,9 +45,7 @@ namespace MapHive.Repositories
             }
 
             // Add sorting
-            _ = sortField == "Id"
-                ? queryBuilder.Append($"ORDER BY l.Id_Log {sortDirection} ")
-                : queryBuilder.Append($"ORDER BY l.{sortField} {sortDirection} ");
+            _ = queryBuilder.Append($"ORDER BY l.{(sortField == "Id" ? "Id_Log" : sortField)} {sortDirection} ");
 
             // Add pagination
             _ = queryBuilder.Append("LIMIT @PageSize OFFSET @Offset");
