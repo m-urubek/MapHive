@@ -326,7 +326,11 @@ namespace MapHive.Repositories
 
                 if (location.CategoryId.HasValue)
                 {
-                    location.Category = await this.GetCategoryByIdAsync(location.CategoryId.Value);
+                    Category? category = await this.GetCategoryByIdAsync(location.CategoryId.Value);
+                    if (category != null)
+                    {
+                        location.Category = category;
+                    }
                 }
 
                 return location;

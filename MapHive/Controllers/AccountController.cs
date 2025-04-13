@@ -163,10 +163,7 @@ namespace MapHive.Controllers
                 };
 
                 // Add role claims based on UserTier
-                if (response.User.Tier == UserTier.Admin)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-                }
+                this.AddAdminRoleClaim(claims, response.User.Tier);
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 ClaimsPrincipal principal = new(identity);
@@ -539,15 +536,7 @@ namespace MapHive.Controllers
             };
 
             // Add role claims based on UserTier
-            if (user.Tier == UserTier.Admin)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-            }
-            // Add other role claims if needed, e.g.:
-            // else if (user.Tier == UserTier.Trusted)
-            // {
-            //     claims.Add(new Claim(ClaimTypes.Role, "TrustedUser"));
-            // }
+            this.AddAdminRoleClaim(claims, user.Tier);
 
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal principal = new(identity);
@@ -686,15 +675,7 @@ namespace MapHive.Controllers
             };
 
             // Add role claims based on UserTier
-            if (user.Tier == UserTier.Admin)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-            }
-            // Add other role claims if needed, e.g.:
-            // else if (user.Tier == UserTier.Trusted)
-            // {
-            //     claims.Add(new Claim(ClaimTypes.Role, "TrustedUser"));
-            // }
+            this.AddAdminRoleClaim(claims, user.Tier);
 
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             return new ClaimsPrincipal(identity);
@@ -727,6 +708,14 @@ namespace MapHive.Controllers
 
                 // Save the updated user information
                 CurrentRequest.UserRepository.UpdateUser(user);
+            }
+        }
+
+        private void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
+        {
+            if (tier == UserTier.Admin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
             }
         }
 

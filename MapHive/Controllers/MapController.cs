@@ -33,6 +33,9 @@ namespace MapHive.Controllers
         [Authorize] // Only authenticated users can create places
         public async Task<IActionResult> Add(MapLocation location)
         {
+            // Get all categories for dropdown, fetch before model state check
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+
             if (this.ModelState.IsValid)
             {
                 // Set the current user as the creator
@@ -47,8 +50,7 @@ namespace MapHive.Controllers
                 return this.RedirectToAction(nameof(Index));
             }
 
-            // If we get here, there was an error, so repopulate categories
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            // If we get here, there was an error, so assign pre-fetched categories to ViewBag
             this.ViewBag.Categories = categories;
 
             return this.View(location);
@@ -106,14 +108,16 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
+            // Get all categories for dropdown, fetch before model state check
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+
             if (this.ModelState.IsValid)
             {
                 _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
 
-            // If we get here, there was an error, so repopulate categories
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            // If we get here, there was an error, so assign pre-fetched categories to ViewBag
             this.ViewBag.Categories = categories;
 
             return this.View(location);
