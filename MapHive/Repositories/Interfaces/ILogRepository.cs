@@ -1,6 +1,4 @@
 using MapHive.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace MapHive.Repositories.Interfaces
 {
@@ -16,10 +14,10 @@ namespace MapHive.Repositories.Interfaces
         /// <param name="sortDirection">Sort direction ('asc' or 'desc')</param>
         /// <returns>List of logs</returns>
         Task<IEnumerable<Log>> GetLogsAsync(
-            int page = 1, 
-            int pageSize = 20, 
+            int page = 1,
+            int pageSize = 20,
             string searchTerm = "",
-            string sortField = "Timestamp", 
+            string sortField = "Timestamp",
             string sortDirection = "desc");
 
         /// <summary>
@@ -43,4 +41,4 @@ namespace MapHive.Repositories.Interfaces
         /// <returns>List of log severity levels</returns>
         Task<IEnumerable<LogSeverity>> GetLogSeveritiesAsync();
     }
-} 
+}

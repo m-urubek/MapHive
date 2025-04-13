@@ -10,17 +10,17 @@ namespace MapHive.Controllers
     public class LogsController : Controller
     {
         [HttpGet]
-        public async Task<IActionResult> Index(string searchTerm = "", int page = 1, int pageSize = 20, 
+        public async Task<IActionResult> Index(string searchTerm = "", int page = 1, int pageSize = 20,
             string sortField = "Timestamp", string sortDirection = "desc")
         {
             // Check if the user is an admin
             string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) 
+            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue)
                 || (UserTier)userTierValue != UserTier.Admin)
             {
                 return this.RedirectToAction("AccessDenied", "Account");
             }
-            
+
             // Get logs using the DataGridRepository
             DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
                 "Logs",
@@ -30,7 +30,7 @@ namespace MapHive.Controllers
                 sortField,
                 sortDirection);
 
-            return View(viewModel);
+            return this.View(viewModel);
         }
     }
 }

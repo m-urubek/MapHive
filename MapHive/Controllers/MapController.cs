@@ -23,7 +23,7 @@ namespace MapHive.Controllers
             // Get all categories for dropdown
             IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
             this.ViewBag.Categories = categories;
-            
+
             return this.View();
         }
 
@@ -46,11 +46,11 @@ namespace MapHive.Controllers
                 _ = await CurrentRequest.MapRepository.AddLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
-            
+
             // If we get here, there was an error, so repopulate categories
             IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
             this.ViewBag.Categories = categories;
-            
+
             return this.View(location);
         }
 
@@ -72,7 +72,7 @@ namespace MapHive.Controllers
             {
                 return this.Forbid();
             }
-            
+
             // Get all categories for dropdown
             IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
             this.ViewBag.Categories = categories;
@@ -111,11 +111,11 @@ namespace MapHive.Controllers
                 _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
-            
+
             // If we get here, there was an error, so repopulate categories
             IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
             this.ViewBag.Categories = categories;
-            
+
             return this.View(location);
         }
 

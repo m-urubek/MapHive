@@ -3,7 +3,6 @@ using MapHive.Repositories.Interfaces;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
-using System.Text;
 
 namespace MapHive.Repositories
 {
@@ -179,7 +178,7 @@ namespace MapHive.Repositories
             foreach (DataRow dataRow in dataTable.Rows)
             {
                 DataGridRow row = new();
-                
+
                 // Find the ID column
                 string idColumnName = FindIdColumnName(dataTable.Columns, dataRow);
                 if (!string.IsNullOrEmpty(idColumnName) && dataRow[idColumnName] != DBNull.Value)
@@ -215,19 +214,19 @@ namespace MapHive.Repositories
 
             return rows;
         }
-        
+
         // Helper method to find the ID column name in a table
         private static string FindIdColumnName(DataColumnCollection columns, DataRow row)
         {
             // Common patterns for ID column names
-            string[] idPatterns = new[] 
-            { 
-                "Id", 
-                "ID", 
+            string[] idPatterns = new[]
+            {
+                "Id",
+                "ID",
                 "_id",
                 "id_"
             };
-            
+
             // First, look for columns starting with "Id_"
             foreach (DataColumn column in columns)
             {
@@ -236,7 +235,7 @@ namespace MapHive.Repositories
                     return column.ColumnName;
                 }
             }
-            
+
             // Then look for plain "Id" or "{TableName}Id"
             foreach (DataColumn column in columns)
             {
@@ -249,7 +248,7 @@ namespace MapHive.Repositories
                     }
                 }
             }
-            
+
             // If no ID column is found, return the first column as a fallback
             return columns.Count > 0 ? columns[0].ColumnName : string.Empty;
         }

@@ -171,7 +171,7 @@ namespace MapHive.Repositories
 
         private MapLocation MapDataRowToMapLocation(DataRow row)
         {
-            MapLocation location = new MapLocation
+            MapLocation location = new()
             {
                 Id = Convert.ToInt32(row["Id_MapLocation"]),
                 Name = row["Name"].ToString(),
@@ -317,18 +317,18 @@ namespace MapHive.Repositories
         {
             return await Task.Run(async () =>
             {
-                MapLocation location = await GetLocationByIdAsync(id);
-                
+                MapLocation location = await this.GetLocationByIdAsync(id);
+
                 if (location == null)
                 {
                     return null;
                 }
-                
+
                 if (location.CategoryId.HasValue)
                 {
-                    location.Category = await GetCategoryByIdAsync(location.CategoryId.Value);
+                    location.Category = await this.GetCategoryByIdAsync(location.CategoryId.Value);
                 }
-                
+
                 return location;
             });
         }

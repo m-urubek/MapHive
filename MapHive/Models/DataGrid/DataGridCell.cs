@@ -4,4 +4,4 @@ namespace MapHive.Models.DataGrid
     {
         public string Content { get; set; } = string.Empty;
     }
-} 
+}

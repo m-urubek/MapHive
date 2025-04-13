@@ -45,7 +45,7 @@ namespace MapHive.Models
 
         // Category of the location
         public int? CategoryId { get; set; }
-        
+
         // Navigation property for the category
         [System.Text.Json.Serialization.JsonIgnore]
         public Category? Category { get; set; }

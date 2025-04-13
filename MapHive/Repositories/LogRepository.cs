@@ -10,10 +10,10 @@ namespace MapHive.Repositories
     public class LogRepository : ILogRepository
     {
         public async Task<IEnumerable<Log>> GetLogsAsync(
-            int page = 1, 
-            int pageSize = 20, 
+            int page = 1,
+            int pageSize = 20,
             string searchTerm = "",
-            string sortField = "Timestamp", 
+            string sortField = "Timestamp",
             string sortDirection = "desc")
         {
             // Validate parameters
@@ -33,7 +33,7 @@ namespace MapHive.Repositories
 
             _ = queryBuilder.Append("SELECT l.*, s.Name AS SeverityName FROM Logs l ");
             _ = queryBuilder.Append("LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity ");
-            
+
             // Add WHERE clause
             _ = queryBuilder.Append("WHERE 1=1 ");
 
@@ -45,14 +45,9 @@ namespace MapHive.Repositories
             }
 
             // Add sorting
-            if (sortField == "Id")
-            {
-                _ = queryBuilder.Append($"ORDER BY l.Id_Log {sortDirection} ");
-            }
-            else
-            {
-                _ = queryBuilder.Append($"ORDER BY l.{sortField} {sortDirection} ");
-            }
+            _ = sortField == "Id"
+                ? queryBuilder.Append($"ORDER BY l.Id_Log {sortDirection} ")
+                : queryBuilder.Append($"ORDER BY l.{sortField} {sortDirection} ");
 
             // Add pagination
             _ = queryBuilder.Append("LIMIT @PageSize OFFSET @Offset");
@@ -79,7 +74,7 @@ namespace MapHive.Repositories
             List<SQLiteParameter> parameters = new();
 
             _ = queryBuilder.Append("SELECT COUNT(*) FROM Logs l ");
-            
+
             // Add WHERE clause
             _ = queryBuilder.Append("WHERE 1=1 ");
 
@@ -109,12 +104,7 @@ namespace MapHive.Repositories
 
             DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
 
-            if (result.Rows.Count == 0)
-            {
-                return null;
-            }
-
-            return MapDataRowToLog(result.Rows[0]);
+            return result.Rows.Count == 0 ? null : MapDataRowToLog(result.Rows[0]);
         }
 
         public async Task<IEnumerable<LogSeverity>> GetLogSeveritiesAsync()
@@ -154,8 +144,8 @@ namespace MapHive.Repositories
                 Severity = new LogSeverity
                 {
                     Id = Convert.ToInt32(row["SeverityId"]),
-                    Name = row.Table.Columns.Contains("SeverityName") ? 
-                           (row["SeverityName"]?.ToString() ?? string.Empty) : 
+                    Name = row.Table.Columns.Contains("SeverityName") ?
+                           (row["SeverityName"]?.ToString() ?? string.Empty) :
                            GetSeverityName(Convert.ToInt32(row["SeverityId"])),
                     Description = string.Empty // We don't have this in the query result
                 }
@@ -183,4 +173,4 @@ namespace MapHive.Repositories
             return Array.Exists(validColumns, c => c.Equals(columnName, StringComparison.OrdinalIgnoreCase));
         }
     }
-} 
+}
