@@ -42,5 +42,12 @@ namespace MapHive.Models
 
         // Flag for anonymous submission (hide author's username)
         public bool IsAnonymous { get; set; } = false;
+
+        // Category of the location
+        public int? CategoryId { get; set; }
+        
+        // Navigation property for the category
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Category? Category { get; set; }
     }
 }

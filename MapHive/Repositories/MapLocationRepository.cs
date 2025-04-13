@@ -59,14 +59,15 @@ namespace MapHive.Repositories
                     new("@CreatedAt", location.CreatedAt),
                     new("@UpdatedAt", location.UpdatedAt),
                     new("@UserId", location.UserId),
-                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
+                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0),
+                    new("@CategoryId", location.CategoryId.HasValue ? (object)location.CategoryId.Value : DBNull.Value)
                 };
 
                 int id = CurrentRequest.SqlClient.Insert(
                     @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, 
-                      Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous) 
+                      Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId) 
                       VALUES (@Name, @Description, @Latitude, @Longitude, 
-                      @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous)",
+                      @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous, @CategoryId)",
                     parameters);
 
                 location.Id = id;
@@ -102,7 +103,8 @@ namespace MapHive.Repositories
                     new("@CreatedAt", location.CreatedAt),
                     new("@UpdatedAt", location.UpdatedAt),
                     new("@UserId", location.UserId),
-                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0)
+                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0),
+                    new("@CategoryId", location.CategoryId.HasValue ? (object)location.CategoryId.Value : DBNull.Value)
                 };
 
                 _ = CurrentRequest.SqlClient.Update(
@@ -111,7 +113,8 @@ namespace MapHive.Repositories
                       Latitude = @Latitude, Longitude = @Longitude, 
                       Address = @Address, Website = @Website, 
                       PhoneNumber = @PhoneNumber, CreatedAt = @CreatedAt, 
-                      UpdatedAt = @UpdatedAt, UserId = @UserId, IsAnonymous = @IsAnonymous 
+                      UpdatedAt = @UpdatedAt, UserId = @UserId, IsAnonymous = @IsAnonymous,
+                      CategoryId = @CategoryId 
                       WHERE Id_MapLocation = @Id",
                     parameters);
 
@@ -168,7 +171,7 @@ namespace MapHive.Repositories
 
         private MapLocation MapDataRowToMapLocation(DataRow row)
         {
-            return new MapLocation
+            MapLocation location = new MapLocation
             {
                 Id = Convert.ToInt32(row["Id_MapLocation"]),
                 Name = row["Name"].ToString(),
@@ -181,8 +184,11 @@ namespace MapHive.Repositories
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
                 UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
                 UserId = row.Table.Columns.Contains("UserId") ? Convert.ToInt32(row["UserId"]) : 0,
-                IsAnonymous = row.Table.Columns.Contains("IsAnonymous") && Convert.ToInt32(row["IsAnonymous"]) == 1
+                IsAnonymous = row.Table.Columns.Contains("IsAnonymous") && Convert.ToInt32(row["IsAnonymous"]) == 1,
+                CategoryId = row.Table.Columns.Contains("CategoryId") && row["CategoryId"] != DBNull.Value ? Convert.ToInt32(row["CategoryId"]) : null
             };
+
+            return location;
         }
 
         #region Category Methods
@@ -306,5 +312,25 @@ namespace MapHive.Repositories
         }
 
         #endregion
+
+        public async Task<MapLocation> GetLocationWithCategoryAsync(int id)
+        {
+            return await Task.Run(async () =>
+            {
+                MapLocation location = await GetLocationByIdAsync(id);
+                
+                if (location == null)
+                {
+                    return null;
+                }
+                
+                if (location.CategoryId.HasValue)
+                {
+                    location.Category = await GetCategoryByIdAsync(location.CategoryId.Value);
+                }
+                
+                return location;
+            });
+        }
     }
 }

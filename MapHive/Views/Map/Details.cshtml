@@ -22,6 +22,22 @@
                         <dt class="col-sm-4">Description</dt>
                         <dd class="col-sm-8">@Model.Description</dd>
 
+                        <dt class="col-sm-4">Category</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.Category != null)
+                            {
+                                <span>@Model.Category.Name</span>
+                                @if (!string.IsNullOrEmpty(Model.Category.Icon))
+                                {
+                                    <i class="@Model.Category.Icon ms-1"></i>
+                                }
+                            }
+                            else
+                            {
+                                <span>Uncategorized</span>
+                            }
+                        </dd>
+
                         <dt class="col-sm-4">Address</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
 

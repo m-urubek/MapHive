@@ -18,8 +18,12 @@ namespace MapHive.Controllers
 
         // GET: Map/Add
         [Authorize] // Only authenticated users can access this action
-        public IActionResult Add()
+        public async Task<IActionResult> Add()
         {
+            // Get all categories for dropdown
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            this.ViewBag.Categories = categories;
+            
             return this.View();
         }
 
@@ -42,6 +46,11 @@ namespace MapHive.Controllers
                 _ = await CurrentRequest.MapRepository.AddLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
+            
+            // If we get here, there was an error, so repopulate categories
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            this.ViewBag.Categories = categories;
+            
             return this.View(location);
         }
 
@@ -59,9 +68,16 @@ namespace MapHive.Controllers
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             bool isAdmin = this.User.IsInRole("Admin");
 
-            return !isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId)
-                ? this.Forbid()
-                : this.View(location);
+            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId))
+            {
+                return this.Forbid();
+            }
+            
+            // Get all categories for dropdown
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            this.ViewBag.Categories = categories;
+
+            return this.View(location);
         }
 
         // POST: Map/Edit/5
@@ -95,6 +111,11 @@ namespace MapHive.Controllers
                 _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
                 return this.RedirectToAction(nameof(Index));
             }
+            
+            // If we get here, there was an error, so repopulate categories
+            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            this.ViewBag.Categories = categories;
+            
             return this.View(location);
         }
 
@@ -102,7 +123,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationWithCategoryAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -145,7 +166,7 @@ namespace MapHive.Controllers
         // GET: Map/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
+            MapLocation location = await CurrentRequest.MapRepository.GetLocationWithCategoryAsync(id);
             if (location == null)
             {
                 return this.NotFound();
