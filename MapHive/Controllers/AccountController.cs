@@ -162,6 +162,9 @@ namespace MapHive.Controllers
                     new Claim("UserTier", ((int)response.User.Tier).ToString()),
                 };
 
+                // Add role claims based on UserTier
+                this.AddAdminRoleClaim(claims, response.User.Tier);
+
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 ClaimsPrincipal principal = new(identity);
 
@@ -532,6 +535,9 @@ namespace MapHive.Controllers
                 new Claim("UserTier", ((int)user.Tier).ToString()),
             };
 
+            // Add role claims based on UserTier
+            this.AddAdminRoleClaim(claims, user.Tier);
+
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal principal = new(identity);
 
@@ -667,6 +673,10 @@ namespace MapHive.Controllers
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim("UserTier", ((int)user.Tier).ToString()),
             };
+
+            // Add role claims based on UserTier
+            this.AddAdminRoleClaim(claims, user.Tier);
+
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             return new ClaimsPrincipal(identity);
         }
@@ -698,6 +708,14 @@ namespace MapHive.Controllers
 
                 // Save the updated user information
                 CurrentRequest.UserRepository.UpdateUser(user);
+            }
+        }
+
+        private void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
+        {
+            if (tier == UserTier.Admin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
             }
         }
 

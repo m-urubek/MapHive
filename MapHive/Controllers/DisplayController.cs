@@ -1,12 +1,8 @@
 using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Repositories.Interfaces;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace MapHive.Controllers
 {
@@ -20,7 +16,7 @@ namespace MapHive.Controllers
         /// <param name="id">ID of the item</param>
         /// <returns>View with item data</returns>
         [HttpGet]
-        public async Task<IActionResult> Item(string tableName, int id)
+        public IActionResult Item(string tableName, int id)
         {
             try
             {
@@ -30,7 +26,7 @@ namespace MapHive.Controllers
                 {
                     return this.RedirectToAction("AccessDenied", "Account");
                 }
-                
+
                 // Validate table exists
                 if (string.IsNullOrEmpty(tableName))
                 {
@@ -38,15 +34,15 @@ namespace MapHive.Controllers
                 }
 
                 // Check if the table exists
-                bool tableExists = await CurrentRequest.DisplayRepository.TableExistsAsync(tableName);
+                bool tableExists = CurrentRequest.DisplayRepository.TableExistsAsync(tableName).GetAwaiter().GetResult();
                 if (!tableExists)
                 {
                     throw new RedUserException($"Table '{tableName}' does not exist");
                 }
 
                 // Get data for the item
-                Dictionary<string, string> itemData = await CurrentRequest.DisplayRepository.GetItemDataAsync(tableName, id);
-                
+                Dictionary<string, string> itemData = CurrentRequest.DisplayRepository.GetItemDataAsync(tableName, id).GetAwaiter().GetResult();
+
                 // Check if data was found
                 if (itemData.Count == 0)
                 {
@@ -54,28 +50,28 @@ namespace MapHive.Controllers
                 }
 
                 // Set ViewBag data for the view
-                ViewBag.TableName = tableName;
-                ViewBag.ItemId = id;
-                
+                this.ViewBag.TableName = tableName;
+                this.ViewBag.ItemId = id;
+
                 // Check if this is the Users table
-                ViewBag.IsUsersTable = tableName.Equals("Users", StringComparison.OrdinalIgnoreCase);
-                
+                this.ViewBag.IsUsersTable = tableName.Equals("Users", StringComparison.OrdinalIgnoreCase);
+
                 // If it's the Users table, extract the username for the link
-                if (ViewBag.IsUsersTable)
+                if (this.ViewBag.IsUsersTable)
                 {
                     // Find Username key in the dictionary
-                    foreach (var key in itemData.Keys)
+                    foreach (string key in itemData.Keys)
                     {
                         if (key.Equals("Username", StringComparison.OrdinalIgnoreCase))
                         {
-                            ViewBag.Username = itemData[key];
+                            this.ViewBag.Username = itemData[key];
                             break;
                         }
                     }
                 }
 
                 // Return view with item data
-                return View(itemData);
+                return this.View(itemData);
             }
             catch (Exception ex)
             {
@@ -90,4 +86,4 @@ namespace MapHive.Controllers
             }
         }
     }
-} 
+}

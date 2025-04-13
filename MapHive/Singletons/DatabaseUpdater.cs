@@ -386,5 +386,60 @@ namespace MapHive.Singletons
                 PRAGMA foreign_keys=on;
             ");
         }
+
+        public static void v11()
+        {
+            _ = CurrentRequest.SqlClient.ExecuteScript(@"
+                PRAGMA foreign_keys=off;
+                
+                BEGIN TRANSACTION;
+                
+                -- Add CategoryId column to MapLocations table
+                ALTER TABLE MapLocations ADD COLUMN CategoryId INTEGER DEFAULT NULL;
+                
+                -- Create index for faster lookups
+                CREATE INDEX IF NOT EXISTS idx_maplocation_category ON MapLocations(CategoryId);
+                
+                -- Add foreign key constraint
+                -- Note: SQLite doesn't support ADD CONSTRAINT so we need to use a workaround
+                
+                -- Create temporary table with the new schema
+                CREATE TABLE MapLocations_temp (
+                    Id_MapLocation INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    Description TEXT NOT NULL,
+                    Latitude REAL NOT NULL,
+                    Longitude REAL NOT NULL,
+                    Address TEXT,
+                    Website TEXT,
+                    PhoneNumber TEXT,
+                    CreatedAt TEXT NOT NULL,
+                    UpdatedAt TEXT NOT NULL,
+                    UserId INTEGER NOT NULL,
+                    IsAnonymous INTEGER NOT NULL DEFAULT 0,
+                    CategoryId INTEGER,
+                    FOREIGN KEY(CategoryId) REFERENCES Categories(Id_Category)
+                );
+                
+                -- Copy all data from the old table to the new one
+                INSERT INTO MapLocations_temp 
+                SELECT Id_MapLocation, Name, Description, Latitude, Longitude, Address, Website, PhoneNumber, 
+                       CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId 
+                FROM MapLocations;
+                
+                -- Drop the old table
+                DROP TABLE MapLocations;
+                
+                -- Rename the new table to the original name
+                ALTER TABLE MapLocations_temp RENAME TO MapLocations;
+                
+                -- Recreate indexes
+                CREATE INDEX IF NOT EXISTS idx_maplocation_category ON MapLocations(CategoryId);
+                
+                COMMIT;
+                
+                PRAGMA foreign_keys=on;
+            ");
+        }
     }
 }

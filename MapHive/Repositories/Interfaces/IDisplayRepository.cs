@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
 namespace MapHive.Repositories.Interfaces
 {
     public interface IDisplayRepository
@@ -12,7 +9,7 @@ namespace MapHive.Repositories.Interfaces
         /// <param name="id">ID of the item</param>
         /// <returns>Dictionary with column names as keys and values as string values</returns>
         Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id);
-        
+
         /// <summary>
         /// Validates if a table exists in the database
         /// </summary>
@@ -20,4 +17,4 @@ namespace MapHive.Repositories.Interfaces
         /// <returns>True if the table exists, false otherwise</returns>
         Task<bool> TableExistsAsync(string tableName);
     }
-} 
+}

@@ -1,10 +1,7 @@
 using MapHive.Repositories.Interfaces;
 using MapHive.Singletons;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
-using System.Threading.Tasks;
 
 namespace MapHive.Repositories
 {
@@ -19,7 +16,7 @@ namespace MapHive.Repositories
             }
 
             // Determine the ID column name (first column or Id_{tableName})
-            string idColumn = await GetIdColumnNameAsync(tableName);
+            string idColumn = await this.GetIdColumnNameAsync(tableName);
 
             // Build query to get all data for the specified item
             string query = $"SELECT * FROM {tableName} WHERE {idColumn} = @Id";
@@ -95,7 +92,7 @@ namespace MapHive.Repositories
 
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
                 string displayName = FormatColumnNameForDisplay(columnName);
-                
+
                 result.Add(displayName, value);
             }
 
@@ -107,7 +104,7 @@ namespace MapHive.Repositories
             // Remove Id_ prefix if exists
             if (columnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
             {
-                columnName = columnName.Substring(3);
+                columnName = columnName[3..];
             }
 
             // Insert space before capital letters to create a more readable format
@@ -132,4 +129,4 @@ namespace MapHive.Repositories
                    System.Text.RegularExpressions.Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
         }
     }
-} 
+}

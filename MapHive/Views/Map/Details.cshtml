@@ -22,6 +22,22 @@
                         <dt class="col-sm-4">Description</dt>
                         <dd class="col-sm-8">@Model.Description</dd>
 
+                        <dt class="col-sm-4">Category</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.Category != null)
+                            {
+                                <span>@Model.Category.Name</span>
+                                @if (!string.IsNullOrEmpty(Model.Category.Icon))
+                                {
+                                    <i class="@Model.Category.Icon ms-1"></i>
+                                }
+                            }
+                            else
+                            {
+                                <span>Uncategorized</span>
+                            }
+                        </dd>
+
                         <dt class="col-sm-4">Address</dt>
                         <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
 
@@ -94,8 +110,12 @@
                     </dl>
                 </div>
                 <div class="card-footer">
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit</a>
-                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Delete</a>
+                    @if (User.Identity?.IsAuthenticated == true &&
+                          (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.UserId.ToString()))
+                    {
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit</a>
+                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Delete</a>
+                    }
                     <a asp-action="Index" class="btn btn-secondary">Back to List</a>
                 </div>
             </div>
@@ -277,8 +297,17 @@
             crossorigin=""></script>
     <script>
         $(document).ready(function() {
-            // Initialize the map
-            var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
+            // Initialize the map with only zoom buttons enabled, all other interactions disabled
+            var map = L.map('map', {
+                dragging: false,
+                zoomControl: true,
+                scrollWheelZoom: false,
+                doubleClickZoom: false,
+                touchZoom: false,
+                boxZoom: false,
+                keyboard: false,
+                tap: false
+            }).setView([@Model.Latitude, @Model.Longitude], 13);
 
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -288,15 +317,6 @@
 
             // Add a marker for the location
             var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
-
-            // Add a popup to the marker
-            marker.bindPopup(
-                '<strong>@Model.Name</strong><br>' +
-                '@Model.Description<br>' +
-                '@(string.IsNullOrEmpty(Model.Address) ? "" : Model.Address + "<br>")' +
-                '@(string.IsNullOrEmpty(Model.Website) ? "" : "<a href=\"" + Model.Website + "\" target=\"_blank\">Website</a><br>")' +
-                '@(string.IsNullOrEmpty(Model.PhoneNumber) ? "" : "Phone: " + Model.PhoneNumber)'
-            ).openPopup();
         });
     </script>
 } 
