@@ -19,7 +19,7 @@ namespace MapHive.Services
             // Check if IP is blacklisted
             if (CurrentRequest.UserRepository.IsBlacklisted(ipAddress))
             {
-                throw new WarningException($"Registration attempt from blacklisted IP. IP: {ipAddress}");
+                throw new WarningException($"Registration attempt from blacklisted IP");
             }
 
             // Create the user
@@ -35,8 +35,7 @@ namespace MapHive.Services
             int userId = CurrentRequest.UserRepository.CreateUser(user);
             user.Id = userId;
 
-            CurrentRequest.LogManager.Information($"New user registered: {request.Username}",
-                additionalData: $"IP: {ipAddress}");
+            CurrentRequest.LogManager.Information($"New user registered: {request.Username}");
 
             return Task.FromResult(new AuthResponse
             {
@@ -73,9 +72,9 @@ namespace MapHive.Services
             });
         }
 
-        public bool IsBlacklisted(string ipAddress)
+        public bool IsBlacklisted(string hashedIpAddress)
         {
-            return CurrentRequest.UserRepository.IsBlacklisted(ipAddress);
+            return CurrentRequest.UserRepository.IsBlacklisted(hashedIpAddress);
         }
 
         public string HashPassword(string password)

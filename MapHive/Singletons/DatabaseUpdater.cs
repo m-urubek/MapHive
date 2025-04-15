@@ -120,7 +120,7 @@ namespace MapHive.Singletons
                 'Username'	TEXT NOT NULL UNIQUE,
                 'PasswordHash'	TEXT NOT NULL,
                 'RegistrationDate'	TEXT NOT NULL,
-                'IpAddress'	TEXT NOT NULL,
+                'HashedIpAddress'	TEXT NOT NULL,
                 'MacAddress'	TEXT NOT NULL,
                 'IsTrusted'	INTEGER NOT NULL DEFAULT 0,
                 'IsAdmin'	INTEGER NOT NULL DEFAULT 0,
@@ -130,7 +130,7 @@ namespace MapHive.Singletons
             // Create blacklist table for IP and MAC addresses
             _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist' (
                 'Id_Blacklist'	INTEGER,
-                'IpAddress'	TEXT,
+                'HashedIpAddress'	TEXT,
                 'MacAddress'	TEXT,
                 'Reason'	TEXT NOT NULL,
                 'BlacklistedDate'	TEXT NOT NULL,
@@ -141,9 +141,9 @@ namespace MapHive.Singletons
             _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
 
             // Create indexes on IP and MAC addresses for blacklist checks
-            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(HashedIpAddress)");
             _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_mac_address ON Users(MacAddress)");
-            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(HashedIpAddress)");
             _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_mac ON Blacklist(MacAddress)");
         }
 
@@ -227,7 +227,7 @@ namespace MapHive.Singletons
                 'Username'	TEXT NOT NULL UNIQUE,
                 'PasswordHash'	TEXT NOT NULL,
                 'RegistrationDate'	TEXT NOT NULL,
-                'IpAddress'	TEXT NOT NULL,
+                'HashedIpAddress'	TEXT NOT NULL,
                 'IsTrusted'	INTEGER NOT NULL DEFAULT 0,
                 'IsAdmin'	INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY('Id_User' AUTOINCREMENT)
@@ -235,18 +235,18 @@ namespace MapHive.Singletons
 
             _ = CurrentRequest.SqlClient.Alter(@"CREATE TABLE IF NOT EXISTS 'Blacklist_temp' (
                 'Id_Blacklist'	INTEGER,
-                'IpAddress'	TEXT,
+                'HashedIpAddress'	TEXT,
                 'Reason'	TEXT NOT NULL,
                 'BlacklistedDate'	TEXT NOT NULL,
                 PRIMARY KEY('Id_Blacklist' AUTOINCREMENT)
             )");
 
             // Copy data to temporary tables without MAC address
-            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin)
-                SELECT Id_User, Username, PasswordHash, RegistrationDate, IpAddress, IsTrusted, IsAdmin FROM Users");
+            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, HashedIpAddress, IsTrusted, IsAdmin)
+                SELECT Id_User, Username, PasswordHash, RegistrationDate, HashedIpAddress, IsTrusted, IsAdmin FROM Users");
 
-            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Blacklist_temp (Id_Blacklist, IpAddress, Reason, BlacklistedDate)
-                SELECT Id_Blacklist, IpAddress, Reason, BlacklistedDate FROM Blacklist");
+            _ = CurrentRequest.SqlClient.Alter(@"INSERT INTO Blacklist_temp (Id_Blacklist, HashedIpAddress, Reason, BlacklistedDate)
+                SELECT Id_Blacklist, HashedIpAddress, Reason, BlacklistedDate FROM Blacklist");
 
             // Drop original tables
             _ = CurrentRequest.SqlClient.Alter("DROP TABLE Users");
@@ -258,8 +258,8 @@ namespace MapHive.Singletons
 
             // Recreate indexes
             _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_username ON Users(Username)");
-            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(IpAddress)");
-            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(IpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_ip_address ON Users(HashedIpAddress)");
+            _ = CurrentRequest.SqlClient.Alter("CREATE INDEX IF NOT EXISTS idx_blacklist_ip ON Blacklist(HashedIpAddress)");
         }
 
         public static void v8()
@@ -287,13 +287,13 @@ namespace MapHive.Singletons
                     Username TEXT NOT NULL UNIQUE,
                     PasswordHash TEXT NOT NULL,
                     RegistrationDate TEXT NOT NULL,
-                    IpAddress TEXT NOT NULL,
+                    HashedIpAddress TEXT NOT NULL,
                     Tier INTEGER NOT NULL DEFAULT 0
                 );
 
                 -- Copy data to the new table structure
-                INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, IpAddress, Tier)
-                SELECT Id_User, Username, PasswordHash, RegistrationDate, IpAddress, Tier FROM Users;
+                INSERT INTO Users_temp (Id_User, Username, PasswordHash, RegistrationDate, HashedIpAddress, Tier)
+                SELECT Id_User, Username, PasswordHash, RegistrationDate, HashedIpAddress, Tier FROM Users;
 
                 -- Drop the old table and rename the new one
                 DROP TABLE Users;
@@ -301,7 +301,7 @@ namespace MapHive.Singletons
 
                 -- Recreate indexes
                 CREATE INDEX idx_username ON Users(Username);
-                CREATE INDEX idx_ip_address ON Users(IpAddress);
+                CREATE INDEX idx_ip_address ON Users(HashedIpAddress);
 
                 COMMIT;
 
@@ -321,7 +321,7 @@ namespace MapHive.Singletons
                 CREATE TABLE IF NOT EXISTS 'UserBans' (
                     'Id_UserBan' INTEGER PRIMARY KEY AUTOINCREMENT,
                     'UserId' INTEGER,
-                    'IpAddress' TEXT,
+                    'HashedIpAddress' TEXT,
                     'BanType' INTEGER NOT NULL,
                     'BannedAt' TEXT NOT NULL,
                     'ExpiresAt' TEXT,
@@ -333,7 +333,7 @@ namespace MapHive.Singletons
                 
                 -- Create indexes for faster lookups
                 CREATE INDEX IF NOT EXISTS idx_userbans_userid ON UserBans(UserId);
-                CREATE INDEX IF NOT EXISTS idx_userbans_ipaddress ON UserBans(IpAddress);
+                CREATE INDEX IF NOT EXISTS idx_userbans_ipaddress ON UserBans(HashedIpAddress);
                 CREATE INDEX IF NOT EXISTS idx_userbans_expirydate ON UserBans(ExpiresAt);
                 CREATE INDEX IF NOT EXISTS idx_userbans_bannedby ON UserBans(BannedByUserId);
                 
@@ -355,9 +355,9 @@ namespace MapHive.Singletons
                 
                 -- Step 2: Copy the existing registration IP to the new history column
                 -- Only update if IpAddressHistory is currently the default empty string
-                UPDATE Users SET IpAddressHistory = IpAddress WHERE IpAddressHistory = '';
+                UPDATE Users SET IpAddressHistory = HashedIpAddress WHERE IpAddressHistory = '';
                 
-                -- Step 3: Create a temporary table with the final schema (without IpAddress)
+                -- Step 3: Create a temporary table with the final schema (without HashedIpAddress)
                 CREATE TABLE Users_temp (
                     Id_User INTEGER PRIMARY KEY AUTOINCREMENT,
                     Username TEXT NOT NULL UNIQUE,
@@ -377,7 +377,7 @@ namespace MapHive.Singletons
                 -- Step 6: Rename the temporary table to Users
                 ALTER TABLE Users_temp RENAME TO Users;
                 
-                -- Step 7: Recreate necessary indexes (excluding the one for the dropped IpAddress column)
+                -- Step 7: Recreate necessary indexes (excluding the one for the dropped HashedIpAddress column)
                 CREATE INDEX IF NOT EXISTS idx_username ON Users(Username);
                 -- Do NOT recreate idx_ip_address
                 

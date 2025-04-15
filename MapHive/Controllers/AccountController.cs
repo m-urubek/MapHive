@@ -140,17 +140,20 @@ namespace MapHive.Controllers
                 throw new RedUserException("Unable to retreive your IP address");
             }
 
+            // Hash the IP address before storage or checks
+            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
+
             // Check if the IP is banned for registration
             // Note: All new registrations are subject to IP bans since new users always start as normal users
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
+            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
             if (ipBan != null && ipBan.IsActive)
             {
                 this.ModelState.AddModelError("", $"Registration from your IP address is not allowed. Reason: {ipBan.Reason}");
                 return this.View(model);
             }
 
-            // Create the user
-            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, ipAddress);
+            // Create the user with hashed IP
+            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, hashedIpAddress);
 
             if (response.Success && response.User != null)
             {
@@ -433,13 +436,15 @@ namespace MapHive.Controllers
             else if (model.BanType == BanType.IpAddress)
             {
                 // Get registration IP from history
-                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (string.IsNullOrEmpty(registrationIp))
+                string? hashedRegistrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                if (string.IsNullOrEmpty(hashedRegistrationIp))
                 {
                     this.TempData["ErrorMessage"] = "Could not determine registration IP for IP ban.";
                     return this.RedirectToAction("PublicProfile", new { username });
                 }
-                ban.IpAddress = registrationIp;
+                
+                // The IP in IpAddressHistory should already be hashed
+                ban.HashedIpAddress = hashedRegistrationIp;
             }
 
             // Save the ban
@@ -449,7 +454,7 @@ namespace MapHive.Controllers
             {
                 this.TempData["SuccessMessage"] = model.BanType == BanType.Account
                     ? $"User {user.Username} has been banned successfully."
-                    : $"IP address {ban.IpAddress} has been banned successfully.";
+                    : $"IP address {ban.HashedIpAddress} has been banned successfully.";
             }
             else
             {
@@ -656,7 +661,10 @@ namespace MapHive.Controllers
                 return false; // Not banned (or check skipped)
             }
 
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
+            // Hash the IP address before checking for ban
+            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
+
+            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
             if (ipBan != null && ipBan.IsActive)
             {
                 this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
@@ -688,6 +696,9 @@ namespace MapHive.Controllers
                 return; // Cannot record if IP is missing
             }
 
+            // Hash the IP address before storing it
+            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(currentIpAddress);
+
             // Ensure IpAddressHistory is not null before processing
             user.IpAddressHistory ??= string.Empty;
 
@@ -697,14 +708,14 @@ namespace MapHive.Controllers
                 .ToList();
 
             // Check if the current IP is already known (case-insensitive comparison)
-            if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
+            if (!knownIPs.Contains(hashedIpAddress, StringComparer.OrdinalIgnoreCase))
             {
                 // Append the new IP address
                 if (!string.IsNullOrEmpty(user.IpAddressHistory))
                 {
                     user.IpAddressHistory += "\n"; // Add newline separator if not empty
                 }
-                user.IpAddressHistory += currentIpAddress;
+                user.IpAddressHistory += hashedIpAddress;
 
                 // Save the updated user information
                 CurrentRequest.UserRepository.UpdateUser(user);

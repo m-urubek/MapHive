@@ -16,7 +16,7 @@ namespace MapHive.Models
         public int? UserId { get; set; }
 
         // For IP bans
-        public string? IpAddress { get; set; }
+        public string? HashedIpAddress { get; set; }
 
         [Required]
         public BanType BanType { get; set; }

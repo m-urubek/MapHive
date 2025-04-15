@@ -59,11 +59,11 @@ namespace MapHive.Repositories
         {
             string query = @"
                 SELECT COUNT(*) FROM Blacklist 
-                WHERE IpAddress = @IpAddress";
+                WHERE HashedIpAddress = @HashedIpAddress";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@IpAddress", ipAddress)
+                new("@HashedIpAddress", ipAddress)
             };
 
             DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
@@ -73,13 +73,14 @@ namespace MapHive.Repositories
 
         public int AddToBlacklist(BlacklistedAddress blacklistedAddress)
         {
+            // Ensure the IP address is already hashed before adding to blacklist
             string query = @"
-                INSERT INTO Blacklist (IpAddress, Reason, BlacklistedDate)
-                VALUES (@IpAddress, @Reason, @BlacklistedDate)";
+                INSERT INTO Blacklist (HashedIpAddress, Reason, BlacklistedDate)
+                VALUES (@HashedIpAddress, @Reason, @BlacklistedDate)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@IpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
+                new("@HashedIpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
                 new("@Reason", blacklistedAddress.Reason),
                 new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
             };
@@ -252,13 +253,13 @@ namespace MapHive.Repositories
         public async Task<int> BanUserAsync(UserBan ban)
         {
             string query = @"
-                    INSERT INTO UserBans (UserId, IpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
-                    VALUES (@UserId, @IpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
+                    INSERT INTO UserBans (UserId, HashedIpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
+                    VALUES (@UserId, @HashedIpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
                     new("@UserId", ban.UserId.HasValue ? (object)ban.UserId.Value : DBNull.Value),
-                    new("@IpAddress", !string.IsNullOrEmpty(ban.IpAddress) ? (object)ban.IpAddress : DBNull.Value),
+                    new("@HashedIpAddress", !string.IsNullOrEmpty(ban.HashedIpAddress) ? (object)ban.HashedIpAddress : DBNull.Value),
                     new("@BanType", (int)ban.BanType),
                     new("@BannedAt", ban.BannedAt.ToString("yyyy-MM-dd HH:mm:ss")),
                     new("@ExpiresAt", ban.ExpiresAt.HasValue ? ban.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
@@ -307,11 +308,11 @@ namespace MapHive.Repositories
             // Get only bans that are active (ExpiresAt is null or in the future)
             string query = @"
                     SELECT * FROM UserBans
-                    WHERE IpAddress = @IpAddress
+                    WHERE HashedIpAddress = @HashedIpAddress
                     AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
                     ORDER BY BannedAt DESC LIMIT 1";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@IpAddress", ipAddress) };
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@HashedIpAddress", ipAddress) };
 
             // Use SelectAsync directly
             DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
@@ -375,7 +376,7 @@ namespace MapHive.Repositories
             // Build search condition
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                whereClause = "WHERE (Reason LIKE @SearchTerm OR IpAddress LIKE @SearchTerm)";
+                whereClause = "WHERE (Reason LIKE @SearchTerm OR HashedIpAddress LIKE @SearchTerm)";
                 parametersList.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
 
                 // Attempt to search by User ID if the search term is a valid integer
@@ -410,7 +411,7 @@ namespace MapHive.Repositories
                 {
                     "Id" => "Id_UserBan",
                     "UserId" => "UserId",
-                    "IpAddress" => "IpAddress",
+                    "HashedIpAddress" => "HashedIpAddress",
                     "BanType" => "BanType",
                     "BannedAt" => "BannedAt",
                     "ExpiresAt" => "ExpiresAt",
@@ -457,7 +458,7 @@ namespace MapHive.Repositories
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 // Base query for searching
-                query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @SearchTerm OR IpAddress LIKE @SearchTerm)";
+                query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @SearchTerm OR HashedIpAddress LIKE @SearchTerm)";
                 parametersList.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
 
                 // Add user ID search if applicable
@@ -507,7 +508,7 @@ namespace MapHive.Repositories
             {
                 Id = Convert.ToInt32(row["Id_UserBan"]),
                 UserId = row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : null,
-                IpAddress = row["IpAddress"] != DBNull.Value ? row["IpAddress"].ToString() : null,
+                HashedIpAddress = row["HashedIpAddress"] != DBNull.Value ? row["HashedIpAddress"].ToString() : null,
                 BanType = (BanType)Convert.ToInt32(row["BanType"]),
                 BannedAt = DateTime.Parse(row["BannedAt"].ToString() ?? DateTime.MinValue.ToString()),
                 ExpiresAt = row["ExpiresAt"] != DBNull.Value
