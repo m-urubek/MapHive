@@ -35,7 +35,9 @@ namespace MapHive.Services
             int userId = CurrentRequest.UserRepository.CreateUser(user);
             user.Id = userId;
 
-            CurrentRequest.LogManager.Information($"New user registered: {request.Username}");
+            // Log registration, including hashed IP
+            CurrentRequest.LogManager.Information($"New user registered: {request.Username}", 
+                additionalData: $"Hashed IP: {ipAddress}");
 
             return Task.FromResult(new AuthResponse
             {

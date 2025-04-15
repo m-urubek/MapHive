@@ -15,7 +15,7 @@ namespace MapHive.Models
         // For account bans
         public int? UserId { get; set; }
 
-        // For IP bans
+        // For IP bans - Stored as SHA256 hash
         public string? HashedIpAddress { get; set; }
 
         [Required]

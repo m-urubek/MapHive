@@ -321,7 +321,7 @@ namespace MapHive.Singletons
                 CREATE TABLE IF NOT EXISTS 'UserBans' (
                     'Id_UserBan' INTEGER PRIMARY KEY AUTOINCREMENT,
                     'UserId' INTEGER,
-                    'HashedIpAddress' TEXT,
+                    'IpAddress' TEXT,
                     'BanType' INTEGER NOT NULL,
                     'BannedAt' TEXT NOT NULL,
                     'ExpiresAt' TEXT,
@@ -333,7 +333,7 @@ namespace MapHive.Singletons
                 
                 -- Create indexes for faster lookups
                 CREATE INDEX IF NOT EXISTS idx_userbans_userid ON UserBans(UserId);
-                CREATE INDEX IF NOT EXISTS idx_userbans_ipaddress ON UserBans(HashedIpAddress);
+                CREATE INDEX IF NOT EXISTS idx_userbans_ipaddress ON UserBans(IpAddress);
                 CREATE INDEX IF NOT EXISTS idx_userbans_expirydate ON UserBans(ExpiresAt);
                 CREATE INDEX IF NOT EXISTS idx_userbans_bannedby ON UserBans(BannedByUserId);
                 
@@ -341,6 +341,31 @@ namespace MapHive.Singletons
                 
                 PRAGMA foreign_keys=on;
             ");
+
+            // Hash all IP addresses in UserBans table
+            DataTable userBans = CurrentRequest.SqlClient.Select("SELECT Id_UserBan, IpAddress FROM UserBans");
+            foreach (DataRow row in userBans.Rows)
+            {
+                int banId = Convert.ToInt32(row["Id_UserBan"]);
+                string ipAddress = row["IpAddress"].ToString() ?? string.Empty; // Keep column name IpAddress
+                
+                if (!string.IsNullOrEmpty(ipAddress))
+                {
+                    // Check if it's already hashed (basic length check)
+                    if (ipAddress.Length != 64)
+                    {
+                        string hashedIp = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
+                        
+                        CurrentRequest.SqlClient.Update(
+                            "UPDATE UserBans SET IpAddress = @HashedIpAddress WHERE Id_UserBan = @Id", // Update IpAddress column
+                            new SQLiteParameter[] {
+                                new("@HashedIpAddress", hashedIp),
+                                new("@Id", banId)
+                            }
+                        );
+                    }
+                }
+            }
         }
 
         public static void v10()

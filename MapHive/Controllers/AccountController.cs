@@ -42,6 +42,7 @@ namespace MapHive.Controllers
                 }
 
                 // Check for IP ban (skipped for admins)
+                // Ensure IP address is hashed before checking the ban
                 if (await this.CheckForIpBanAsync(currentIpAddress, response.User.Tier))
                 {
                     return this.View(model); // Return if IP banned
@@ -435,16 +436,21 @@ namespace MapHive.Controllers
             }
             else if (model.BanType == BanType.IpAddress)
             {
-                // Get registration IP from history
-                string? hashedRegistrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (string.IsNullOrEmpty(hashedRegistrationIp))
+                // Get registration IP from history (already hashed)
+                string? registrationIp = null;
+                if (!string.IsNullOrEmpty(user.IpAddressHistory))
+                {
+                    registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                }
+
+                if (string.IsNullOrEmpty(registrationIp))
                 {
                     this.TempData["ErrorMessage"] = "Could not determine registration IP for IP ban.";
                     return this.RedirectToAction("PublicProfile", new { username });
                 }
                 
                 // The IP in IpAddressHistory should already be hashed
-                ban.HashedIpAddress = hashedRegistrationIp;
+                ban.HashedIpAddress = registrationIp;
             }
 
             // Save the ban
@@ -454,7 +460,7 @@ namespace MapHive.Controllers
             {
                 this.TempData["SuccessMessage"] = model.BanType == BanType.Account
                     ? $"User {user.Username} has been banned successfully."
-                    : $"IP address {ban.HashedIpAddress} has been banned successfully.";
+                    : $"IP address ban applied successfully.";
             }
             else
             {
