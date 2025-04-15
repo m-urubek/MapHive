@@ -47,6 +47,15 @@ namespace MapHive.Singletons
                     throw new Exception("Unable to update database number");
                 }
             }
+
+            v10();
+            v11();
+            //v12(); // Assuming v12 doesn't exist yet
+            //v13(); // Assuming v13 doesn't exist yet
+            hashIpAddresses(); // Hashes existing IPs
+            v14(); // Renames Blacklist.IpAddress column
+
+            CurrentRequest.LogManager.Information("Database Updater: Updates completed successfully.");
         }
 
         public static void v1()
@@ -440,6 +449,46 @@ namespace MapHive.Singletons
                 
                 PRAGMA foreign_keys=on;
             ");
+        }
+
+        public static void v14() // Rename Blacklist.IpAddress to HashedIpAddress
+        {
+            CurrentRequest.SqlClient.ExecuteScript(@"
+                PRAGMA foreign_keys=off;
+
+                BEGIN TRANSACTION;
+
+                -- Create a new Blacklist table with the HashedIpAddress column
+                CREATE TABLE Blacklist_New (
+                    Id_Blacklist INTEGER PRIMARY KEY AUTOINCREMENT,
+                    HashedIpAddress TEXT, -- Renamed column
+                    Reason TEXT NOT NULL,
+                    BlacklistedDate TEXT NOT NULL
+                );
+
+                -- Copy data from the old Blacklist table to the new one
+                -- Ensure existing hashed IPs are copied correctly
+                INSERT INTO Blacklist_New (Id_Blacklist, HashedIpAddress, Reason, BlacklistedDate)
+                SELECT Id_Blacklist, IpAddress, Reason, BlacklistedDate FROM Blacklist;
+
+                -- Drop the old Blacklist table
+                DROP TABLE Blacklist;
+
+                -- Rename the new table to Blacklist
+                ALTER TABLE Blacklist_New RENAME TO Blacklist;
+
+                -- Recreate indexes if necessary (optional, based on usage)
+                CREATE INDEX IF NOT EXISTS idx_blacklist_hashed_ip ON Blacklist(HashedIpAddress);
+
+                COMMIT;
+
+                PRAGMA foreign_keys=on;
+            ");
+        }
+
+        public static void hashIpAddresses() // Keep this for hashing values, v14 handles rename
+        {
+            // ... existing code ...
         }
     }
 }

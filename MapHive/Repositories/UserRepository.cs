@@ -55,7 +55,7 @@ namespace MapHive.Repositories
             return Convert.ToInt32(result.Rows[0][0]) > 0;
         }
 
-        public bool IsBlacklisted(string ipAddress)
+        public bool IsBlacklisted(string hashedIpAddress)
         {
             string query = @"
                 SELECT COUNT(*) FROM Blacklist 
@@ -63,7 +63,7 @@ namespace MapHive.Repositories
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@HashedIpAddress", ipAddress)
+                new("@HashedIpAddress", hashedIpAddress)
             };
 
             DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
@@ -81,12 +81,12 @@ namespace MapHive.Repositories
 
             // Ensure the IP address is already hashed before adding to blacklist
             string query = @"
-                INSERT INTO Blacklist (IpAddress, Reason, BlacklistedDate)
-                VALUES (@IpAddress, @Reason, @BlacklistedDate)";
+                INSERT INTO Blacklist (HashedIpAddress, Reason, BlacklistedDate)
+                VALUES (@HashedIpAddress, @Reason, @BlacklistedDate)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@IpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
+                new("@HashedIpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
                 new("@Reason", blacklistedAddress.Reason),
                 new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
             };
@@ -260,12 +260,12 @@ namespace MapHive.Repositories
         {
             string query = @"
                     INSERT INTO UserBans (UserId, IpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
-                    VALUES (@UserId, @IpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
+                    VALUES (@UserId, @HashedIpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
                     new("@UserId", ban.UserId.HasValue ? (object)ban.UserId.Value : DBNull.Value),
-                    new("@IpAddress", !string.IsNullOrEmpty(ban.HashedIpAddress) ? (object)ban.HashedIpAddress : DBNull.Value),
+                    new("@HashedIpAddress", !string.IsNullOrEmpty(ban.HashedIpAddress) ? (object)ban.HashedIpAddress : DBNull.Value),
                     new("@BanType", (int)ban.BanType),
                     new("@BannedAt", ban.BannedAt.ToString("yyyy-MM-dd HH:mm:ss")),
                     new("@ExpiresAt", ban.ExpiresAt.HasValue ? ban.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
@@ -314,11 +314,11 @@ namespace MapHive.Repositories
             // Get only bans that are active (ExpiresAt is null or in the future)
             string query = @"
                     SELECT * FROM UserBans
-                    WHERE IpAddress = @IpAddress
+                    WHERE IpAddress = @HashedIpAddress
                     AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
                     ORDER BY BannedAt DESC LIMIT 1";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@IpAddress", hashedIpAddress) };
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@HashedIpAddress", hashedIpAddress) };
 
             // Use SelectAsync directly
             DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
@@ -382,8 +382,12 @@ namespace MapHive.Repositories
             // Build search condition
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                whereClause = "WHERE (Reason LIKE @SearchTerm OR IpAddress LIKE @SearchTerm)";
-                parametersList.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
+                // Note: Searching by hashed IP requires the exact hash, which might not be user-friendly for admins.
+                // Consider allowing search by raw IP and hashing internally if needed in the future.
+                whereClause = "WHERE (Reason LIKE @SearchTerm OR IpAddress = @SearchTerm)"; // Use exact match for IP
+                parametersList.Add(new SQLiteParameter("@SearchTerm", searchTerm)); // Use exact match for IP
+                parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%")); // Use LIKE for reason
+                whereClause = whereClause.Replace("Reason LIKE @SearchTerm", "Reason LIKE @ReasonSearchTerm"); // Adjust query string
 
                 // Attempt to search by User ID if the search term is a valid integer
                 if (int.TryParse(searchTerm, out int searchUserId))
@@ -466,10 +470,9 @@ namespace MapHive.Repositories
                 // Base query for searching
                 // Note: Searching by hashed IP requires the exact hash, which might not be user-friendly for admins.
                 // Consider allowing search by raw IP and hashing internally if needed in the future.
-                query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @SearchTerm OR IpAddress = @SearchTerm)"; 
-                parametersList.Add(new SQLiteParameter("@SearchTerm", searchTerm)); // Use exact match for IP
-                parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%")); // Use LIKE for reason
-                query = query.Replace("Reason LIKE @SearchTerm", "Reason LIKE @ReasonSearchTerm"); // Adjust query string
+                query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @ReasonSearchTerm OR IpAddress = @HashedIpSearchTerm)";
+                parametersList.Add(new SQLiteParameter("@HashedIpSearchTerm", searchTerm));
+                parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%"));
 
                 // Add user ID search if applicable
                 if (int.TryParse(searchTerm, out int searchUserId))
