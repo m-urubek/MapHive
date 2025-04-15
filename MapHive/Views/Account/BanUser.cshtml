@@ -7,8 +7,7 @@
 
 <p>You are about to ban user <strong>@ViewBag.Username</strong>.</p>
 <p>User Tier: <strong>@ViewBag.UserTier</strong></p>
-<!-- Display Registration IP from ViewBag -->
-<p>Registration IP: <strong>@ViewBag.RegistrationIp</strong></p>
+<!-- Registration IP is no longer displayed directly -->
 
 @if (ViewBag.UserTier == UserTier.Admin)
 {
@@ -29,7 +28,7 @@ else
             <label asp-for="BanType" class="control-label"></label>
             <select asp-for="BanType" class="form-control">
                 <option value="@BanType.Account">Account Ban</option>
-                <option value="@BanType.IpAddress">IP Address Ban (using Registration IP: @ViewBag.RegistrationIp)</option>
+                <option value="@BanType.IpAddress">IP Address Ban (uses registration IP)</option>
             </select>
             <span asp-validation-for="BanType" class="text-danger"></span>
         </div>

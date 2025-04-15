@@ -78,8 +78,7 @@ namespace MapHive.Repositories
             {
                 // Log or throw an exception, depending on desired error handling
                 CurrentRequest.LogManager.Warning($"Attempted to blacklist an invalid or non-hashed IP format: {blacklistedAddress.IpAddress}");
-                // Optionally, throw new ArgumentException("IP address must be a valid SHA256 hash.");
-                return -1; // Indicate failure, or handle as appropriate
+                throw new ArgumentException("IP address must be a valid SHA256 hash.");
             }
 
             // Ensure the IP address is already hashed before adding to blacklist

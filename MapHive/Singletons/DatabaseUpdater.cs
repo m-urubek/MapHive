@@ -341,31 +341,6 @@ namespace MapHive.Singletons
                 
                 PRAGMA foreign_keys=on;
             ");
-
-            // Hash all IP addresses in UserBans table
-            DataTable userBans = CurrentRequest.SqlClient.Select("SELECT Id_UserBan, IpAddress FROM UserBans");
-            foreach (DataRow row in userBans.Rows)
-            {
-                int banId = Convert.ToInt32(row["Id_UserBan"]);
-                string ipAddress = row["IpAddress"].ToString() ?? string.Empty; // Keep column name IpAddress
-                
-                if (!string.IsNullOrEmpty(ipAddress))
-                {
-                    // Check if it's already hashed (basic length check)
-                    if (ipAddress.Length != 64)
-                    {
-                        string hashedIp = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
-                        
-                        CurrentRequest.SqlClient.Update(
-                            "UPDATE UserBans SET IpAddress = @HashedIpAddress WHERE Id_UserBan = @Id", // Update IpAddress column
-                            new SQLiteParameter[] {
-                                new("@HashedIpAddress", hashedIp),
-                                new("@Id", banId)
-                            }
-                        );
-                    }
-                }
-            }
         }
 
         public static void v10()
