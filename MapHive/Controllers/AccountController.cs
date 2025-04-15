@@ -42,7 +42,7 @@ namespace MapHive.Controllers
                 }
 
                 // Check for IP ban (skipped for admins)
-                // Ensure IP address is hashed before checking the ban
+                // CheckForIpBanAsync handles internal hashing for its repository call
                 if (await this.CheckForIpBanAsync(currentIpAddress, response.User.Tier))
                 {
                     return this.View(model); // Return if IP banned
@@ -667,9 +667,9 @@ namespace MapHive.Controllers
                 return false; // Not banned (or check skipped)
             }
 
-            // Hash the IP address before checking for ban
+            // Hash the IP address before checking the UserBans table
             string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
-
+            
             UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
             if (ipBan != null && ipBan.IsActive)
             {

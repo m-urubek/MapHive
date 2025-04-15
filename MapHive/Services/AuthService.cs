@@ -74,8 +74,10 @@ namespace MapHive.Services
             });
         }
 
-        public bool IsBlacklisted(string hashedIpAddress)
+        public bool IsBlacklisted(string ipAddress)
         {
+            // Hash the IP address before checking the blacklist
+            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
             return CurrentRequest.UserRepository.IsBlacklisted(hashedIpAddress);
         }
 

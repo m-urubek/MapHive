@@ -73,22 +73,20 @@ namespace MapHive.Repositories
 
         public int AddToBlacklist(BlacklistedAddress blacklistedAddress)
         {
-            // Basic check: SHA256 hash should be 64 hex characters
             if (string.IsNullOrEmpty(blacklistedAddress.IpAddress) || blacklistedAddress.IpAddress.Length != 64)
             {
-                // Log or throw an exception, depending on desired error handling
                 CurrentRequest.LogManager.Warning($"Attempted to blacklist an invalid or non-hashed IP format: {blacklistedAddress.IpAddress}");
                 throw new ArgumentException("IP address must be a valid SHA256 hash.");
             }
 
             // Ensure the IP address is already hashed before adding to blacklist
             string query = @"
-                INSERT INTO Blacklist (HashedIpAddress, Reason, BlacklistedDate)
-                VALUES (@HashedIpAddress, @Reason, @BlacklistedDate)";
+                INSERT INTO Blacklist (IpAddress, Reason, BlacklistedDate)
+                VALUES (@IpAddress, @Reason, @BlacklistedDate)";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@HashedIpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
+                new("@IpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
                 new("@Reason", blacklistedAddress.Reason),
                 new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
             };
@@ -466,7 +464,8 @@ namespace MapHive.Repositories
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 // Base query for searching
-                // Note: Searching by hashed IP requires the exact hash
+                // Note: Searching by hashed IP requires the exact hash, which might not be user-friendly for admins.
+                // Consider allowing search by raw IP and hashing internally if needed in the future.
                 query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @SearchTerm OR IpAddress = @SearchTerm)"; 
                 parametersList.Add(new SQLiteParameter("@SearchTerm", searchTerm)); // Use exact match for IP
                 parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%")); // Use LIKE for reason
