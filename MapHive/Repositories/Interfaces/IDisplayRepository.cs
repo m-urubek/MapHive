@@ -1,4 +1,4 @@
-namespace MapHive.Repositories.Interfaces
+namespace MapHive.Repositories
 {
     public interface IDisplayRepository
     {

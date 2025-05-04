@@ -1,9 +1,7 @@
 using MapHive.Middleware;
 using MapHive.Repositories;
-using MapHive.Repositories.Interfaces;
 using MapHive.Services;
 using MapHive.Singletons;
-using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using reCAPTCHA.AspNetCore;
 
@@ -11,33 +9,36 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddAutoMapper(typeof(MapHive.Models.BusinessModels.MappingProfile).Assembly);
+
+// Register HttpContextAccessor first
+builder.Services.AddHttpContextAccessor();
 
 // Add repository services
-builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
-builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
-builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
-builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
-builder.Services.AddScoped<IDisplayRepository, DisplayRepository>();
-builder.Services.AddScoped<ILogRepository, LogRepository>();
+builder.Services.AddSingleton<IMapLocationRepository, MapLocationRepository>();
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IConfigurationRepository, ConfigurationRepository>();
+builder.Services.AddSingleton<IReviewRepository, ReviewRepository>();
+builder.Services.AddSingleton<IDiscussionRepository, DiscussionRepository>();
+builder.Services.AddSingleton<IDataGridRepository, DataGridRepository>();
+builder.Services.AddSingleton<IDisplayRepository, DisplayRepository>();
+builder.Services.AddSingleton<ILogRepository, LogRepository>();
+
+// Add application services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
+
+builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterService>();
 
 // Add SqlClient as a singleton
-builder.Services.AddSingleton(sp => {
-    string dbFilePath = "D:\\MapHive\\MapHive\\maphive.db";
-    if (!File.Exists(dbFilePath))
-    {
-        dbFilePath = "maphive.db";
-    }
-    return MapHive.SqlClient.GetInstance(dbFilePath);
-});
+builder.Services.AddSingleton<ISqlClientSingleton, SqlClientSingleton>();
 
-// Add HTTP context accessor for accessing request information in services
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
 
 // Add reCAPTCHA service
 builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("RecaptchaSettings"));
 builder.Services.AddTransient<RecaptchaService>();
+builder.Services.AddTransient<IRecaptchaService, RecaptchaService>();
 
 // Add authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -59,38 +60,17 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Add the LogManagerService service
-builder.Services.AddScoped<LogManagerService>();
+// Register ConfigService as Singleton (responsible for loading/caching DB settings)
+builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>();
 
-// Add the AuthService
-builder.Services.AddScoped<IAuthService, AuthService>();
+// Register FileLoggerService as Singleton
+builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
 
-// Add the ConfigService
-builder.Services.AddScoped<IConfigService, ConfigService>();
+// Register DatabaseUpdaterService as Singleton
 
 WebApplication app = builder.Build();
 
-// Initialize the CurrentRequest static class with the service provider
-CurrentRequest.Initialize(app.Services);
-
-// Initialize the main client
-MainClient.Initialize();
-
-// Update the database with any new tables or columns
-using (IServiceScope serviceScope = app.Services.CreateScope())
-{
-    DatabaseManipulator databaseUpdater = new();
-    databaseUpdater.UpdateDatabase();
-}
-
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    _ = app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    _ = app.UseHsts();
-}
-
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
@@ -98,7 +78,7 @@ app.UseRouting();
 
 app.UseSession();
 
-app.UseErrorHandling();
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -106,5 +86,17 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Run the DatabaseUpdaterService to apply any pending updates
+IDatabaseUpdaterSingleton? dbUpdaterService = app.Services.GetService<IDatabaseUpdaterSingleton>();
+await dbUpdaterService?.RunAsync();
+
+// Use the injected ConfigService to check DevelopmentMode
+if (!await app.Services.GetService<IConfigurationSingleton>().GetDevelopmentModeAsync())
+{
+    _ = app.UseExceptionHandler("/Home/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    _ = app.UseHsts();
+}
 
 app.Run();

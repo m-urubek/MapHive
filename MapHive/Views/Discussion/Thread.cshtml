@@ -1,4 +1,4 @@
-@model MapHive.Models.DiscussionThread
+@model MapHive.Models.ViewModels.ThreadDetailsViewModel
 
 @{
     ViewData["Title"] = Model.ThreadName;
@@ -10,7 +10,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Index">Map</a></li>
-                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId">@Model.Location?.Name</a></li>
+                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId">@Model.Location.Name</a></li>
                     <li class="breadcrumb-item active" aria-current="page">@Model.ThreadName</li>
                 </ol>
             </nav>
@@ -225,7 +225,7 @@
                 </div>
                 <div class="card-footer">
                     <a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to @Model.Location?.Name
+                        <i class="fas fa-arrow-left"></i> Back to @Model.Location.Name
                     </a>
                 </div>
             </div>

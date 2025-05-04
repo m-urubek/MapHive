@@ -1,32 +1,34 @@
-using MapHive.Models;
+using MapHive.Models.RepositoryModels;
 
 namespace MapHive.Repositories
 {
     public interface IUserRepository
     {
-        int CreateUser(User user);
-        User? GetUserById(int id);
-        User? GetUserByUsername(string username);
-        bool CheckUsernameExists(string username);
-        bool IsBlacklisted(string ipAddress);
-        int AddToBlacklist(BlacklistedAddress blacklistedAddress);
-        void UpdateUser(User user);
+        /// <summary>
+        /// Create a new user
+        /// </summary>
+        Task<int> CreateUserAsync(UserCreate createDto);
+
+        // Basic user lookup
         Task<string> GetUsernameByIdAsync(int userId);
+        Task<UserGet?> GetUserByUsernameAsync(string username);
+        Task<bool> CheckUsernameExistsAsync(string username);
+        Task<UserGet?> GetUserByIdAsync(int id);
 
         // Ban related methods
-        Task<int> BanUserAsync(UserBan ban);
+        Task<int> BanUserAsync(UserBanGetCreate banDto);
         Task<bool> UnbanUserAsync(int banId);
-        Task<UserBan?> GetActiveBanByUserIdAsync(int userId);
-        Task<UserBan?> GetActiveBanByIpAddressAsync(string ipAddress);
-        Task<IEnumerable<UserBan>> GetBanHistoryByUserIdAsync(int userId);
-        Task<IEnumerable<UserBan>> GetAllActiveBansAsync();
-        Task<IEnumerable<UserBan>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc");
-        Task<int> GetTotalBansCountAsync(string searchTerm = "");
-        Task<UserBan?> GetBanByIdAsync(int banId);
+        Task<UserBanGet?> GetActiveBanByUserIdAsync(int userId);
+        Task<UserBanGet?> GetActiveBanByIpAddressAsync(string hashedIpAddress);
+        Task<IEnumerable<UserBanGet>> GetBanHistoryByUserIdAsync(int userId);
+        Task<IEnumerable<UserBanGet>> GetAllActiveBansAsync();
+        Task<IEnumerable<UserBanGet>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc");
+        Task<bool> IsIpBannedAsync(string hashedIpAddress);
 
         // Admin methods
-        Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc");
+        Task<IEnumerable<UserGet>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc");
         Task<int> GetTotalUsersCountAsync(string searchTerm);
-        Task<bool> UpdateUserTierAsync(int userId, UserTier tier);
+        Task<bool> UpdateUserTierAsync(UserTierUpdate tierDto);
+        Task<int> UpdateUserAsync(UserUpdate updateDto);
     }
 }

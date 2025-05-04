@@ -1,5 +1,4 @@
 using MapHive.Models.Exceptions;
-using MapHive.Services;
 using MapHive.Singletons;
 
 namespace MapHive.Middleware
@@ -7,13 +6,15 @@ namespace MapHive.Middleware
     public class ErrorHandlingMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly IConfigurationSingleton _configurationSingleton;
 
-        public ErrorHandlingMiddleware(RequestDelegate next)
+        public ErrorHandlingMiddleware(RequestDelegate next, IConfigurationSingleton config)
         {
             this._next = next;
+            this._configurationSingleton = config;
         }
 
-        public async Task InvokeAsync(HttpContext context, LogManagerService logManager)
+        public async Task InvokeAsync(HttpContext context, ILogManagerSingleton logManager)
         {
             try
             {
@@ -28,18 +29,18 @@ namespace MapHive.Middleware
             }
             catch (WarningException ex)
             {
-                await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.Message));
                 logManager.Warning(ex.Message,
                     "ErrorHandlingMiddleware",
                     ex,
                     $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
                 );
+                await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.Message));
             }
             catch (NonCriticalException ex)
             {
                 try
                 {
-                    if (MainClient.AppSettings.DevelopmentMode)
+                    if (await this._configurationSingleton.GetDevelopmentModeAsync())
                     {
                         //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
                         await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.ToString()));
@@ -63,7 +64,7 @@ namespace MapHive.Middleware
             {
                 try
                 {
-                    if (MainClient.AppSettings.DevelopmentMode)
+                    if (await this._configurationSingleton.GetDevelopmentModeAsync())
                     {
                         //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
                         await this.HandleUserFriendlyExceptionAsync(context, new RedUserException(ex.ToString()));
@@ -78,7 +79,7 @@ namespace MapHive.Middleware
 
                 logManager.Critical(
                     message: ex.Message,
-                    source: "ErrorHandlingMiddleware",
+                    source: nameof(ErrorHandlingMiddleware),
                     exception: ex,
                     additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
                 );

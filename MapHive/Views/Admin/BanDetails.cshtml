@@ -1,4 +1,6 @@
-@model MapHive.Models.BanDetailViewModel
+@using MapHive.Models.Enums
+@using MapHive.Models.ViewModels
+@model BanDetailViewModel
 
 @{
     ViewData["Title"] = "Ban Details";
@@ -82,7 +84,7 @@
                         <dd class="col-sm-8">@Model.Ban.BannedAt.ToString("g")</dd>
 
                         <dt class="col-sm-4">Expires On</dt>
-                        <dd class="col-sm-8">@Model.FormattedExpiryDate</dd>
+                        <dd class="col-sm-8">@Model.FormattedExpiresAt</dd>
 
                         <dt class="col-sm-4">Banned By</dt>
                         <dd class="col-sm-8">

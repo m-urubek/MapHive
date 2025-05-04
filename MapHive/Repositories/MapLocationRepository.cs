@@ -1,4 +1,4 @@
-using MapHive.Models;
+using MapHive.Models.RepositoryModels;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
@@ -7,334 +7,221 @@ namespace MapHive.Repositories
 {
     public class MapLocationRepository : IMapLocationRepository
     {
-        public async Task<IEnumerable<MapLocation>> GetAllLocationsAsync()
+        private readonly ISqlClientSingleton _sqlClient;
+
+        public MapLocationRepository(ISqlClientSingleton sqlClient)
         {
-            return await Task.Run(() =>
-            {
-                List<MapLocation> locations = new();
-                DataTable dataTable = CurrentRequest.SqlClient.Select("SELECT * FROM MapLocations");
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    locations.Add(this.MapDataRowToMapLocation(row));
-                }
-
-                return locations;
-            });
+            this._sqlClient = sqlClient;
         }
 
-        public async Task<MapLocation> GetLocationByIdAsync(int id)
+        public async Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync()
         {
-            return await Task.Run(() =>
+            List<MapLocationGet> list = new();
+            DataTable dataTable = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations");
+            foreach (DataRow row in dataTable.Rows)
             {
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", id)
-                };
+                list.Add(this.MapDataRowToGet(row));
+            }
 
-                DataTable dataTable = CurrentRequest.SqlClient.Select(
-                    "SELECT * FROM MapLocations WHERE Id_MapLocation = @Id",
-                    parameters);
-
-                return dataTable.Rows.Count == 0 ? null : this.MapDataRowToMapLocation(dataTable.Rows[0]);
-            });
+            return list;
         }
 
-        public async Task<MapLocation> AddLocationAsync(MapLocation location)
+        public async Task<MapLocationGet?> GetLocationByIdAsync(int id)
         {
-            return await Task.Run(() =>
-            {
-                location.CreatedAt = DateTime.UtcNow;
-                location.UpdatedAt = DateTime.UtcNow;
-
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Name", location.Name),
-                    new("@Description", location.Description),
-                    new("@Latitude", location.Latitude),
-                    new("@Longitude", location.Longitude),
-                    new("@Address", location.Address ?? (object)DBNull.Value),
-                    new("@Website", location.Website ?? (object)DBNull.Value),
-                    new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
-                    new("@CreatedAt", location.CreatedAt),
-                    new("@UpdatedAt", location.UpdatedAt),
-                    new("@UserId", location.UserId),
-                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0),
-                    new("@CategoryId", location.CategoryId.HasValue ? (object)location.CategoryId.Value : DBNull.Value)
-                };
-
-                int id = CurrentRequest.SqlClient.Insert(
-                    @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, 
-                      Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId) 
-                      VALUES (@Name, @Description, @Latitude, @Longitude, 
-                      @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous, @CategoryId)",
-                    parameters);
-
-                location.Id = id;
-                return location;
-            });
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE Id_MapLocation = @Id", parameters);
+            return dt.Rows.Count == 0 ? null : this.MapDataRowToGet(dt.Rows[0]);
         }
 
-        public async Task<MapLocation> UpdateLocationAsync(MapLocation location)
+        public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto)
         {
-            return await Task.Run(async () =>
+            DateTime now = DateTime.UtcNow;
+            SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                MapLocation existingLocation = await this.GetLocationByIdAsync(location.Id);
+                new("@Name", createDto.Name),
+                new("@Description", createDto.Description),
+                new("@Latitude", createDto.Latitude),
+                new("@Longitude", createDto.Longitude),
+                new("@Address", createDto.Address ?? (object)DBNull.Value),
+                new("@Website", createDto.Website ?? (object)DBNull.Value),
+                new("@PhoneNumber", createDto.PhoneNumber ?? (object)DBNull.Value),
+                new("@CreatedAt", now),
+                new("@UpdatedAt", now),
+                new("@UserId", createDto.UserId),
+                new("@IsAnonymous", createDto.IsAnonymous),
+                new("@CategoryId", createDto.CategoryId.HasValue ? (object)createDto.CategoryId.Value : DBNull.Value)
+            };
+            int id = await this._sqlClient.InsertAsync(
+                @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId)
+                  VALUES (@Name, @Description, @Latitude, @Longitude, @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous, @CategoryId);",
+                parameters);
 
-                if (existingLocation == null)
-                {
-                    return null;
-                }
+            MapLocationCreate result = createDto; // reuse fields
+            return new MapLocationGet
+            {
+                Id = id,
+                Name = result.Name,
+                Description = result.Description,
+                Latitude = result.Latitude,
+                Longitude = result.Longitude,
+                Address = result.Address,
+                Website = result.Website,
+                PhoneNumber = result.PhoneNumber,
+                CreatedAt = now,
+                UpdatedAt = now,
+                UserId = result.UserId,
+                IsAnonymous = result.IsAnonymous,
+                CategoryId = result.CategoryId
+            };
+        }
 
-                location.CreatedAt = existingLocation.CreatedAt;
-                location.UpdatedAt = DateTime.UtcNow;
-                location.UserId = existingLocation.UserId; // Preserve the original creator
+        public async Task<MapLocationGet?> UpdateLocationAsync(MapLocationUpdate updateDto)
+        {
+            MapLocationGet? existing = await this.GetLocationByIdAsync(updateDto.Id);
+            if (existing == null)
+            {
+                return null;
+            }
 
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", location.Id),
-                    new("@Name", location.Name),
-                    new("@Description", location.Description),
-                    new("@Latitude", location.Latitude),
-                    new("@Longitude", location.Longitude),
-                    new("@Address", location.Address ?? (object)DBNull.Value),
-                    new("@Website", location.Website ?? (object)DBNull.Value),
-                    new("@PhoneNumber", location.PhoneNumber ?? (object)DBNull.Value),
-                    new("@CreatedAt", location.CreatedAt),
-                    new("@UpdatedAt", location.UpdatedAt),
-                    new("@UserId", location.UserId),
-                    new("@IsAnonymous", location.IsAnonymous ? 1 : 0),
-                    new("@CategoryId", location.CategoryId.HasValue ? (object)location.CategoryId.Value : DBNull.Value)
-                };
-
-                _ = CurrentRequest.SqlClient.Update(
-                    @"UPDATE MapLocations 
-                      SET Name = @Name, Description = @Description, 
-                      Latitude = @Latitude, Longitude = @Longitude, 
-                      Address = @Address, Website = @Website, 
-                      PhoneNumber = @PhoneNumber, CreatedAt = @CreatedAt, 
-                      UpdatedAt = @UpdatedAt, UserId = @UserId, IsAnonymous = @IsAnonymous,
-                      CategoryId = @CategoryId 
-                      WHERE Id_MapLocation = @Id",
-                    parameters);
-
-                return location;
-            });
+            DateTime now = DateTime.UtcNow;
+            SQLiteParameter[] parameters = new SQLiteParameter[]
+            {
+                new("@Id", updateDto.Id),
+                new("@Name", updateDto.Name),
+                new("@Description", updateDto.Description),
+                new("@Latitude", updateDto.Latitude),
+                new("@Longitude", updateDto.Longitude),
+                new("@Address", updateDto.Address ?? (object)DBNull.Value),
+                new("@Website", updateDto.Website ?? (object)DBNull.Value),
+                new("@PhoneNumber", updateDto.PhoneNumber ?? (object)DBNull.Value),
+                new("@UpdatedAt", now),
+                new("@IsAnonymous", updateDto.IsAnonymous),
+                new("@CategoryId", updateDto.CategoryId.HasValue ? (object)updateDto.CategoryId.Value : DBNull.Value)
+            };
+            int rows = await this._sqlClient.UpdateAsync(
+                @"UPDATE MapLocations
+                  SET Name=@Name, Description=@Description, Latitude=@Latitude, Longitude=@Longitude,
+                      Address=@Address, Website=@Website, PhoneNumber=@PhoneNumber,
+                      UpdatedAt=@UpdatedAt, IsAnonymous=@IsAnonymous, CategoryId=@CategoryId
+                  WHERE Id_MapLocation=@Id", parameters);
+            return rows > 0 ? await this.GetLocationByIdAsync(updateDto.Id) : null;
         }
 
         public async Task<bool> DeleteLocationAsync(int id)
         {
-            return await Task.Run(async () =>
-            {
-                MapLocation location = await this.GetLocationByIdAsync(id);
-
-                if (location == null)
-                {
-                    return false;
-                }
-
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", id)
-                };
-
-                int rowsAffected = CurrentRequest.SqlClient.Delete(
-                    "DELETE FROM MapLocations WHERE Id_MapLocation = @Id",
-                    parameters);
-
-                return rowsAffected > 0;
-            });
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
+            int rows = await this._sqlClient.DeleteAsync("DELETE FROM MapLocations WHERE Id_MapLocation=@Id", p);
+            return rows > 0;
         }
 
-        public async Task<IEnumerable<MapLocation>> GetLocationsByUserIdAsync(int userId)
+        public async Task<IEnumerable<MapLocationGet>> GetLocationsByUserIdAsync(int userId)
         {
-            return await Task.Run(() =>
+            List<MapLocationGet> list = new();
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@UserId", userId) };
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE UserId=@UserId", p);
+            foreach (DataRow row in dt.Rows)
             {
-                List<MapLocation> locations = new();
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@UserId", userId)
-                };
+                list.Add(this.MapDataRowToGet(row));
+            }
 
-                DataTable dataTable = CurrentRequest.SqlClient.Select(
-                    "SELECT * FROM MapLocations WHERE UserId = @UserId",
-                    parameters);
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    locations.Add(this.MapDataRowToMapLocation(row));
-                }
-
-                return locations;
-            });
+            return list;
         }
 
-        private MapLocation MapDataRowToMapLocation(DataRow row)
+        public async Task<MapLocationGet?> GetLocationWithCategoryAsync(int id)
         {
-            MapLocation location = new()
+            MapLocationGet? loc = await this.GetLocationByIdAsync(id);
+            if (loc?.CategoryId != null)
             {
-                Id = Convert.ToInt32(row["Id_MapLocation"]),
-                Name = row["Name"].ToString(),
-                Description = row["Description"].ToString(),
-                Latitude = Convert.ToDouble(row["Latitude"]),
-                Longitude = Convert.ToDouble(row["Longitude"]),
-                Address = row["Address"] != DBNull.Value ? row["Address"].ToString() : null,
-                Website = row["Website"] != DBNull.Value ? row["Website"].ToString() : null,
-                PhoneNumber = row["PhoneNumber"] != DBNull.Value ? row["PhoneNumber"].ToString() : null,
-                CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
-                UserId = row.Table.Columns.Contains("UserId") ? Convert.ToInt32(row["UserId"]) : 0,
-                IsAnonymous = row.Table.Columns.Contains("IsAnonymous") && Convert.ToInt32(row["IsAnonymous"]) == 1,
-                CategoryId = row.Table.Columns.Contains("CategoryId") && row["CategoryId"] != DBNull.Value ? Convert.ToInt32(row["CategoryId"]) : null
+                loc.Category = await this.GetCategoryByIdAsync(loc.CategoryId.Value);
+            }
+
+            return loc;
+        }
+
+        // Category methods
+        public async Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
+        {
+            List<CategoryGet> list = new();
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories");
+            foreach (DataRow row in dt.Rows)
+            {
+                list.Add(this.MapCategoryRow(row));
+            }
+
+            return list;
+        }
+
+        public async Task<CategoryGet?> GetCategoryByIdAsync(int id)
+        {
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories WHERE Id_Category=@Id", p);
+            return dt.Rows.Count == 0 ? null : this.MapCategoryRow(dt.Rows[0]);
+        }
+
+        public async Task<CategoryGet> AddCategoryAsync(CategoryCreate createDto)
+        {
+            SQLiteParameter[] p = new SQLiteParameter[]
+            {
+                new("@Name", createDto.Name),
+                new("@Description", createDto.Description ?? (object)DBNull.Value),
+                new("@Icon", createDto.Icon ?? (object)DBNull.Value)
             };
-
-            return location;
+            int id = await this._sqlClient.InsertAsync(
+                @"INSERT INTO Categories (Name, Description, Icon) VALUES (@Name, @Description, @Icon);", p);
+            return new CategoryGet { Id = id, Name = createDto.Name, Description = createDto.Description, Icon = createDto.Icon };
         }
 
-        #region Category Methods
-
-        public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
+        public async Task<CategoryGet?> UpdateCategoryAsync(CategoryUpdate updateDto)
         {
-            return await Task.Run(() =>
+            SQLiteParameter[] p = new SQLiteParameter[]
             {
-                List<Category> categories = new();
-                DataTable dataTable = CurrentRequest.SqlClient.Select("SELECT * FROM Categories");
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    categories.Add(this.MapDataRowToCategory(row));
-                }
-
-                return categories;
-            });
-        }
-
-        public async Task<Category?> GetCategoryByIdAsync(int id)
-        {
-            return await Task.Run(() =>
-            {
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", id)
-                };
-
-                DataTable dataTable = CurrentRequest.SqlClient.Select(
-                    "SELECT * FROM Categories WHERE Id_Category = @Id",
-                    parameters);
-
-                return dataTable.Rows.Count == 0 ? null : this.MapDataRowToCategory(dataTable.Rows[0]);
-            });
-        }
-
-        public async Task<Category> AddCategoryAsync(Category category)
-        {
-            return await Task.Run(() =>
-            {
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Name", category.Name),
-                    new("@Description", category.Description ?? (object)DBNull.Value),
-                    new("@Icon", category.Icon ?? (object)DBNull.Value)
-                };
-
-                int id = CurrentRequest.SqlClient.Insert(
-                    @"INSERT INTO Categories (Name, Description, Icon) 
-                      VALUES (@Name, @Description, @Icon)",
-                    parameters);
-
-                category.Id = id;
-                return category;
-            });
-        }
-
-        public async Task<Category> UpdateCategoryAsync(Category category)
-        {
-            return await Task.Run(async () =>
-            {
-                Category? existingCategory = await this.GetCategoryByIdAsync(category.Id);
-
-                if (existingCategory == null)
-                {
-                    return null;
-                }
-
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", category.Id),
-                    new("@Name", category.Name),
-                    new("@Description", category.Description ?? (object)DBNull.Value),
-                    new("@Icon", category.Icon ?? (object)DBNull.Value)
-                };
-
-                _ = CurrentRequest.SqlClient.Update(
-                    @"UPDATE Categories 
-                      SET Name = @Name, Description = @Description, Icon = @Icon 
-                      WHERE Id_Category = @Id",
-                    parameters);
-
-                return category;
-            });
+                new("@Id", updateDto.Id),
+                new("@Name", updateDto.Name),
+                new("@Description", updateDto.Description ?? (object)DBNull.Value),
+                new("@Icon", updateDto.Icon ?? (object)DBNull.Value)
+            };
+            int rows = await this._sqlClient.UpdateAsync(
+                @"UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon WHERE Id_Category=@Id", p);
+            return rows > 0 ? await this.GetCategoryByIdAsync(updateDto.Id) : null;
         }
 
         public async Task<bool> DeleteCategoryAsync(int id)
         {
-            return await Task.Run(async () =>
-            {
-                Category? category = await this.GetCategoryByIdAsync(id);
-
-                if (category == null)
-                {
-                    return false;
-                }
-
-                SQLiteParameter[] parameters = new SQLiteParameter[]
-                {
-                    new("@Id", id)
-                };
-
-                int rowsAffected = CurrentRequest.SqlClient.Delete(
-                    "DELETE FROM Categories WHERE Id_Category = @Id",
-                    parameters);
-
-                return rowsAffected > 0;
-            });
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
+            int rows = await this._sqlClient.DeleteAsync("DELETE FROM Categories WHERE Id_Category=@Id", p);
+            return rows > 0;
         }
 
-        private Category MapDataRowToCategory(DataRow row)
+        private MapLocationGet MapDataRowToGet(DataRow row)
         {
-            return new Category
+            return new MapLocationGet
             {
-                Id = Convert.ToInt32(row["Id_Category"]),
-                Name = row["Name"].ToString(),
-                Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : string.Empty,
-                Icon = row["Icon"] != DBNull.Value ? row["Icon"].ToString() : string.Empty
+                Id = Convert.ToInt32(row["Id_MapLocation"]),
+                Name = row["Name"].ToString() ?? string.Empty,
+                Description = row["Description"].ToString() ?? string.Empty,
+                Latitude = Convert.ToDouble(row["Latitude"]),
+                Longitude = Convert.ToDouble(row["Longitude"]),
+                Address = row["Address"] != DBNull.Value ? row["Address"].ToString() : string.Empty,
+                Website = row["Website"] != DBNull.Value ? row["Website"].ToString() : string.Empty,
+                PhoneNumber = row["PhoneNumber"] != DBNull.Value ? row["PhoneNumber"].ToString() : string.Empty,
+                CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
+                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
+                UserId = Convert.ToInt32(row["UserId"]),
+                IsAnonymous = row["IsAnonymous"] != DBNull.Value && Convert.ToBoolean(row["IsAnonymous"]),
+                CategoryId = row["CategoryId"] != DBNull.Value ? Convert.ToInt32(row["CategoryId"]) : (int?)null,
+                Category = null // populated by calling method
             };
         }
 
-        #endregion
-
-        public async Task<MapLocation> GetLocationWithCategoryAsync(int id)
+        private CategoryGet MapCategoryRow(DataRow row)
         {
-            return await Task.Run(async () =>
+            return new CategoryGet
             {
-                MapLocation location = await this.GetLocationByIdAsync(id);
-
-                if (location == null)
-                {
-                    return null;
-                }
-
-                if (location.CategoryId.HasValue)
-                {
-                    Category? category = await this.GetCategoryByIdAsync(location.CategoryId.Value);
-                    if (category != null)
-                    {
-                        location.Category = category;
-                    }
-                }
-
-                return location;
-            });
+                Id = Convert.ToInt32(row["Id_Category"]),
+                Name = row["Name"].ToString() ?? string.Empty,
+                Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : string.Empty,
+                Icon = row["Icon"] != DBNull.Value ? row["Icon"].ToString() : string.Empty
+            };
         }
     }
 }

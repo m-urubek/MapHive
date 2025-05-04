@@ -1,5 +1,8 @@
-using MapHive.Models.DataGrid;
-using MapHive.Singletons;
+using AutoMapper;
+using MapHive.Models.BusinessModels;
+using MapHive.Models.RepositoryModels;
+using MapHive.Models.ViewModels;
+using MapHive.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -9,14 +12,17 @@ namespace MapHive.Controllers
     public class DataGridController : Controller
     {
         private readonly JsonSerializerOptions _jsonOptions;
-
-        public DataGridController()
+        private readonly IDataGridRepository _dataGridRepository;
+        private readonly IMapper _mapper;
+        public DataGridController(IDataGridRepository dataGridRepository, IMapper mapper)
         {
             this._jsonOptions = new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
+            this._dataGridRepository = dataGridRepository;
+            this._mapper = mapper;
         }
 
         /// <summary>
@@ -33,13 +39,15 @@ namespace MapHive.Controllers
             try
             {
                 // Get grid data
-                DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
-                    tableName,
-                    page,
-                    20, // Default page size
-                    searchTerm,
-                    sortField,
-                    sortDirection);
+                DataGridViewModel viewModel = this._mapper.Map<DataGridViewModel>(
+                    await this._dataGridRepository.GetGridDataAsync(
+                        tableName,
+                        page,
+                        20, // Default page size
+                        searchTerm,
+                        sortField,
+                        sortDirection)
+                );
 
                 // Return grid data as JSON with proper serialization options
                 return this.Json(new
@@ -73,7 +81,7 @@ namespace MapHive.Controllers
             try
             {
                 // Get column info
-                SearchColumnInfo columnInfo = await CurrentRequest.DataGridRepository.GetSearchColumnInfoAsync(tableName, columnName);
+                ColumnInfo columnInfo = await this._dataGridRepository.GetColumnInfoAsync(tableName, columnName);
 
                 // Return column info as JSON
                 return this.Json(new
@@ -98,7 +106,7 @@ namespace MapHive.Controllers
             try
             {
                 // Get columns
-                List<DataGridColumn> columns = await CurrentRequest.DataGridRepository.GetColumnsForTableAsync(tableName);
+                List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync(tableName);
 
                 // Return columns as JSON
                 return this.Json(new

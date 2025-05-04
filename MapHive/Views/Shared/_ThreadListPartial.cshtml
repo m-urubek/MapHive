@@ -1,4 +1,5 @@
-@model IEnumerable<MapHive.Models.DiscussionThread>
+@using MapHive.Models.RepositoryModels
+@model IEnumerable<DiscussionThreadGet>
 @{
     bool isReviewThread = (bool)(ViewData["IsReviewThread"] ?? false);
     string threadType = isReviewThread ? "Review Discussions" : "General Discussions";

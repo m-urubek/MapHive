@@ -1,6 +1,15 @@
+using AutoMapper;
 using MapHive.Models;
+using MapHive.Models.BusinessModels;
+using MapHive.Models.Enums;
 using MapHive.Models.Exceptions;
+using MapHive.Models.RepositoryModels;
+using MapHive.Repositories;
 using MapHive.Singletons;
+using MapHive.Utilities;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,97 +17,235 @@ namespace MapHive.Services
 {
     public class AuthService : IAuthService
     {
-        public Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
+        private readonly IUserRepository _userRepository;
+        private readonly ILogManagerSingleton _logManager;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IMapper _mapper;
+
+        public AuthService(IUserRepository userRepository,
+            ILogManagerSingleton logManager,
+            IHttpContextAccessor httpContextAccessor,
+            IMapper mapper)
         {
+            this._userRepository = userRepository;
+            this._logManager = logManager;
+            this._httpContextAccessor = httpContextAccessor;
+            this._mapper = mapper;
+        }
+
+        public async Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
+        {
+            // Hash IP for checking ban and storing
+            string hashedIpAddress = NetworkingUtility.HashIpAddress(ipAddress);
+
             // Check if username already exists
-            if (CurrentRequest.UserRepository.CheckUsernameExists(request.Username))
+            if (await this._userRepository.CheckUsernameExistsAsync(request.Username))
             {
                 throw new OrangeUserException("Username already exists");
             }
 
-            // Check if IP is blacklisted
-            if (CurrentRequest.UserRepository.IsBlacklisted(ipAddress))
+            // Check if IP is banned
+            if (await this._userRepository.IsIpBannedAsync(hashedIpAddress))
             {
-                throw new WarningException($"Registration attempt from blacklisted IP");
+                // LogGet the attempt but throw a user-friendly (less informative) error
+                this._logManager.Warning($"Registration attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress})");
+                throw new OrangeUserException("Registration failed due to security reasons.");
             }
 
-            // Create the user
-            User user = new()
+            // Create the user using DTO
+            UserCreate userCreate = new()
             {
                 Username = request.Username,
                 PasswordHash = this.HashPassword(request.Password),
                 RegistrationDate = DateTime.UtcNow,
                 Tier = UserTier.Normal,
-                IpAddressHistory = ipAddress
+                IpAddressHistory = hashedIpAddress
             };
+            int userId = await this._userRepository.CreateUserAsync(userCreate);
 
-            int userId = CurrentRequest.UserRepository.CreateUser(user);
-            user.Id = userId;
+            // Retrieve the created user
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(userId);
+            if (userGet == null)
+            {
+                throw new InvalidOperationException("Unable to retrieve newly created user.");
+            }
 
-            // Log registration, including hashed IP
-            CurrentRequest.LogManager.Information($"New user registered: {request.Username}", 
-                additionalData: $"Hashed IP: {ipAddress}");
+            // LogGet registration, including hashed IP
+            // Use injected _logManager
+            this._logManager.Information($"New user registered: {request.Username}",
+                additionalData: $"Hashed IP: {hashedIpAddress}");
 
-            return Task.FromResult(new AuthResponse
+            // Automatically log in the user after registration
+            await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
+
+            return new AuthResponse
             {
                 Success = true,
                 Message = "Registration successful",
-                User = user
-            });
+                User = userGet // Return the created user object
+            };
         }
 
-        public Task<AuthResponse> LoginAsync(LoginRequest request)
+        public async Task<AuthResponse> LoginAsync(LoginRequest request, string ipAddress)
         {
             // Get user by username
-            User? user = CurrentRequest.UserRepository.GetUserByUsername(request.Username);
-
-            // Check if user exists
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByUsernameAsync(request.Username);
+            if (userGet == null)
             {
+                this._logManager.Warning($"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
-            // Verify password
-            if (!this.VerifyPassword(request.Password, user.PasswordHash))
+            // Check password
+            if (!this.VerifyPassword(request.Password, userGet.PasswordHash))
             {
+                this._logManager.Warning($"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
-            CurrentRequest.LogManager.Information($"User logged in: {request.Username}");
+            // Check if the user is banned
+            UserBanGet? activeBan = await this._userRepository.GetActiveBanByUserIdAsync(userGet.Id);
+            if (activeBan != null)
+            {
+                this._logManager.Warning($"Banned user login attempt: {request.Username} (Ban ID: {activeBan.Id})");
+                string banMessage = "Your account is currently banned.";
+                if (activeBan.ExpiresAt.HasValue)
+                {
+                    banMessage += $" Ban expires on: {activeBan.ExpiresAt.Value:yyyy-MM-dd HH:mm} UTC.";
+                }
+                if (!string.IsNullOrWhiteSpace(activeBan.Reason))
+                {
+                    banMessage += $" Reason: {activeBan.Reason}";
+                }
+                throw new RedUserException(banMessage); // Use RedUserException for bans
+            }
 
-            return Task.FromResult(new AuthResponse
+            // Hash the current IP and check if it's banned
+            string hashedIpAddress = NetworkingUtility.HashIpAddress(ipAddress);
+            if (await this._userRepository.IsIpBannedAsync(hashedIpAddress))
+            {
+                this._logManager.Warning($"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");
+                throw new OrangeUserException("Login failed due to security reasons.");
+            }
+
+            // LogGet successful login
+            // Use injected _logManager
+            this._logManager.Information($"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
+
+            // Update IP history if necessary (consider rate limiting or specific logic)
+            if (userGet.IpAddressHistory == null || !userGet.IpAddressHistory.Contains(hashedIpAddress))
+            {
+                // Update user via UserUpdate DTO
+                UserUpdate updateDto = new()
+                {
+                    Id = userGet.Id,
+                    Username = userGet.Username,
+                    PasswordHash = userGet.PasswordHash,
+                    Tier = userGet.Tier,
+                    IpAddressHistory = userGet.IpAddressHistory
+                };
+                _ = await this._userRepository.UpdateUserAsync(updateDto);
+            }
+
+            // Sign in the user
+            await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
+
+            return new AuthResponse
             {
                 Success = true,
                 Message = "Login successful",
-                User = user
-            });
+                User = userGet
+            };
         }
 
-        public bool IsBlacklisted(string ipAddress)
+        public async Task LogoutAsync()
         {
-            // Hash the IP address before checking the blacklist
-            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
-            return CurrentRequest.UserRepository.IsBlacklisted(hashedIpAddress);
+            if (this._httpContextAccessor.HttpContext != null)
+            {
+                await this._httpContextAccessor.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                this._logManager.Information("UserLogin logged out");
+            }
         }
 
         public string HashPassword(string password)
         {
+            // Normalize the password to ensure consistent hashing
+            password = password.Normalize(System.Text.NormalizationForm.FormKD);
+
             using SHA256 sha256 = SHA256.Create();
             byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
 
+            // Use lowercase hex format for consistency
             StringBuilder builder = new();
             for (int i = 0; i < bytes.Length; i++)
             {
                 _ = builder.Append(bytes[i].ToString("x2"));
             }
 
-            return builder.ToString();
+            // Return lowercase hex string
+            return builder.ToString().ToLowerInvariant();
         }
 
         public bool VerifyPassword(string password, string storedHash)
         {
+            if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(storedHash))
+            {
+                return false;
+            }
             string hashedPassword = this.HashPassword(password);
-            return hashedPassword.Equals(storedHash);
+            // Use case-insensitive comparison for hashes
+            return string.Equals(hashedPassword, storedHash, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Helper method to sign in the user
+        private async Task SignInUserAsync(UserLogin user)
+        {
+            List<Claim> claims = new()
+            {
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name, user.Username),
+                new(ClaimTypes.Role, user.Tier.ToString()), // Add tier number as role
+                new(ClaimTypes.Role, ((UserTier)user.Tier).ToString()) // Add tier name as role
+            };
+
+            ClaimsIdentity claimsIdentity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            AuthenticationProperties authProperties = new()
+            {
+                AllowRefresh = true,
+                // Refreshing the authentication session should be allowed.
+
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
+                // The time at which the authentication ticket expires. A
+                // value set here overrides the ExpireTimeSpan option of
+                // CookieAuthenticationOptions set with AddCookie.
+
+                IsPersistent = true,
+                // Whether the authentication session is persisted across
+                // multiple requests. When used with cookies, controls
+                // whether the cookie's lifetime is absolute (matching the
+                // lifetime of the authentication ticket) or session-based.
+
+                //IssuedUtc = <DateTimeOffset>,
+                // The time at which the authentication ticket was issued.
+
+                //RedirectUri = <string>
+                // The full path or absolute URI to be used as an http
+                // redirect response value.
+            };
+
+            if (this._httpContextAccessor.HttpContext != null)
+            {
+                await this._httpContextAccessor.HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity),
+                    authProperties);
+            }
+            else
+            {
+                this._logManager.Error("HttpContext is null. Cannot sign in user.");
+                // Handle the error appropriately, maybe throw an exception
+                throw new InvalidOperationException("HttpContext is not available to sign in the user.");
+            }
         }
     }
 }

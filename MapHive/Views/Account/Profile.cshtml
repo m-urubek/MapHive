@@ -1,5 +1,7 @@
-@model MapHive.Models.ProfileViewModel
+@model MapHive.Models.ViewModels.ProfileViewModel
+
 @{
+    ViewData["Title"] = "My Profile";
     Layout = null;
     Context.Response.Redirect(Url.Action("PrivateProfile", "Account") ?? "/Account/PrivateProfile");
 } 

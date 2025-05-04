@@ -1,22 +1,22 @@
-using MapHive.Models;
+using MapHive.Models.RepositoryModels;
 
 namespace MapHive.Repositories
 {
     public interface IDiscussionRepository
     {
         // Thread operations
-        Task<IEnumerable<DiscussionThread>> GetDiscussionThreadsByLocationIdAsync(int locationId);
-        Task<IEnumerable<DiscussionThread>> GetAllDiscussionThreadsByLocationIdAsync(int locationId);
-        Task<DiscussionThread?> GetThreadByIdAsync(int id);
-        Task<DiscussionThread> CreateDiscussionThreadAsync(DiscussionThread thread, string initialMessage);
-        Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, string reviewTitle, int locationId);
+        Task<IEnumerable<DiscussionThreadGet>> GetDiscussionThreadsByLocationIdAsync(int locationId);
+        Task<IEnumerable<DiscussionThreadGet>> GetAllDiscussionThreadsByLocationIdAsync(int locationId);
+        Task<DiscussionThreadGet?> GetThreadByIdAsync(int id);
+        Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadCreate thread, string initialMessage);
+        Task<DiscussionThreadGet> CreateReviewThreadAsync(ReviewThreadCreate threadCreate);
         Task<bool> DeleteThreadAsync(int id);
-        Task<IEnumerable<DiscussionThread>> GetThreadsByUserIdAsync(int userId);
+        Task<IEnumerable<DiscussionThreadGet>> GetThreadsByUserIdAsync(int userId);
 
         // Message operations
-        Task<IEnumerable<ThreadMessage>> GetMessagesByThreadIdAsync(int threadId);
-        Task<ThreadMessage?> GetMessageByIdAsync(int id);
-        Task<ThreadMessage> AddMessageAsync(ThreadMessage message);
+        Task<IEnumerable<ThreadMessageGet>> GetMessagesByThreadIdAsync(int threadId);
+        Task<ThreadMessageGet?> GetMessageByIdAsync(int id);
+        Task<ThreadMessageGet> AddMessageAsync(ThreadMessageCreate message);
         Task<bool> DeleteMessageAsync(int id, int deletedByUserId);
         Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage);
     }

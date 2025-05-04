@@ -1,537 +1,357 @@
-using MapHive.Models;
+using MapHive.Models.Enums;
+using MapHive.Models.Exceptions;
+using MapHive.Models.RepositoryModels;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
+using System.Text.RegularExpressions;
 
 namespace MapHive.Repositories
 {
     public class UserRepository : IUserRepository
     {
-        public int CreateUser(User user)
+        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ILogManagerSingleton _logManager;
+
+        public UserRepository(ISqlClientSingleton sqlClient, ILogManagerSingleton logManager)
+        {
+            this._sqlClient = sqlClient;
+            this._logManager = logManager;
+        }
+
+        // Create a new user using DTO
+        public async Task<int> CreateUserAsync(UserCreate createDto)
         {
             string query = @"
                 INSERT INTO Users (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
-                VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory)";
+                VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory);";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@Username", user.Username),
-                new("@PasswordHash", user.PasswordHash),
-                new("@RegistrationDate", user.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
-                new("@Tier", (int)user.Tier),
-                new("@IpAddressHistory", user.IpAddressHistory)
+                new("@Username", createDto.Username),
+                new("@PasswordHash", createDto.PasswordHash),
+                new("@RegistrationDate", createDto.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
+                new("@Tier", (int)createDto.Tier),
+                new("@IpAddressHistory", createDto.IpAddressHistory)
             };
 
-            return CurrentRequest.SqlClient.Insert(query, parameters);
+            return await this._sqlClient.InsertAsync(query, parameters);
         }
 
-        public User? GetUserById(int id)
+        // Basic user lookup
+        public async Task<UserGet?> GetUserByIdAsync(int id)
         {
             string query = "SELECT * FROM Users WHERE Id_User = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
-
-            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
-
-            return result.Rows.Count > 0 ? MapDataRowToUser(result.Rows[0]) : null;
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0 ? MapDataRowToUserGet(result.Rows[0]) : null;
         }
 
-        public User? GetUserByUsername(string username)
+        public async Task<UserGet?> GetUserByUsernameAsync(string username)
         {
             string query = "SELECT * FROM Users WHERE Username = @Username";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
-            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
+            if (result.Rows.Count == 0)
+            {
+                throw new OrangeUserException($"User \"{username}\" not found");
+            }
 
-            return result.Rows.Count > 0 ? MapDataRowToUser(result.Rows[0]) : null;
+            UserGet user = MapDataRowToUserGet(result.Rows[0]);
+
+            // Log password hash length for debugging
+            if (string.IsNullOrEmpty(user.PasswordHash))
+            {
+                this._logManager.Warning($"User {username} found but has empty password hash");
+            }
+
+            return user;
         }
 
-        public bool CheckUsernameExists(string username)
+        public async Task<bool> CheckUsernameExistsAsync(string username)
         {
-            string query = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
+            string query = "SELECT 1 FROM Users WHERE Username = @Username LIMIT 1";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
-
-            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
-
-            return Convert.ToInt32(result.Rows[0][0]) > 0;
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0;
         }
 
-        public bool IsBlacklisted(string hashedIpAddress)
+        public async Task<bool> IsIpBannedAsync(string hashedIpAddress)
         {
             string query = @"
-                SELECT COUNT(*) FROM Blacklist 
-                WHERE HashedIpAddress = @HashedIpAddress";
-
+                SELECT 1 FROM IpBans
+                WHERE HashedIpAddress = @HashedIpAddress
+                  AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
+                LIMIT 1";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@HashedIpAddress", hashedIpAddress)
+                new("@HashedIpAddress", hashedIpAddress),
+                new("@Now", DateTime.UtcNow)
             };
-
-            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
-
-            return Convert.ToInt32(result.Rows[0][0]) > 0;
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0;
         }
 
-        public int AddToBlacklist(BlacklistedAddress blacklistedAddress)
+        public async Task<int> CreateIpBanAsync(IpBanCreate ipBan)
         {
-            if (string.IsNullOrEmpty(blacklistedAddress.IpAddress) || blacklistedAddress.IpAddress.Length != 64)
+            // Basic validation for SHA256 hash format
+            if (string.IsNullOrEmpty(ipBan.IpAddress) || !Regex.IsMatch(ipBan.IpAddress, "^[a-fA-F0-9]{64}$"))
             {
-                CurrentRequest.LogManager.Warning($"Attempted to blacklist an invalid or non-hashed IP format: {blacklistedAddress.IpAddress}");
+                this._logManager.Warning($"Attempted to ban an invalid or non-hashed IP format: {ipBan.IpAddress}");
                 throw new ArgumentException("IP address must be a valid SHA256 hash.");
             }
 
-            // Ensure the IP address is already hashed before adding to blacklist
             string query = @"
-                INSERT INTO Blacklist (HashedIpAddress, Reason, BlacklistedDate)
-                VALUES (@HashedIpAddress, @Reason, @BlacklistedDate)";
-
+                INSERT INTO IpBans (HashedIpAddress, Reason, BannedAt, ExpiresAt, BannedByUserId)
+                VALUES (@HashedIpAddress, @Reason, @BannedAt, @ExpiresAt, @BannedByUserId);";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@HashedIpAddress", blacklistedAddress.IpAddress as object ?? DBNull.Value),
-                new("@Reason", blacklistedAddress.Reason),
-                new("@BlacklistedDate", blacklistedAddress.BlacklistedDate.ToString("yyyy-MM-dd HH:mm:ss"))
+                new("@HashedIpAddress", ipBan.IpAddress),
+                new("@Reason", ipBan.Reason),
+                new("@BannedAt", ipBan.BannedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+                new("@ExpiresAt", ipBan.ExpiresAt.HasValue ? ipBan.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
+                new("@BannedByUserId", ipBan.BannedByUserId)
             };
-
-            return CurrentRequest.SqlClient.Insert(query, parameters);
+            return await this._sqlClient.InsertAsync(query, parameters);
         }
 
-        public void UpdateUser(User user)
+        public async Task<int> UpdateUserAsync(UserUpdate updateDto)
         {
             string query = @"
-                UPDATE Users 
-                SET Username = @Username, 
-                    PasswordHash = @PasswordHash, 
+                UPDATE Users
+                SET Username = @Username,
+                    PasswordHash = @PasswordHash,
                     Tier = @Tier,
                     IpAddressHistory = @IpAddressHistory
                 WHERE Id_User = @Id";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@Id", user.Id),
-                new("@Username", user.Username),
-                new("@PasswordHash", user.PasswordHash),
-                new("@Tier", (int)user.Tier),
-                new("@IpAddressHistory", user.IpAddressHistory)
+                new("@Id", updateDto.Id),
+                new("@Username", updateDto.Username),
+                new("@PasswordHash", updateDto.PasswordHash as object ?? DBNull.Value),
+                new("@Tier", (int)updateDto.Tier),
+                new("@IpAddressHistory", updateDto.IpAddressHistory)
             };
-
-            _ = CurrentRequest.SqlClient.Update(query, parameters);
+            return await this._sqlClient.UpdateAsync(query, parameters);
         }
 
         public async Task<string> GetUsernameByIdAsync(int userId)
         {
             string query = "SELECT Username FROM Users WHERE Id_User = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", userId) };
-
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            return result.Rows.Count > 0 ? result.Rows[0]["Username"].ToString() ?? "Unknown" : "Unknown";
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0 && result.Rows[0]["Username"] != DBNull.Value
+                 ? result.Rows[0]["Username"].ToString()!
+                 : "Unknown"; // Provide a default value
         }
 
-        private static User MapDataRowToUser(DataRow row)
-        {
-            User user = new()
-            {
-                Id = Convert.ToInt32(row["Id_User"]),
-                Username = row["Username"].ToString() ?? string.Empty,
-                PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
-                RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
-                Tier = (UserTier)Convert.ToInt32(row["Tier"]),
-                IpAddressHistory = row.Table.Columns.Contains("IpAddressHistory") && row["IpAddressHistory"] != DBNull.Value
-                    ? row["IpAddressHistory"].ToString() ?? string.Empty
-                    : string.Empty
-            };
-
-            return user;
-        }
-
-        #region Admin Methods
-
-        public async Task<IEnumerable<User>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc")
-        {
-            List<User> users = new();
-            string query;
-            SQLiteParameter[] parameters;
-
-            // Calculate offset for pagination
-            int offset = (page - 1) * pageSize;
-
-            // Build sort clause
-            string sortClause = "ORDER BY Id_User DESC"; // Default sort
-
-            if (!string.IsNullOrEmpty(sortField))
-            {
-                string sortColumn = sortField switch
-                {
-                    "Id" => "Id_User",
-                    "Username" => "Username",
-                    "RegistrationDate" => "RegistrationDate",
-                    "Tier" => "Tier",
-                    _ => "Id_User" // Default to Id_User if sortField is unknown
-                };
-
-                string sortOrder = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-                sortClause = $"ORDER BY {sortColumn} {sortOrder}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                // Search by username
-                query = $@"
-                        SELECT * FROM Users
-                        WHERE Username LIKE @SearchTerm
-                        {sortClause}
-                        LIMIT @PageSize OFFSET @Offset";
-
-                parameters = new SQLiteParameter[]
-                {
-                        new("@SearchTerm", $"%{searchTerm}%"),
-                        new("@PageSize", pageSize),
-                        new("@Offset", offset)
-                };
-            }
-            else
-            {
-                // Get all users with pagination
-                query = $@"
-                        SELECT * FROM Users
-                        {sortClause}
-                        LIMIT @PageSize OFFSET @Offset";
-
-                parameters = new SQLiteParameter[]
-                {
-                        new("@PageSize", pageSize),
-                        new("@Offset", offset)
-                };
-            }
-
-            // Use SelectAsync directly
-            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            foreach (DataRow row in dataTable.Rows)
-            {
-                users.Add(MapDataRowToUser(row));
-            }
-
-            return users;
-        }
-
-        public async Task<int> GetTotalUsersCountAsync(string searchTerm)
-        {
-            string query;
-            SQLiteParameter[] parameters;
-
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                // Count users matching search term
-                query = "SELECT COUNT(*) FROM Users WHERE Username LIKE @SearchTerm";
-                parameters = new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
-            }
-            else
-            {
-                // Count all users
-                query = "SELECT COUNT(*) FROM Users";
-                parameters = Array.Empty<SQLiteParameter>();
-            }
-
-            // Use SelectAsync directly
-            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-            return Convert.ToInt32(dataTable.Rows[0][0]);
-        }
-
-        public async Task<bool> UpdateUserTierAsync(int userId, UserTier tier)
-        {
-            string query = "UPDATE Users SET Tier = @Tier WHERE Id_User = @Id";
-
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
-                    new("@Id", userId),
-                    new("@Tier", (int)tier)
-            };
-
-            // Use UpdateAsync directly
-            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        #endregion
-
-        #region Ban Methods
-
-        public async Task<int> BanUserAsync(UserBan ban)
+        // Ban related methods
+        public async Task<int> BanUserAsync(UserBanGetCreate banDto)
         {
             string query = @"
-                    INSERT INTO UserBans (UserId, IpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
-                    VALUES (@UserId, @HashedIpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId)";
-
+                INSERT INTO UserBans (UserId, HashedIpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
+                VALUES (@UserId, @HashedIpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId);";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                    new("@UserId", ban.UserId.HasValue ? (object)ban.UserId.Value : DBNull.Value),
-                    new("@HashedIpAddress", !string.IsNullOrEmpty(ban.HashedIpAddress) ? (object)ban.HashedIpAddress : DBNull.Value),
-                    new("@BanType", (int)ban.BanType),
-                    new("@BannedAt", ban.BannedAt.ToString("yyyy-MM-dd HH:mm:ss")),
-                    new("@ExpiresAt", ban.ExpiresAt.HasValue ? ban.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
-                    new("@Reason", ban.Reason),
-                    new("@BannedByUserId", ban.BannedByUserId)
+                new("@UserId", banDto.UserId as object ?? DBNull.Value),
+                new("@HashedIpAddress", banDto.HashedIpAddress as object ?? DBNull.Value),
+                new("@BanType", (int)banDto.BanType),
+                new("@BannedAt", banDto.BannedAt),
+                new("@ExpiresAt", banDto.ExpiresAt as object ?? DBNull.Value),
+                new("@Reason", banDto.Reason),
+                new("@BannedByUserId", banDto.BannedByUserId)
             };
-
-            // Use InsertAsync directly
-            return await CurrentRequest.SqlClient.InsertAsync(query, parameters);
+            return await this._sqlClient.InsertAsync(query, parameters);
         }
 
         public async Task<bool> UnbanUserAsync(int banId)
         {
-            string query = "DELETE FROM UserBans WHERE Id_UserBan = @BanId";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
-
-            // Use DeleteAsync directly
-            int rowsAffected = await CurrentRequest.SqlClient.DeleteAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        public async Task<UserBan?> GetActiveBanByUserIdAsync(int userId)
-        {
-            // Get only bans that are active (ExpiresAt is null or in the future)
-            string query = @"
-                    SELECT * FROM UserBans
-                    WHERE UserId = @UserId
-                    AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
-                    ORDER BY BannedAt DESC LIMIT 1";
-
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
-
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count > 0)
+            string query = "UPDATE UserBans SET ExpiresAt = @ExpiresAt WHERE Id_UserBan = @Id_UserBan";
+            SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                UserBan ban = MapDataRowToUserBan(result.Rows[0]);
-                return ban;
-            }
-            return null;
+                new("@ExpiresAt", DateTime.UtcNow),
+                new("@Id_UserBan", banId)
+            };
+            int rows = await this._sqlClient.UpdateAsync(query, parameters);
+            return rows > 0;
         }
 
-        public async Task<UserBan?> GetActiveBanByIpAddressAsync(string hashedIpAddress)
+        public async Task<UserBanGet?> GetActiveBanByUserIdAsync(int userId)
         {
-            // Get only bans that are active (ExpiresAt is null or in the future)
             string query = @"
-                    SELECT * FROM UserBans
-                    WHERE IpAddress = @HashedIpAddress
-                    AND (ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now'))
-                    ORDER BY BannedAt DESC LIMIT 1";
-
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@HashedIpAddress", hashedIpAddress) };
-
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count > 0)
-            {
-                UserBan ban = MapDataRowToUserBan(result.Rows[0]);
-                return ban;
-            }
-            return null;
+                SELECT * FROM UserBans
+                WHERE UserId = @UserId AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
+                ORDER BY BannedAt DESC LIMIT 1";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId), new("@Now", DateTime.UtcNow) };
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0 ? MapDataRowToUserBanGetGet(result.Rows[0]) : null;
         }
 
-        public async Task<IEnumerable<UserBan>> GetBanHistoryByUserIdAsync(int userId)
+        public async Task<UserBanGet?> GetActiveBanByIpAddressAsync(string hashedIpAddress)
         {
-            List<UserBan> bans = new();
             string query = @"
-                    SELECT * FROM UserBans
-                    WHERE UserId = @UserId
-                    ORDER BY BannedAt DESC";
+                SELECT * FROM UserBans
+                WHERE HashedIpAddress = @HashedIpAddress AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
+                ORDER BY BannedAt DESC LIMIT 1";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@HashedIpAddress", hashedIpAddress), new("@Now", DateTime.UtcNow) };
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return result.Rows.Count > 0 ? MapDataRowToUserBanGetGet(result.Rows[0]) : null;
+        }
 
+        public async Task<IEnumerable<UserBanGet>> GetBanHistoryByUserIdAsync(int userId)
+        {
+            string query = "SELECT * FROM UserBans WHERE UserId = @UserId ORDER BY BannedAt DESC";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
-
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            List<UserBanGet> list = new();
             foreach (DataRow row in result.Rows)
             {
-                UserBan ban = MapDataRowToUserBan(row);
-                bans.Add(ban);
+                list.Add(MapDataRowToUserBanGetGet(row));
             }
-            return bans;
+
+            return list;
         }
 
-        public async Task<IEnumerable<UserBan>> GetAllActiveBansAsync()
+        public async Task<IEnumerable<UserBanGet>> GetAllActiveBansAsync()
         {
-            List<UserBan> bans = new();
-            // Get only bans that are active (ExpiresAt is null or in the future)
-            string query = @"
-                    SELECT * FROM UserBans
-                    WHERE ExpiresAt IS NULL OR datetime(ExpiresAt) > datetime('now')
-                    ORDER BY BannedAt DESC";
-
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query);
-
+            string query = "SELECT * FROM UserBans WHERE ExpiresAt IS NULL OR ExpiresAt > @Now ORDER BY BannedAt DESC";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Now", DateTime.UtcNow) };
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            List<UserBanGet> list = new();
             foreach (DataRow row in result.Rows)
             {
-                UserBan ban = MapDataRowToUserBan(row);
-                bans.Add(ban);
+                list.Add(MapDataRowToUserBanGetGet(row));
             }
-            return bans;
+
+            return list;
         }
 
-        public async Task<IEnumerable<UserBan>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        public async Task<IEnumerable<UserBanGet>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            List<UserBan> bans = new();
-            List<SQLiteParameter> parametersList = new();
-            string whereClause = "";
-            string sortClause = "ORDER BY BannedAt DESC"; // Default sort
+            // Validate and sanitize sort field/direction
+            HashSet<string> validSortFields = new()
+            { "BannedAt", "ExpiresAt", "Reason" };
+            string orderBy = validSortFields.Contains(sortField) ? sortField : "BannedAt";
+            string direction = sortDirection.ToLower() == "desc" ? "DESC" : "ASC";
 
-            // Build search condition
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                // Note: Searching by hashed IP requires the exact hash, which might not be user-friendly for admins.
-                // Consider allowing search by raw IP and hashing internally if needed in the future.
-                whereClause = "WHERE (Reason LIKE @SearchTerm OR IpAddress = @SearchTerm)"; // Use exact match for IP
-                parametersList.Add(new SQLiteParameter("@SearchTerm", searchTerm)); // Use exact match for IP
-                parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%")); // Use LIKE for reason
-                whereClause = whereClause.Replace("Reason LIKE @SearchTerm", "Reason LIKE @ReasonSearchTerm"); // Adjust query string
-
-                // Attempt to search by User ID if the search term is a valid integer
-                if (int.TryParse(searchTerm, out int searchUserId))
-                {
-                    whereClause += " OR UserId = @SearchUserId";
-                    parametersList.Add(new SQLiteParameter("@SearchUserId", searchUserId));
-                }
-                // Attempt to search by BannedByUserId if the search term is a valid integer
-                if (int.TryParse(searchTerm, out int searchBannedByUserId))
-                {
-                    whereClause += " OR BannedByUserId = @SearchBannedByUserId";
-                    parametersList.Add(new SQLiteParameter("@SearchBannedByUserId", searchBannedByUserId));
-                }
-
-                // Attempt to search by Username (requires join) or BannedByUsername (requires join)
-                // This part is more complex and might require joining with the Users table.
-                // For simplicity in this example, we'll stick to direct fields or add joins later if needed.
-                // Example placeholder for joining:
-                // query = @"SELECT b.*, u.Username as BannedUsername, admin.Username as BannedByUsername
-                //           FROM UserBans b
-                //           LEFT JOIN Users u ON b.UserId = u.Id_User
-                //           LEFT JOIN Users admin ON b.BannedByUserId = admin.Id_User
-                //           WHERE ...";
-                // If implementing search by username, the query and parameter handling need adjustment.
-            }
-
-            // Build sort clause
-            if (!string.IsNullOrEmpty(sortField))
-            {
-                string sortColumn = sortField switch
-                {
-                    "Id" => "Id_UserBan",
-                    "UserId" => "UserId",
-                    "IpAddress" => "IpAddress",
-                    "BanType" => "BanType",
-                    "BannedAt" => "BannedAt",
-                    "ExpiresAt" => "ExpiresAt",
-                    "Reason" => "Reason",
-                    "BannedByUserId" => "BannedByUserId",
-                    _ => "BannedAt" // Default to BannedAt if sortField is unknown
-                };
-
-                string sortOrder = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-                sortClause = $"ORDER BY {sortColumn} {sortOrder}";
-            }
-
-            // Calculate offset for pagination
-            int offset = (page - 1) * pageSize;
+            string whereClause = string.IsNullOrWhiteSpace(searchTerm)
+                ? ""
+                : "WHERE Reason LIKE @SearchTerm";
 
             string query = $@"
-                    SELECT * FROM UserBans
-                    {whereClause}
-                    {sortClause}
-                    LIMIT @PageSize OFFSET @Offset";
+                SELECT * FROM UserBans
+                {whereClause}
+                ORDER BY {orderBy} {direction}
+                LIMIT @PageSize OFFSET @Offset";
 
-            // Add pagination parameters
-            parametersList.Add(new SQLiteParameter("@PageSize", pageSize));
-            parametersList.Add(new SQLiteParameter("@Offset", offset));
-
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parametersList.ToArray());
-
-            foreach (DataRow row in result.Rows)
-            {
-                UserBan ban = MapDataRowToUserBan(row);
-
-                bans.Add(ban);
-            }
-
-            return bans;
-        }
-
-        public async Task<int> GetTotalBansCountAsync(string searchTerm = "")
-        {
-            string query;
             List<SQLiteParameter> parametersList = new();
-
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                // Base query for searching
-                // Note: Searching by hashed IP requires the exact hash, which might not be user-friendly for admins.
-                // Consider allowing search by raw IP and hashing internally if needed in the future.
-                query = "SELECT COUNT(*) FROM UserBans WHERE (Reason LIKE @ReasonSearchTerm OR IpAddress = @HashedIpSearchTerm)";
-                parametersList.Add(new SQLiteParameter("@HashedIpSearchTerm", searchTerm));
-                parametersList.Add(new SQLiteParameter("@ReasonSearchTerm", $"%{searchTerm}%"));
-
-                // Add user ID search if applicable
-                if (int.TryParse(searchTerm, out int searchUserId))
-                {
-                    query += " OR UserId = @SearchUserId";
-                    parametersList.Add(new SQLiteParameter("@SearchUserId", searchUserId));
-                }
-                // Add banned by user ID search if applicable
-                if (int.TryParse(searchTerm, out int searchBannedByUserId))
-                {
-                    query += " OR BannedByUserId = @SearchBannedByUserId";
-                    parametersList.Add(new SQLiteParameter("@SearchBannedByUserId", searchBannedByUserId));
-                }
-                // Add username search if needed (requires joins)
+                parametersList.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
-            else
+
+            parametersList.Add(new SQLiteParameter("@PageSize", pageSize));
+            parametersList.Add(new SQLiteParameter("@Offset", (page - 1) * pageSize));
+
+            DataTable result = await this._sqlClient.SelectAsync(query, parametersList.ToArray());
+            List<UserBanGet> list = new();
+            foreach (DataRow row in result.Rows)
             {
-                // Count all bans
-                query = "SELECT COUNT(*) FROM UserBans";
+                list.Add(MapDataRowToUserBanGetGet(row));
             }
 
-            // Use SelectAsync directly
-            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parametersList.ToArray());
-            return Convert.ToInt32(dataTable.Rows[0][0]);
+            return list;
         }
 
-        public async Task<UserBan?> GetBanByIdAsync(int banId)
+        public async Task<IEnumerable<UserGet>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc")
         {
-            string query = "SELECT * FROM UserBans WHERE Id_UserBan = @BanId";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@BanId", banId) };
+            // Validate and sanitize sort field/direction
+            HashSet<string> validSortFields = new()
+            { "Username", "RegistrationDate", "Tier" };
+            string orderBy = validSortFields.Contains(sortField) ? sortField : "Username";
+            string direction = sortDirection.ToLower() == "desc" ? "DESC" : "ASC";
 
-            // Use SelectAsync directly
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            string whereClause = string.IsNullOrWhiteSpace(searchTerm)
+                ? ""
+                : "WHERE Username LIKE @SearchTerm";
 
-            if (result.Rows.Count > 0)
+            string query = $@"
+                SELECT * FROM Users
+                {whereClause}
+                ORDER BY {orderBy} {direction}
+                LIMIT @PageSize OFFSET @Offset";
+
+            List<SQLiteParameter> parametersList = new();
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                UserBan ban = MapDataRowToUserBan(result.Rows[0]);
-                return ban;
+                parametersList.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
-            return null;
+
+            parametersList.Add(new SQLiteParameter("@PageSize", pageSize));
+            parametersList.Add(new SQLiteParameter("@Offset", (page - 1) * pageSize));
+
+            DataTable result = await this._sqlClient.SelectAsync(query, parametersList.ToArray());
+            List<UserGet> list = new();
+            foreach (DataRow row in result.Rows)
+            {
+                list.Add(MapDataRowToUserGet(row));
+            }
+
+            return list;
         }
 
-        private static UserBan MapDataRowToUserBan(DataRow row)
+        public async Task<int> GetTotalUsersCountAsync(string searchTerm)
         {
-            return new UserBan
+            string query = string.IsNullOrWhiteSpace(searchTerm)
+                ? "SELECT COUNT(*) FROM Users"
+                : "SELECT COUNT(*) FROM Users WHERE Username LIKE @SearchTerm";
+            SQLiteParameter[] parameters = string.IsNullOrWhiteSpace(searchTerm)
+                ? Array.Empty<SQLiteParameter>()
+                : new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            return Convert.ToInt32(result.Rows[0][0]);
+        }
+
+        public async Task<bool> UpdateUserTierAsync(UserTierUpdate tierDto)
+        {
+            string query = "UPDATE Users SET Tier = @Tier WHERE Id_User = @UserId";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Tier", (int)tierDto.Tier), new("@UserId", tierDto.UserId) };
+            int rows = await this._sqlClient.UpdateAsync(query, parameters);
+            return rows > 0;
+        }
+
+        private static UserGet MapDataRowToUserGet(DataRow row)
+        {
+            return new UserGet
             {
-                Id = Convert.ToInt32(row["Id_UserBan"]),
-                UserId = row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : null,
-                HashedIpAddress = row["IpAddress"] != DBNull.Value ? row["IpAddress"].ToString() : null,
-                BanType = (BanType)Convert.ToInt32(row["BanType"]),
-                BannedAt = DateTime.Parse(row["BannedAt"].ToString() ?? DateTime.MinValue.ToString()),
-                ExpiresAt = row["ExpiresAt"] != DBNull.Value
-                    ? DateTime.Parse(row["ExpiresAt"].ToString() ?? DateTime.MaxValue.ToString())
-                    : null,
-                Reason = row["Reason"].ToString() ?? string.Empty,
-                BannedByUserId = Convert.ToInt32(row["BannedByUserId"])
+                Id = Convert.ToInt32(row["Id_User"]),
+                Username = row["Username"].ToString() ?? string.Empty,
+                PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
+                Tier = row["Tier"] != DBNull.Value ? (UserTier)Convert.ToInt32(row["Tier"]) : default,
+                RegistrationDate = DateTime.Parse(row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
+                IpAddressHistory = row.Table.Columns.Contains("IpAddressHistory") && row["IpAddressHistory"] != DBNull.Value
+                    ? row["IpAddressHistory"].ToString()!
+                    : string.Empty
             };
         }
 
-        #endregion
+        private static UserBanGet MapDataRowToUserBanGetGet(DataRow row)
+        {
+            return new UserBanGet
+            {
+                Id = Convert.ToInt32(row["Id_UserBan"]),
+                UserId = row.Table.Columns.Contains("UserId") && row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : (int?)null,
+                HashedIpAddress = row.Table.Columns.Contains("HashedIpAddress") && row["HashedIpAddress"] != DBNull.Value ? row["HashedIpAddress"].ToString() : null,
+                BannedByUserId = Convert.ToInt32(row["BannedByUserId"]),
+                Reason = row["Reason"].ToString() ?? string.Empty,
+                BanType = (BanType)Convert.ToInt32(row["BanType"]),
+                BannedAt = Convert.ToDateTime(row["BannedAt"]),
+                ExpiresAt = row.Table.Columns.Contains("ExpiresAt") && row["ExpiresAt"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ExpiresAt"]) : null,
+                IsActive = row.Table.Columns.Contains("ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || Convert.ToDateTime(row["ExpiresAt"]) > DateTime.UtcNow),
+                Properties = new Dictionary<string, string>()
+            };
+        }
     }
 }

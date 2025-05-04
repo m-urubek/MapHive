@@ -1,6 +1,6 @@
-using MapHive.Models;
+using MapHive.Models.RepositoryModels;
 
-namespace MapHive.Repositories.Interfaces
+namespace MapHive.Repositories
 {
     public interface ILogRepository
     {
@@ -13,7 +13,7 @@ namespace MapHive.Repositories.Interfaces
         /// <param name="sortField">Optional field to sort by</param>
         /// <param name="sortDirection">Sort direction ('asc' or 'desc')</param>
         /// <returns>List of logs</returns>
-        Task<IEnumerable<Log>> GetLogsAsync(
+        Task<IEnumerable<LogGet>> GetLogsAsync(
             int page = 1,
             int pageSize = 20,
             string searchTerm = "",
@@ -33,12 +33,8 @@ namespace MapHive.Repositories.Interfaces
         /// </summary>
         /// <param name="id">The log ID</param>
         /// <returns>The log or null if not found</returns>
-        Task<Log?> GetLogByIdAsync(int id);
+        Task<LogGet?> GetLogByIdAsync(int id);
 
-        /// <summary>
-        /// Gets all log severity levels
-        /// </summary>
-        /// <returns>List of log severity levels</returns>
-        Task<IEnumerable<LogSeverity>> GetLogSeveritiesAsync();
+        Task<int> CreateLogRowAsync(LogCreate logCreate);
     }
 }

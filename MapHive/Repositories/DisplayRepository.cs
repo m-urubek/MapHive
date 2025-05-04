@@ -1,12 +1,19 @@
-using MapHive.Repositories.Interfaces;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
+using System.Text.RegularExpressions;
 
 namespace MapHive.Repositories
 {
     public class DisplayRepository : IDisplayRepository
     {
+        private readonly ISqlClientSingleton _sqlClient;
+
+        public DisplayRepository(ISqlClientSingleton sqlClient)
+        {
+            this._sqlClient = sqlClient;
+        }
+
         public async Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id)
         {
             // Validate table name to prevent SQL injection
@@ -19,11 +26,11 @@ namespace MapHive.Repositories
             string idColumn = await this.GetIdColumnNameAsync(tableName);
 
             // Build query to get all data for the specified item
-            string query = $"SELECT * FROM {tableName} WHERE {idColumn} = @Id";
+            string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
 
-            // Execute query
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            // Execute query using injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             // If no item found with the specified ID, return empty dictionary
             if (result.Rows.Count == 0)
@@ -47,8 +54,8 @@ namespace MapHive.Repositories
             string query = "SELECT name FROM sqlite_master WHERE type='table' AND name=@TableName";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@TableName", tableName) };
 
-            // Execute query
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            // Execute query using injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             // Return true if table exists
             return result.Rows.Count > 0;
@@ -56,9 +63,14 @@ namespace MapHive.Repositories
 
         private async Task<string> GetIdColumnNameAsync(string tableName)
         {
-            // Get table schema
-            string query = $"PRAGMA table_info({tableName})";
-            DataTable schemaTable = await CurrentRequest.SqlClient.SelectAsync(query);
+            // Validate table name
+            if (!IsValidTableName(tableName))
+            {
+                throw new ArgumentException("Invalid table name for schema lookup");
+            }
+            // Get table schema using injected _sqlClient
+            string query = $"PRAGMA table_info(\"{tableName}\")";
+            DataTable schemaTable = await this._sqlClient.SelectAsync(query);
 
             // Check for Id_{tableName} column
             string expectedIdColumn = $"Id_{tableName}";
@@ -71,13 +83,18 @@ namespace MapHive.Repositories
                 }
             }
 
-            // If Id_{tableName} not found, return the first column name
-            if (schemaTable.Rows.Count > 0)
+            // If Id_{tableName} not found, return the first column name (usually the PK)
+            if (schemaTable.Rows.Count > 0 && schemaTable.Rows[0]["pk"] != DBNull.Value && Convert.ToInt32(schemaTable.Rows[0]["pk"]) > 0)
+            {
+                return schemaTable.Rows[0]["name"].ToString() ?? "Id";
+            }
+            // Fallback if no explicit PK or specific Id_ pattern found
+            else if (schemaTable.Rows.Count > 0)
             {
                 return schemaTable.Rows[0]["name"].ToString() ?? "Id";
             }
 
-            // Default to Id if no columns found (should never happen)
+            // Default to "Id" if no columns found (should ideally not happen for existing tables)
             return "Id";
         }
 
@@ -93,7 +110,11 @@ namespace MapHive.Repositories
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
                 string displayName = FormatColumnNameForDisplay(columnName);
 
-                result.Add(displayName, value);
+                // Only add non-ID columns to the display dictionary
+                if (!columnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Add(displayName, value);
+                }
             }
 
             return result;
@@ -107,26 +128,16 @@ namespace MapHive.Repositories
                 columnName = columnName[3..];
             }
 
-            // Insert space before capital letters to create a more readable format
-            // e.g., "FirstName" becomes "First Name"
-            string formatted = string.Empty;
-            for (int i = 0; i < columnName.Length; i++)
-            {
-                if (i > 0 && char.IsUpper(columnName[i]))
-                {
-                    formatted += " ";
-                }
-                formatted += columnName[i];
-            }
-
-            return formatted;
+            // Insert space before capital letters, handle acronyms (like ID)
+            return Regex.Replace(columnName, "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ");
         }
 
         // Validate table name to prevent SQL injection
         private static bool IsValidTableName(string tableName)
         {
+            // Allow alphanumeric and underscore
             return !string.IsNullOrWhiteSpace(tableName) &&
-                   System.Text.RegularExpressions.Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
+                   Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
         }
     }
 }

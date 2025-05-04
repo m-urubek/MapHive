@@ -1,4 +1,5 @@
-@model MapHive.Models.MapLocation
+@using MapHive.Models.RepositoryModels
+@model MapLocationUpdate
 
 @{
     ViewData["Title"] = "Edit Location";
@@ -12,7 +13,6 @@
             <form asp-action="Edit" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 <input type="hidden" asp-for="Id" />
-                <input type="hidden" asp-for="CreatedAt" />
                 
                 <div class="form-group mb-3">
                     <label asp-for="Name" class="control-label"></label>

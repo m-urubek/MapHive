@@ -1,5 +1,5 @@
-using MapHive.Models;
-using MapHive.Repositories.Interfaces;
+using MapHive.Models.Enums;
+using MapHive.Models.RepositoryModels;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
@@ -9,7 +9,14 @@ namespace MapHive.Repositories
 {
     public class LogRepository : ILogRepository
     {
-        public async Task<IEnumerable<Log>> GetLogsAsync(
+        private readonly ISqlClientSingleton _sqlClient;
+
+        public LogRepository(ISqlClientSingleton sqlClient)
+        {
+            this._sqlClient = sqlClient;
+        }
+
+        public async Task<IEnumerable<LogGet>> GetLogsAsync(
             int page = 1,
             int pageSize = 20,
             string searchTerm = "",
@@ -19,12 +26,14 @@ namespace MapHive.Repositories
             // Validate parameters
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 100);
-            sortDirection = sortDirection.ToLower() == "desc" ? "DESC" : "ASC";
+            sortDirection = sortDirection.ToLowerInvariant() == "desc" ? "DESC" : "ASC";
 
             // Sanitize sort field to prevent SQL injection
-            if (!IsValidColumnName(sortField))
+            string sanitizedSortField = IsValidColumnName(sortField) ? QuoteIdentifier(sortField) : QuoteIdentifier("Timestamp");
+            // Adjust Id column name for DB
+            if (sanitizedSortField.Equals(QuoteIdentifier("Id"), StringComparison.OrdinalIgnoreCase))
             {
-                sortField = "Timestamp";
+                sanitizedSortField = QuoteIdentifier("Id_Log");
             }
 
             // Build query
@@ -45,18 +54,18 @@ namespace MapHive.Repositories
             }
 
             // Add sorting
-            _ = queryBuilder.Append($"ORDER BY l.{(sortField == "Id" ? "Id_Log" : sortField)} {sortDirection} ");
+            _ = queryBuilder.Append($"ORDER BY {sanitizedSortField} {sortDirection} ");
 
             // Add pagination
             _ = queryBuilder.Append("LIMIT @PageSize OFFSET @Offset");
             parameters.Add(new SQLiteParameter("@PageSize", pageSize));
             parameters.Add(new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
-            // Execute query
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            // Execute query using injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
 
-            // Map results to Log objects
-            List<Log> logs = new();
+            // Map results to LogGet objects
+            List<LogGet> logs = new();
             foreach (DataRow row in result.Rows)
             {
                 logs.Add(MapDataRowToLog(row));
@@ -83,75 +92,66 @@ namespace MapHive.Repositories
                 parameters.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
 
-            // Execute query
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            // Execute query using injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
 
             // Return count
-            return Convert.ToInt32(result.Rows[0][0]);
+            return result.Rows.Count > 0 && result.Rows[0][0] != DBNull.Value ? Convert.ToInt32(result.Rows[0][0]) : 0;
         }
 
-        public async Task<Log?> GetLogByIdAsync(int id)
+        public async Task<LogGet?> GetLogByIdAsync(int id)
         {
             string query = @"
-                SELECT l.*, s.Name AS SeverityName 
-                FROM Logs l 
-                LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity 
+                SELECT l.*, s.Name AS SeverityName
+                FROM Logs l
+                LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity
                 WHERE l.Id_Log = @Id";
 
             SQLiteParameter[] parameters = { new("@Id", id) };
 
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 ? null : MapDataRowToLog(result.Rows[0]);
         }
 
-        public async Task<IEnumerable<LogSeverity>> GetLogSeveritiesAsync()
+        public async Task<int> CreateLogRowAsync(LogCreate logCreate)
         {
-            string query = "SELECT Id_LogSeverity as Id, Name, Description FROM LogSeverity ORDER BY Id_LogSeverity";
-
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query);
-
-            List<LogSeverity> severities = new();
-            foreach (DataRow row in result.Rows)
+            const string query = @"INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserName, RequestPath, AdditionalData)"
+                                             + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserName, @RequestPath, @AdditionalData);";
+            SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                severities.Add(new LogSeverity
-                {
-                    Id = Convert.ToInt32(row["Id"]),
-                    Name = row["Name"].ToString() ?? string.Empty,
-                    Description = row["Description"].ToString() ?? string.Empty
-                });
-            }
-
-            return severities;
+                        new("@Timestamp", logCreate.Timestamp.ToString("o")),
+                        new("@SeverityId", (int)logCreate.Severity),
+                        new("@Message", logCreate.Message),
+                        new("@Source", logCreate.Source as object ?? DBNull.Value),
+                        new("@Exception", logCreate.Exception?.ToString() as object ?? DBNull.Value),
+                        new("@UserName", logCreate.UserName as object ?? DBNull.Value),
+                        new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
+                        new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
+            };
+            return await this._sqlClient.InsertAsync(query, parameters);
         }
 
-        private static Log MapDataRowToLog(DataRow row)
+        private static LogGet MapDataRowToLog(DataRow row) //TODO make dynamic
         {
-            Log log = new()
+            // Simplified mapping
+            return new LogGet
             {
                 Id = Convert.ToInt32(row["Id_Log"]),
                 Timestamp = Convert.ToDateTime(row["Timestamp"]),
                 SeverityId = Convert.ToInt32(row["SeverityId"]),
                 Message = row["Message"].ToString() ?? string.Empty,
-                Source = row["Source"].ToString() ?? string.Empty,
-                Exception = row["Exception"].ToString() ?? string.Empty,
-                UserName = row["UserName"].ToString() ?? string.Empty,
-                RequestPath = row["RequestPath"].ToString() ?? string.Empty,
-                AdditionalData = row["AdditionalData"].ToString() ?? string.Empty,
-                // Create a basic LogSeverity object from the joined data
-                Severity = new LogSeverity
-                {
-                    Id = Convert.ToInt32(row["SeverityId"]),
-                    Name = row.Table.Columns.Contains("SeverityName") ?
-                           (row["SeverityName"]?.ToString() ?? string.Empty) :
-                           GetSeverityName(Convert.ToInt32(row["SeverityId"])),
-                    Description = string.Empty // We don't have this in the query result
-                }
+                Source = row["Source"]?.ToString(), // Nullable
+                Exception = row["Exception"]?.ToString(), // Nullable
+                UserName = row["UserName"]?.ToString(), // Nullable
+                RequestPath = row["RequestPath"]?.ToString(), // Nullable
+                AdditionalData = row["AdditionalData"]?.ToString(), // Nullable
+                Severity = (LogSeverity)Convert.ToInt32(row["SeverityId"])
             };
-
-            return log;
         }
 
+        // Keep this helper or replace with fetching from DB if severities change
         private static string GetSeverityName(int severityId)
         {
             return severityId switch
@@ -164,11 +164,19 @@ namespace MapHive.Repositories
             };
         }
 
+        // More robust column name validation/quoting
+        private static readonly HashSet<string> _validSortColumns = new(StringComparer.OrdinalIgnoreCase)
+        { "Id", "Id_Log", "Timestamp", "SeverityId", "Message", "Source", "UserName", "RequestPath" };
+
         private static bool IsValidColumnName(string columnName)
         {
-            // List of valid column names
-            string[] validColumns = { "Id", "Id_Log", "Timestamp", "SeverityId", "Message", "Source", "UserName", "RequestPath" };
-            return Array.Exists(validColumns, c => c.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+            return !string.IsNullOrWhiteSpace(columnName) && _validSortColumns.Contains(columnName);
+        }
+
+        // Helper to quote identifiers for SQLite
+        private static string QuoteIdentifier(string identifier)
+        {
+            return $"\"{identifier.Replace("\"", "\"\"")}\""; // Basic quoting
         }
     }
 }

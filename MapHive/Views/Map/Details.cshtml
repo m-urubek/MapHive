@@ -1,5 +1,5 @@
-@model MapHive.Models.MapLocation
-@using MapHive.Models
+@model MapHive.Models.ViewModels.MapLocationViewModel
+@using MapHive.Models.RepositoryModels
 
 @{
     ViewData["Title"] = "Location Details";
@@ -160,9 +160,9 @@
                         }
                     </div>
 
-                    @if (ViewBag.Reviews.Count > 0)
+                    @if (Model.Reviews.Any())
                     {
-                        @foreach (var review in ViewBag.Reviews)
+                        @foreach (var review in Model.Reviews)
                         {
                             <div class="card mb-3">
                                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -198,15 +198,7 @@
                                 </div>
                                 <div class="card-footer d-flex justify-content-between">
                                     @{
-                                        DiscussionThread? reviewThread = null;
-                                        foreach (var thread in ViewBag.DiscussionThreads)
-                                        {
-                                            if (thread.IsReviewThread && thread.ReviewId == review.Id)
-                                            {
-                                                reviewThread = thread;
-                                                break;
-                                            }
-                                        }
+                                        var reviewThread = Model.Discussions.FirstOrDefault(t => t.IsReviewThread && t.ReviewId == review.Id);
                                     }
 
                                     <div>
@@ -255,10 +247,10 @@
                         }
                     </div>
 
-                    @if (ViewBag.RegularDiscussionCount > 0)
+                    @if (Model.RegularDiscussionCount > 0)
                     {
                         ViewData["IsReviewThread"] = false;
-                        <partial name="_ThreadListPartial" model="ViewBag.DiscussionThreads" />
+                        <partial name="_ThreadListPartial" model="Model.Discussions" />
                     }
                     else
                     {

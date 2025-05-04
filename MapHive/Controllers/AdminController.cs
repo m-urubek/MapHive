@@ -1,5 +1,9 @@
+using AutoMapper;
 using MapHive.Models;
-using MapHive.Models.DataGrid;
+using MapHive.Models.Enums;
+using MapHive.Models.RepositoryModels;
+using MapHive.Models.ViewModels;
+using MapHive.Repositories;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,108 +14,105 @@ namespace MapHive.Controllers
     [Authorize]
     public class AdminController : Controller
     {
+        private readonly ISqlClientSingleton _sqlClient;
+        private readonly IDataGridRepository _dataGridRepository;
+        private readonly IConfigurationSingleton _configSingleton;
+        private readonly IMapLocationRepository _mapLocationRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IMapper _mapper;
+        public AdminController(
+            ISqlClientSingleton sqlClient,
+            IDataGridRepository dataGridRepository,
+            IConfigurationSingleton configSingleton,
+            IMapLocationRepository mapLocationRepository,
+            IUserRepository userRepository,
+            IMapper mapper)
+        {
+            this._sqlClient = sqlClient;
+            this._dataGridRepository = dataGridRepository;
+            this._configSingleton = configSingleton;
+            this._mapLocationRepository = mapLocationRepository;
+            this._userRepository = userRepository;
+            this._mapper = mapper;
+        }
+
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public IActionResult Index()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
-                ? this.Forbid()
-                : this.View();
+            return this.View();
         }
 
         #region Categories Management
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Categories()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
+            IEnumerable<CategoryGet> categories = await this._mapLocationRepository.GetAllCategoriesAsync();
             return this.View(categories);
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public IActionResult AddCategory()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
-                ? this.Forbid()
-                : this.View();
+            return this.View(new CategoryCreate());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddCategory(Category category)
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> AddCategory(CategoryCreate categoryDto)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             if (!this.ModelState.IsValid)
             {
-                return this.View(category);
+                return this.View(categoryDto);
             }
 
-            _ = await CurrentRequest.MapRepository.AddCategoryAsync(category);
+            _ = await this._mapLocationRepository.AddCategoryAsync(categoryDto);
             return this.RedirectToAction("Categories");
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditCategory(int id)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
+            CategoryGet? categoryGet = await this._mapLocationRepository.GetCategoryByIdAsync(id);
+            if (categoryGet == null)
             {
-                return this.Forbid();
+                return this.NotFound();
             }
-
-            Category? category = await CurrentRequest.MapRepository.GetCategoryByIdAsync(id);
-            return category == null ? this.NotFound() : this.View(category);
+            CategoryUpdate categoryDto = new()
+            {
+                Id = categoryGet.Id,
+                Name = categoryGet.Name,
+                Description = categoryGet.Description,
+                Icon = categoryGet.Icon
+            };
+            return this.View(categoryDto);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditCategory(Category category)
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> EditCategory(CategoryUpdate categoryDto)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             if (!this.ModelState.IsValid)
             {
-                return this.View(category);
+                return this.View(categoryDto);
             }
 
-            _ = await CurrentRequest.MapRepository.UpdateCategoryAsync(category);
+            _ = await this._mapLocationRepository.UpdateCategoryAsync(categoryDto);
             return this.RedirectToAction("Categories");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            _ = await CurrentRequest.MapRepository.DeleteCategoryAsync(id);
+            _ = await this._mapLocationRepository.DeleteCategoryAsync(id);
             return this.RedirectToAction("Categories");
         }
 
@@ -120,17 +121,11 @@ namespace MapHive.Controllers
         #region Users Management
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             // Get users using the DataGridRepository
-            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+            DataGridGet dataGridGet = await this._dataGridRepository.GetGridDataAsync(
                 "Users",
                 page,
                 pageSize,
@@ -138,22 +133,17 @@ namespace MapHive.Controllers
                 sortField,
                 sortDirection);
 
-
-            return this.View(viewModel);
+            return this.View(this._mapper.Map<DataGridViewModel>(dataGridGet));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> UpdateUserTier(int userId, UserTier tier)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            _ = await CurrentRequest.UserRepository.UpdateUserTierAsync(userId, tier);
+            // Use UserTierUpdate DTO for updating user tier
+            UserTierUpdate tierDto = new() { UserId = userId, Tier = tier };
+            _ = await this._userRepository.UpdateUserTierAsync(tierDto);
             return this.RedirectToAction("Users");
         }
 
@@ -162,26 +152,17 @@ namespace MapHive.Controllers
         #region SQL Execution
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public IActionResult SqlQuery()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
-                ? this.Forbid()
-                : this.View(new SqlQueryViewModel());
+            return this.View(new SqlQueryViewModel());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> SqlQuery(SqlQueryViewModel model)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             if (!this.ModelState.IsValid)
             {
                 return this.View(model);
@@ -194,7 +175,7 @@ namespace MapHive.Controllers
                 // Execute based on query type
                 if (query.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
                 {
-                    DataTable result = await CurrentRequest.SqlClient.SelectAsync(query);
+                    DataTable result = await this._sqlClient.SelectAsync(query);
                     model.HasResults = true;
                     model.DataTable = result;
                     model.RowsAffected = result.Rows.Count;
@@ -202,21 +183,21 @@ namespace MapHive.Controllers
                 }
                 else if (query.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await CurrentRequest.SqlClient.InsertAsync(query);
+                    int result = await this._sqlClient.InsertAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = 1;
                     model.Message = $"Insert executed successfully. ID of inserted row: {result}";
                 }
                 else if (query.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await CurrentRequest.SqlClient.UpdateAsync(query);
+                    int result = await this._sqlClient.UpdateAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Update executed successfully. {result} rows affected.";
                 }
                 else if (query.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await CurrentRequest.SqlClient.DeleteAsync(query);
+                    int result = await this._sqlClient.DeleteAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Delete executed successfully. {result} rows affected.";
@@ -224,7 +205,7 @@ namespace MapHive.Controllers
                 else
                 {
                     // For other statements like ALTER, CREATE, etc.
-                    int result = await CurrentRequest.SqlClient.AlterAsync(query);
+                    int result = await this._sqlClient.AlterAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = "Query executed successfully.";
@@ -244,95 +225,62 @@ namespace MapHive.Controllers
         #region Configuration Management
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Configuration()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            List<ConfigurationItem> configurations = await CurrentRequest.ConfigService.GetAllConfigurationItemsAsync();
+            List<ConfigurationItem> configurations = await this._configSingleton.GetAllConfigurationItemsAsync();
             return this.View(configurations);
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public IActionResult AddConfiguration()
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            return string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin
-                ? this.Forbid()
-                : this.View(new ConfigurationItem());
+            return this.View(new ConfigurationItem());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> AddConfiguration(ConfigurationItem configItem)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             if (!this.ModelState.IsValid)
             {
                 return this.View(configItem);
             }
 
-            _ = await CurrentRequest.ConfigService.AddConfigurationItemAsync(configItem);
+            _ = await this._configSingleton.AddConfigurationItemAsync(configItem);
             return this.RedirectToAction("Configuration");
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditConfiguration(string key)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            ConfigurationItem? configItem = await CurrentRequest.ConfigService.GetConfigurationItemAsync(key);
+            ConfigurationItem? configItem = await this._configSingleton.GetConfigurationItemAsync(key);
             return configItem == null ? this.NotFound() : this.View(configItem);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditConfiguration(ConfigurationItem configItem)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             if (!this.ModelState.IsValid)
             {
                 return this.View(configItem);
             }
 
-            _ = await CurrentRequest.ConfigService.UpdateConfigurationItemAsync(configItem);
+            _ = await this._configSingleton.UpdateConfigurationItemAsync(configItem);
             return this.RedirectToAction("Configuration");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteConfiguration(string key)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            _ = await CurrentRequest.ConfigService.DeleteConfigurationItemAsync(key);
+            _ = await this._configSingleton.DeleteConfigurationItemAsync(key);
             return this.RedirectToAction("Configuration");
         }
 
@@ -341,17 +289,11 @@ namespace MapHive.Controllers
         #region Ban Management
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
             // Get bans using the DataGridRepository
-            DataGrid viewModel = await CurrentRequest.DataGridRepository.GetGridDataAsync(
+            DataGridGet dataGridGet = await this._dataGridRepository.GetGridDataAsync(
                 "UserBans",
                 page,
                 pageSize,
@@ -359,25 +301,20 @@ namespace MapHive.Controllers
                 sortField,
                 sortDirection);
 
+            DataGridViewModel dataGridViewModel = this._mapper.Map<DataGridViewModel>(dataGridGet);
 
             // Store sort information in ViewData to be used in the view
             this.ViewData["SortField"] = sortField;
             this.ViewData["SortDirection"] = sortDirection;
 
-            return this.View(viewModel);
+            return this.View(dataGridViewModel);
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> BanDetails(int id)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            UserBanGet? ban = await this._userRepository.GetActiveBanByUserIdAsync(id);
             if (ban == null)
             {
                 return this.NotFound();
@@ -391,7 +328,7 @@ namespace MapHive.Controllers
             else if (ban.UserId.HasValue)
             {
                 // Get username from UserId
-                bannedUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.UserId.Value);
+                bannedUsername = await this._userRepository.GetUsernameByIdAsync(ban.UserId.Value);
             }
 
             string bannedByUsername;
@@ -402,7 +339,7 @@ namespace MapHive.Controllers
             else
             {
                 // Get admin username
-                bannedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(ban.BannedByUserId);
+                bannedByUsername = await this._userRepository.GetUsernameByIdAsync(ban.BannedByUserId);
             }
 
             BanDetailViewModel viewModel = new()
@@ -417,22 +354,16 @@ namespace MapHive.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> RemoveBan(int id)
         {
-            // Check if the user is an admin
-            string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-            if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-            {
-                return this.Forbid();
-            }
-
-            UserBan? ban = await CurrentRequest.UserRepository.GetBanByIdAsync(id);
+            UserBanGet? ban = await this._userRepository.GetActiveBanByUserIdAsync(id);
             if (ban == null)
             {
                 return this.NotFound();
             }
 
-            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(id);
+            bool success = await this._userRepository.UnbanUserAsync(id);
 
             if (success)
             {

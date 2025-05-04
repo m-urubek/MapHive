@@ -1,4 +1,4 @@
-using MapHive.Models;
+using MapHive.Models.RepositoryModels;
 using MapHive.Singletons;
 using System.Data;
 using System.Data.SQLite;
@@ -7,7 +7,16 @@ namespace MapHive.Repositories
 {
     public class ReviewRepository : IReviewRepository
     {
-        public async Task<IEnumerable<Review>> GetReviewsByLocationIdAsync(int locationId)
+        private readonly ISqlClientSingleton _sqlClient;
+        private readonly IUserRepository _userRepository;
+
+        public ReviewRepository(ISqlClientSingleton sqlClient, IUserRepository userRepository)
+        {
+            this._sqlClient = sqlClient;
+            this._userRepository = userRepository;
+        }
+
+        public async Task<IEnumerable<ReviewGet>> GetReviewsByLocationIdAsync(int locationId)
         {
             string query = @"
                 SELECT r.*, u.Username
@@ -17,49 +26,46 @@ namespace MapHive.Repositories
                 ORDER BY r.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
-            List<Review> reviews = new();
+            List<ReviewGet> reviews = new();
             foreach (DataRow row in result.Rows)
             {
-                Review review = this.MapRowToReview(row);
-
-                // Get author name
-                string username = row["Username"]?.ToString() ?? "Unknown User"; // Get username from JOIN
-                review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-
-                reviews.Add(review);
+                ReviewGet rg = this.MapRowToReviewGet(row);
+                string? username = row.Table.Columns.Contains("Username") && row["Username"] != DBNull.Value
+                                     ? row["Username"].ToString()
+                                     : await this._userRepository.GetUsernameByIdAsync(rg.UserId);
+                rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
+                reviews.Add(rg);
             }
 
             return reviews;
         }
 
-        public async Task<Review?> GetReviewByIdAsync(int id)
+        public async Task<ReviewGet?> GetReviewByIdAsync(int id)
         {
             string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {
                 return null;
             }
 
-            Review review = this.MapRowToReview(result.Rows[0]);
+            ReviewGet rg = this.MapRowToReviewGet(result.Rows[0]);
+            string username = await this._userRepository.GetUsernameByIdAsync(rg.UserId);
+            rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
 
-            // Get author name
-            int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-            review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-
-            return review;
+            return rg;
         }
 
-        public async Task<Review> AddReviewAsync(Review review)
+        public async Task<ReviewGet> AddReviewAsync(ReviewCreate review)
         {
+            DateTime now = DateTime.UtcNow;
             string query = @"
                 INSERT INTO Reviews (LocationId, UserId, Rating, ReviewText, IsAnonymous, CreatedAt, UpdatedAt)
-                VALUES (@LocationId, @UserId, @Rating, @ReviewText, @IsAnonymous, @CreatedAt, @UpdatedAt)";
+                VALUES (@LocationId, @UserId, @Rating, @ReviewText, @IsAnonymous, @CreatedAt, @UpdatedAt);";
 
             SQLiteParameter[] parameters = {
                 new("@LocationId", review.LocationId),
@@ -67,26 +73,34 @@ namespace MapHive.Repositories
                 new("@Rating", review.Rating),
                 new("@ReviewText", review.ReviewText),
                 new("@IsAnonymous", review.IsAnonymous),
-                new("@CreatedAt", review.CreatedAt),
-                new("@UpdatedAt", review.UpdatedAt)
+                new("@CreatedAt", now),
+                new("@UpdatedAt", now)
             };
 
-            int reviewId = await CurrentRequest.SqlClient.InsertAsync(query, parameters);
-            review.Id = reviewId;
+            int reviewId = await this._sqlClient.InsertAsync(query, parameters);
+            string username = await this._userRepository.GetUsernameByIdAsync(review.UserId);
 
-            // Get author name
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(review.UserId);
-            review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-
-            return review;
+            return new ReviewGet
+            {
+                Id = reviewId,
+                LocationId = review.LocationId,
+                UserId = review.UserId,
+                Rating = review.Rating,
+                ReviewText = review.ReviewText,
+                IsAnonymous = review.IsAnonymous,
+                CreatedAt = now,
+                UpdatedAt = now,
+                AuthorName = review.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin")
+            };
         }
 
-        public async Task<bool> UpdateReviewAsync(Review review)
+        public async Task<bool> UpdateReviewAsync(ReviewUpdate review)
         {
+            DateTime now = DateTime.UtcNow;
             string query = @"
-                UPDATE Reviews 
-                SET Rating = @Rating, 
-                    ReviewText = @ReviewText, 
+                UPDATE Reviews
+                SET Rating = @Rating,
+                    ReviewText = @ReviewText,
                     IsAnonymous = @IsAnonymous,
                     UpdatedAt = @UpdatedAt
                 WHERE Id_Reviews = @Id AND UserId = @UserId";
@@ -96,20 +110,21 @@ namespace MapHive.Repositories
                 new("@Rating", review.Rating),
                 new("@ReviewText", review.ReviewText),
                 new("@IsAnonymous", review.IsAnonymous),
-                new("@UpdatedAt", DateTime.UtcNow),
+                new("@UpdatedAt", now),
                 new("@UserId", review.UserId)
             };
 
-            int rowsAffected = await CurrentRequest.SqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await this._sqlClient.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
 
         public async Task<bool> DeleteReviewAsync(int id)
         {
+            // Consider adding user ID check if only owners can delete
             string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
             SQLiteParameter[] parameters = { new("@Id", id) };
-
-            int rowsAffected = await CurrentRequest.SqlClient.DeleteAsync(query, parameters);
+            // Use injected _sqlClient
+            int rowsAffected = await this._sqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -117,11 +132,11 @@ namespace MapHive.Repositories
         {
             string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
-                ? 0
+                ? 0.0 // Return double
                 : Convert.ToDouble(result.Rows[0]["AverageRating"]);
         }
 
@@ -129,34 +144,30 @@ namespace MapHive.Repositories
         {
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
+            // Use injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            return result.Rows.Count == 0 ? 0 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
+            return result.Rows.Count == 0 || result.Rows[0]["ReviewCount"] == DBNull.Value
+                 ? 0
+                 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
         }
 
         public async Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
         {
-            string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE UserId = @UserId AND LocationId = @LocationId";
+            string query = "SELECT 1 FROM Reviews WHERE UserId = @UserId AND LocationId = @LocationId LIMIT 1"; // More efficient query
             SQLiteParameter[] parameters = {
                 new("@UserId", userId),
                 new("@LocationId", locationId)
             };
+            // Use injected _sqlClient
+            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
-            DataTable result = await CurrentRequest.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count == 0)
-            {
-                return false;
-            }
-
-            int count = Convert.ToInt32(result.Rows[0]["ReviewCount"]);
-            return count > 0;
+            return result.Rows.Count > 0; // Check if any row was returned
         }
 
-        private Review MapRowToReview(DataRow row)
+        private ReviewGet MapRowToReviewGet(DataRow row)
         {
-            return new Review
+            return new ReviewGet
             {
                 Id = Convert.ToInt32(row["Id_Reviews"]),
                 LocationId = Convert.ToInt32(row["LocationId"]),
@@ -165,7 +176,8 @@ namespace MapHive.Repositories
                 ReviewText = row["ReviewText"].ToString() ?? string.Empty,
                 IsAnonymous = Convert.ToBoolean(row["IsAnonymous"]),
                 CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"])
+                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
+                AuthorName = string.Empty // will be set after mapping
             };
         }
     }

@@ -1,6 +1,7 @@
-using MapHive.Models;
+using AutoMapper;
+using MapHive.Models.RepositoryModels;
 using MapHive.Models.ViewModels;
-using MapHive.Singletons;
+using MapHive.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,35 +10,49 @@ namespace MapHive.Controllers
 {
     public class DiscussionController : Controller
     {
-        // GET: Discussion/Thread/5
+        private readonly IDiscussionRepository _discussionRepository;
+        private readonly IMapLocationRepository _mapLocationRepository;
+        private readonly IReviewRepository _reviewRepository;
+        private readonly IMapper _mapper;
+
+        public DiscussionController(IDiscussionRepository discussionRepository, IMapLocationRepository mapLocationRepository, IReviewRepository reviewRepository, IMapper mapper)
+        {
+            this._discussionRepository = discussionRepository;
+            this._mapLocationRepository = mapLocationRepository;
+            this._reviewRepository = reviewRepository;
+            this._mapper = mapper;
+        }
+
         public async Task<IActionResult> Thread(int id)
         {
-            DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(id);
-            if (thread == null)
+            DiscussionThreadGet? dto = await this._discussionRepository.GetThreadByIdAsync(id);
+            if (dto == null)
             {
                 return this.NotFound();
             }
 
-            // If it's a review thread, get the review
-            if (thread.IsReviewThread && thread.ReviewId.HasValue)
+            // Map repository DTO to view model using AutoMapper
+            ThreadDetailsViewModel viewModel = this._mapper.Map<ThreadDetailsViewModel>(dto);
+            viewModel.Messages = (await this._discussionRepository.GetMessagesByThreadIdAsync(dto.Id)).ToList();
+            viewModel.Location = await this._mapLocationRepository.GetLocationByIdAsync(dto.LocationId)
+                ?? throw new Exception("Location not found");
+
+            if (dto.IsReviewThread && dto.ReviewId.HasValue)
             {
-                thread.Review = await CurrentRequest.ReviewRepository.GetReviewByIdAsync(thread.ReviewId.Value);
+                viewModel.Review = await this._reviewRepository.GetReviewByIdAsync(dto.ReviewId.Value);
             }
 
-            // Get the location
-            thread.Location = await CurrentRequest.MapRepository.GetLocationByIdAsync(thread.LocationId);
-
-            // Create a view model for adding a new message
+            // Prepare view model for adding a new message
             ThreadMessageViewModel messageViewModel = new()
             {
-                ThreadId = thread.Id,
-                ThreadName = thread.ThreadName,
+                ThreadId = dto.Id,
+                ThreadName = dto.ThreadName,
                 MessageText = string.Empty
             };
 
             this.ViewBag.MessageViewModel = messageViewModel;
 
-            return this.View(thread);
+            return this.View(viewModel);
         }
 
         // GET: Discussion/Create/5 (5 is the location ID)
@@ -45,7 +60,7 @@ namespace MapHive.Controllers
         public async Task<IActionResult> Create(int id)
         {
             // Check if location exists
-            MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
+            MapLocationGet? location = await this._mapLocationRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -71,25 +86,21 @@ namespace MapHive.Controllers
             if (this.ModelState.IsValid)
             {
                 // Check if location exists
-                MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(model.LocationId);
+                MapLocationGet? location = await this._mapLocationRepository.GetLocationByIdAsync(model.LocationId);
                 if (location == null)
                 {
                     return this.NotFound();
                 }
 
-                // Create the thread
-                DiscussionThread thread = new()
-                {
-                    LocationId = model.LocationId,
-                    UserId = this.GetCurrentUserId(),
-                    ThreadName = model.ThreadName,
-                    IsReviewThread = false,
-                    CreatedAt = DateTime.UtcNow
-                };
+                // Map view model to create DTO
+                DiscussionThreadCreate dtoForCreate = this._mapper.Map<DiscussionThreadCreate>(model);
+                dtoForCreate.UserId = this.GetCurrentUserId();
+                dtoForCreate.IsReviewThread = false;
+                dtoForCreate.ReviewId = null;
 
-                thread = await CurrentRequest.DiscussionRepository.CreateDiscussionThreadAsync(thread, model.InitialMessage);
+                DiscussionThreadGet created = await this._discussionRepository.CreateDiscussionThreadAsync(dtoForCreate, model.InitialMessage);
 
-                return this.RedirectToAction("Thread", new { id = thread.Id });
+                return this.RedirectToAction("Thread", new { id = created.Id });
             }
 
             // If we got this far, something failed, redisplay form
@@ -105,24 +116,18 @@ namespace MapHive.Controllers
             if (this.ModelState.IsValid)
             {
                 // Check if thread exists
-                DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(model.ThreadId);
-                if (thread == null)
+                DiscussionThreadGet? threadDto = await this._discussionRepository.GetThreadByIdAsync(model.ThreadId);
+                if (threadDto == null)
                 {
                     return this.NotFound();
                 }
 
-                // Create the message
-                ThreadMessage message = new()
-                {
-                    ThreadId = model.ThreadId,
-                    UserId = this.GetCurrentUserId(),
-                    MessageText = model.MessageText,
-                    IsInitialMessage = false,
-                    IsDeleted = false,
-                    CreatedAt = DateTime.UtcNow
-                };
+                // Map view model to message create DTO
+                ThreadMessageCreate messageDto = this._mapper.Map<ThreadMessageCreate>(model);
+                messageDto.UserId = this.GetCurrentUserId();
+                messageDto.IsInitialMessage = false;
 
-                _ = await CurrentRequest.DiscussionRepository.AddMessageAsync(message);
+                _ = await this._discussionRepository.AddMessageAsync(messageDto);
 
                 return this.RedirectToAction("Thread", new { id = model.ThreadId });
             }
@@ -137,7 +142,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteMessage(int id)
         {
-            ThreadMessage? message = await CurrentRequest.DiscussionRepository.GetMessageByIdAsync(id);
+            ThreadMessageGet? message = await this._discussionRepository.GetMessageByIdAsync(id);
             if (message == null)
             {
                 return this.NotFound();
@@ -151,7 +156,7 @@ namespace MapHive.Controllers
                 return this.Forbid();
             }
 
-            _ = await CurrentRequest.DiscussionRepository.DeleteMessageAsync(id, userId);
+            _ = await this._discussionRepository.DeleteMessageAsync(id, userId);
 
             return this.RedirectToAction("Thread", new { id = message.ThreadId });
         }
@@ -162,14 +167,14 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteThread(int id)
         {
-            DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(id);
+            DiscussionThreadGet? thread = await this._discussionRepository.GetThreadByIdAsync(id);
             if (thread == null)
             {
                 return this.NotFound();
             }
 
             int locationId = thread.LocationId;
-            _ = await CurrentRequest.DiscussionRepository.DeleteThreadAsync(id);
+            _ = await this._discussionRepository.DeleteThreadAsync(id);
 
             return this.RedirectToAction("Details", "Map", new { id = locationId });
         }
@@ -178,7 +183,7 @@ namespace MapHive.Controllers
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id)
-                ? throw new Exception("User ID not found or is invalid")
+                ? throw new Exception("UserLogin ID not found or is invalid")
                 : id;
         }
     }

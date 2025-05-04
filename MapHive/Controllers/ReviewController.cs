@@ -1,6 +1,7 @@
-using MapHive.Models;
+using AutoMapper;
+using MapHive.Models.RepositoryModels;
 using MapHive.Models.ViewModels;
-using MapHive.Singletons;
+using MapHive.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,12 +10,23 @@ namespace MapHive.Controllers
 {
     public class ReviewController : Controller
     {
-        // GET: Review/Create/5 (5 is the location ID)
+        private readonly IReviewRepository _reviewRepository;
+        private readonly IMapLocationRepository _mapLocationRepository;
+        private readonly IDiscussionRepository _discussionRepository;
+        private readonly IMapper _mapper;
+        public ReviewController(IDiscussionRepository discussionRepository, IMapLocationRepository mapLocationRepository, IReviewRepository reviewRepository, IMapper mapper)
+        {
+            this._discussionRepository = discussionRepository;
+            this._mapLocationRepository = mapLocationRepository;
+            this._reviewRepository = reviewRepository;
+            this._mapper = mapper;
+        }
+
         [Authorize]
         public async Task<IActionResult> Create(int id)
         {
             // Check if location exists
-            MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
+            MapLocationGet? location = await this._mapLocationRepository.GetLocationByIdAsync(id);
             if (location == null)
             {
                 return this.NotFound();
@@ -22,7 +34,7 @@ namespace MapHive.Controllers
 
             // Check if user has already reviewed this location
             int userId = this.GetCurrentUserId();
-            bool hasReviewed = await CurrentRequest.ReviewRepository.HasUserReviewedLocationAsync(userId, id);
+            bool hasReviewed = await this._reviewRepository.HasUserReviewedLocationAsync(userId, id);
             if (hasReviewed)
             {
                 this.TempData["Error"] = "You have already reviewed this location.";
@@ -48,7 +60,7 @@ namespace MapHive.Controllers
             if (this.ModelState.IsValid)
             {
                 // Check if location exists
-                MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(model.LocationId);
+                MapLocationGet? location = await this._mapLocationRepository.GetLocationByIdAsync(model.LocationId);
                 if (location == null)
                 {
                     return this.NotFound();
@@ -56,29 +68,28 @@ namespace MapHive.Controllers
 
                 // Check if user has already reviewed this location
                 int userId = this.GetCurrentUserId();
-                bool hasReviewed = await CurrentRequest.ReviewRepository.HasUserReviewedLocationAsync(userId, model.LocationId);
+                bool hasReviewed = await this._reviewRepository.HasUserReviewedLocationAsync(userId, model.LocationId);
                 if (hasReviewed)
                 {
                     this.TempData["Error"] = "You have already reviewed this location.";
                     return this.RedirectToAction("Details", "Map", new { id = model.LocationId });
                 }
 
-                // Create the review
-                Review review = new()
+                // Create the review DTO
+                ReviewCreate reviewDto = this._mapper.Map<ReviewCreate>(model);
+                reviewDto.UserId = userId;
+                ReviewGet createdReview = await this._reviewRepository.AddReviewAsync(reviewDto);
+
+                // Create a review thread using the new DTO
+                ReviewThreadCreate reviewThreadDto = new()
                 {
+                    ReviewId = createdReview.Id,
                     LocationId = model.LocationId,
-                    UserId = userId,
-                    Rating = model.Rating,
-                    ReviewText = model.ReviewText,
-                    IsAnonymous = model.IsAnonymous,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    UserId = this.GetCurrentUserId(),
+                    Username = this.User.Identity?.Name ?? string.Empty,
+                    ReviewTitle = model.LocationName
                 };
-
-                review = await CurrentRequest.ReviewRepository.AddReviewAsync(review);
-
-                // Create a review thread
-                _ = await CurrentRequest.DiscussionRepository.CreateReviewThreadAsync(review.Id, model.LocationName, model.LocationId);
+                _ = await this._discussionRepository.CreateReviewThreadAsync(reviewThreadDto);
 
                 return this.RedirectToAction("Details", "Map", new { id = model.LocationId });
             }
@@ -91,7 +102,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            Review? review = await CurrentRequest.ReviewRepository.GetReviewByIdAsync(id);
+            ReviewGet? review = await this._reviewRepository.GetReviewByIdAsync(id);
             if (review == null)
             {
                 return this.NotFound();
@@ -105,20 +116,14 @@ namespace MapHive.Controllers
             }
 
             // Get the location
-            MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(review.LocationId);
+            MapLocationGet? location = await this._mapLocationRepository.GetLocationByIdAsync(review.LocationId);
             if (location == null)
             {
                 return this.NotFound();
             }
 
-            ReviewViewModel model = new()
-            {
-                LocationId = review.LocationId,
-                Rating = review.Rating,
-                ReviewText = review.ReviewText,
-                IsAnonymous = review.IsAnonymous,
-                LocationName = location.Name
-            };
+            ReviewViewModel model = this._mapper.Map<ReviewViewModel>(review);
+            model.LocationName = (await this._mapLocationRepository.GetLocationByIdAsync(review.LocationId))?.Name ?? string.Empty;
 
             return this.View(model);
         }
@@ -129,7 +134,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id, ReviewViewModel model)
         {
-            Review? review = await CurrentRequest.ReviewRepository.GetReviewByIdAsync(id);
+            ReviewGet? review = await this._reviewRepository.GetReviewByIdAsync(id);
             if (review == null)
             {
                 return this.NotFound();
@@ -144,17 +149,16 @@ namespace MapHive.Controllers
 
             if (this.ModelState.IsValid)
             {
-                review.Rating = model.Rating;
-                review.ReviewText = model.ReviewText;
-                review.IsAnonymous = model.IsAnonymous;
-                review.UpdatedAt = DateTime.UtcNow;
-
-                _ = await CurrentRequest.ReviewRepository.UpdateReviewAsync(review);
+                ReviewUpdate updateDto = this._mapper.Map<ReviewUpdate>(model);
+                updateDto.Id = id;
+                updateDto.UserId = userId;
+                updateDto.LocationId = review.LocationId;
+                _ = await this._reviewRepository.UpdateReviewAsync(updateDto);
                 return this.RedirectToAction("Details", "Map", new { id = review.LocationId });
             }
 
             // If we got this far, something failed, redisplay form
-            model.LocationName = (await CurrentRequest.MapRepository.GetLocationByIdAsync(review.LocationId))?.Name ?? "";
+            model.LocationName = (await this._mapLocationRepository.GetLocationByIdAsync(review.LocationId))?.Name ?? string.Empty;
             return this.View(model);
         }
 
@@ -164,7 +168,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            Review? review = await CurrentRequest.ReviewRepository.GetReviewByIdAsync(id);
+            ReviewGet? review = await this._reviewRepository.GetReviewByIdAsync(id);
             if (review == null)
             {
                 return this.NotFound();
@@ -184,23 +188,14 @@ namespace MapHive.Controllers
             _ = review.UserId;
             int locationId = review.LocationId;
 
-            // Get all threads related to this review
-            DiscussionThread? allThreads = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(review.Id);
-            DiscussionThread? reviewThread = null;
-
-            if (allThreads != null && allThreads.IsReviewThread && allThreads.ReviewId == review.Id)
-            {
-                reviewThread = allThreads;
-            }
-
             // Delete the review
-            _ = await CurrentRequest.ReviewRepository.DeleteReviewAsync(id);
-
-            // If review thread exists and has messages, convert it to discussion thread
-            if (reviewThread != null && reviewThread.Messages.Count > 0)
+            _ = await this._reviewRepository.DeleteReviewAsync(id);
+            // If a review thread was created and has messages, convert it to a discussion thread
+            DiscussionThreadGet? threadDto = await this._discussionRepository.GetThreadByIdAsync(review.Id);
+            if (threadDto != null && threadDto.IsReviewThread && threadDto.ReviewId == review.Id && threadDto.Messages.Any())
             {
-                _ = await CurrentRequest.DiscussionRepository.ConvertReviewThreadToDiscussionAsync(
-                    reviewThread.Id,
+                _ = await this._discussionRepository.ConvertReviewThreadToDiscussionAsync(
+                    threadDto.Id,
                     reviewText);
             }
 
@@ -211,7 +206,7 @@ namespace MapHive.Controllers
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id)
-                ? throw new Exception("User ID not found or is invalid")
+                ? throw new Exception("UserLogin ID not found or is invalid")
                 : id;
         }
     }

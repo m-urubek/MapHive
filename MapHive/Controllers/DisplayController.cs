@@ -1,6 +1,5 @@
-using MapHive.Models;
 using MapHive.Models.Exceptions;
-using MapHive.Singletons;
+using MapHive.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +8,13 @@ namespace MapHive.Controllers
     [Authorize]
     public class DisplayController : Controller
     {
+        private readonly IDisplayRepository _displayRepository;
+
+        public DisplayController(IDisplayRepository displayRepository)
+        {
+            this._displayRepository = displayRepository;
+        }
+
         /// <summary>
         /// Displays all data for a specific item from a table
         /// </summary>
@@ -16,17 +22,11 @@ namespace MapHive.Controllers
         /// <param name="id">ID of the item</param>
         /// <returns>View with item data</returns>
         [HttpGet]
-        public IActionResult Item(string tableName, int id)
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> Item(string tableName, int id)
         {
             try
             {
-                // Check if the user is an admin
-                string? userTierClaim = this.User.FindFirst("UserTier")?.Value;
-                if (string.IsNullOrEmpty(userTierClaim) || !int.TryParse(userTierClaim, out int userTierValue) || (UserTier)userTierValue != UserTier.Admin)
-                {
-                    return this.RedirectToAction("AccessDenied", "Account");
-                }
-
                 // Validate table exists
                 if (string.IsNullOrEmpty(tableName))
                 {
@@ -34,14 +34,14 @@ namespace MapHive.Controllers
                 }
 
                 // Check if the table exists
-                bool tableExists = CurrentRequest.DisplayRepository.TableExistsAsync(tableName).GetAwaiter().GetResult();
+                bool tableExists = await this._displayRepository.TableExistsAsync(tableName);
                 if (!tableExists)
                 {
                     throw new RedUserException($"Table '{tableName}' does not exist");
                 }
 
                 // Get data for the item
-                Dictionary<string, string> itemData = CurrentRequest.DisplayRepository.GetItemDataAsync(tableName, id).GetAwaiter().GetResult();
+                Dictionary<string, string> itemData = await this._displayRepository.GetItemDataAsync(tableName, id);
 
                 // Check if data was found
                 if (itemData.Count == 0)

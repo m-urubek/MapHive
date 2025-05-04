@@ -1,10 +1,18 @@
+using AutoMapper;
 using MapHive.Models;
+using MapHive.Models.BusinessModels;
+using MapHive.Models.Enums;
 using MapHive.Models.Exceptions;
+using MapHive.Models.RepositoryModels;
+using MapHive.Models.ViewModels;
+using MapHive.Repositories;
+using MapHive.Services;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using reCAPTCHA.AspNetCore;
 using System.Security.Claims;
 
@@ -12,10 +20,48 @@ namespace MapHive.Controllers
 {
     public class AccountController : Controller
     {
+        private readonly IAuthService _authService;
+        private readonly IUserRepository _userRepository;
+        private readonly ILogManagerSingleton _logManager;
+        private readonly IRecaptchaService _recaptchaService;
+        private readonly RecaptchaSettings _recaptchaSettings;
+        private readonly IConfigurationSingleton _configSingleton;
+        private readonly IUserContextService _userContextService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IMapLocationRepository _mapLocation;
+        private readonly IDiscussionRepository _discussionRepository;
+        private readonly IMapper _mapper;
+
+        public AccountController(
+            IAuthService authService,
+            IUserRepository userRepository,
+            ILogManagerSingleton logManager,
+            IRecaptchaService recaptchaService,
+            IConfigurationSingleton configSingleton,
+            IUserContextService userContextService,
+            IHttpContextAccessor httpContextAccessor,
+            IOptions<RecaptchaSettings> recaptchaOptions,
+            IMapLocationRepository mapLocation,
+            IDiscussionRepository discussionRepository,
+            IMapper mapper)
+        {
+            this._authService = authService;
+            this._userRepository = userRepository;
+            this._logManager = logManager;
+            this._recaptchaService = recaptchaService;
+            this._recaptchaSettings = recaptchaOptions.Value;
+            this._configSingleton = configSingleton;
+            this._userContextService = userContextService;
+            this._httpContextAccessor = httpContextAccessor;
+            this._mapLocation = mapLocation;
+            this._discussionRepository = discussionRepository;
+            this._mapper = mapper;
+        }
+
         [HttpGet]
         public IActionResult Login()
         {
-            return this.User.Identity?.IsAuthenticated == true ? this.RedirectToAction("Index", "Home") : this.View();
+            return this._userContextService.IsAuthenticated ? this.RedirectToAction("Index", "Home") : this.View();
         }
 
         [HttpPost]
@@ -27,80 +73,53 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
-            // Authenticate the user
-            AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
-
-            if (response.Success && response.User != null)
+            try
             {
-                // Get client IP address
-                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-
-                // Check for account ban
-                if (await this.CheckForUserBanAsync(response.User.Id))
+                string? currentIpAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+                if (string.IsNullOrEmpty(currentIpAddress))
                 {
-                    return this.View(model); // Return if user banned
+                    this._logManager.Warning("Login failed: Unable to retrieve client IP address.");
+                    this.ModelState.AddModelError("", "Login failed due to a network issue. Please try again.");
+                    return this.View(model);
                 }
 
-                // Check for IP ban (skipped for admins)
-                // CheckForIpBanAsync handles internal hashing for its repository call
-                if (await this.CheckForIpBanAsync(currentIpAddress, response.User.Tier))
-                {
-                    return this.View(model); // Return if IP banned
-                }
+                AuthResponse response = await this._authService.LoginAsync(model, currentIpAddress);
 
-                // Create claims principal
-                ClaimsPrincipal principal = this.CreatePrincipal(response.User);
-
-                // Define authentication properties
-                AuthenticationProperties authProperties = new()
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                };
-
-                // Record the login IP address if it's new
-                this.RecordLoginIpAddress(response.User, currentIpAddress);
-
-                // Sign in the user
-                await this.HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal,
-                    authProperties);
-
+                this._logManager.Information($"UserLogin {model.Username} successfully logged in.");
                 return this.RedirectToAction("Index", "Home");
             }
-
-            // If authentication failed or user is null, add error and return view
-            this.ModelState.AddModelError("", response.Message);
-            return this.View(model);
+            catch (UserFriendlyExceptionBase ex)
+            {
+                this._logManager.Warning($"Login failed for {model.Username}: {ex.Message}");
+                this.ModelState.AddModelError("", ex.Message);
+                return this.View(model);
+            }
+            catch (Exception ex)
+            {
+                this._logManager.Error($"Unexpected error during login for {model.Username}.", exception: ex);
+                this.ModelState.AddModelError("", "An unexpected error occurred during login. Please try again later.");
+                return this.View(model);
+            }
         }
 
         [HttpGet]
         public IActionResult Register()
         {
-            return this.User.Identity?.IsAuthenticated == true ? this.RedirectToAction("Index", "Home") : this.View();
+            return this._userContextService.IsAuthenticated ? this.RedirectToAction("Index", "Home") : this.View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterRequest model)
         {
-            // Add explicit check for null or empty RecaptchaResponse and try to get it from form data
-            if (string.IsNullOrEmpty(model.RecaptchaResponse))
-            {
-                // Fallback: try to get the reCAPTCHA response directly from the form data
-                string recaptchaResponse = this.Request.Form["g-recaptcha-response"].ToString();
-                if (!string.IsNullOrEmpty(recaptchaResponse))
-                {
-                    // If found in form data, use it
-                    model.RecaptchaResponse = recaptchaResponse;
+            RecaptchaSettings recaptchaSettings = this._recaptchaSettings;
+            bool devMode = await this._configSingleton.GetDevelopmentModeAsync();
+            bool isUsingTestKeys = devMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
-                    // Remove the error state for RecaptchaResponse if it exists
-                    if (this.ModelState.ContainsKey("RecaptchaResponse"))
-                    {
-                        _ = this.ModelState.Remove("RecaptchaResponse");
-                    }
-                }
+            if (string.IsNullOrEmpty(model.RecaptchaResponse) && this.Request.Form.ContainsKey("g-recaptcha-response"))
+            {
+                model.RecaptchaResponse = this.Request.Form["g-recaptcha-response"];
+                _ = this.ModelState.Remove("RecaptchaResponse");
             }
 
             if (!this.ModelState.IsValid)
@@ -108,113 +127,57 @@ namespace MapHive.Controllers
                 return this.View(model);
             }
 
-            // Get reCAPTCHA settings from configuration (for test key detection)
-            RecaptchaSettings recaptchaSettings = CurrentRequest.RecaptchaService.RecaptchaSettings;
-            bool isUsingTestKeys = MainClient.AppSettings.DevelopmentMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
-
-            // For test keys, accept any non-null response
-            if (isUsingTestKeys && !string.IsNullOrEmpty(model.RecaptchaResponse))
+            if (!isUsingTestKeys)
             {
-                // Using test keys with a response, so we'll consider it valid
-                CurrentRequest.LogManager.Information("Accepting reCAPTCHA test response");
-            }
-            // Skip server-side validation when using test keys
-            else if (!isUsingTestKeys)
-            {
-                // Only validate if not using test keys
-                RecaptchaResponse validationResponse = await CurrentRequest.RecaptchaService.Validate(model.RecaptchaResponse);
-                if (!validationResponse.success)
+                RecaptchaResponse? validationResponse = null;
+                if (!string.IsNullOrEmpty(model.RecaptchaResponse))
                 {
-                    // Log the failure
-                    CurrentRequest.LogManager.Warning($"reCAPTCHA validation failed for user registration attempt");
+                    validationResponse = await this._recaptchaService.Validate(model.RecaptchaResponse);
+                }
 
-                    // Add error to model state
+                if (validationResponse == null || !validationResponse.success)
+                {
+                    this._logManager.Warning("reCAPTCHA validation failed for user registration attempt.");
                     this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
                     return this.View(model);
                 }
             }
-
-            // Get client IP address
-            string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ipAddress))
+            else if (!string.IsNullOrEmpty(model.RecaptchaResponse))
             {
-                throw new RedUserException("Unable to retreive your IP address");
+                this._logManager.Information("Accepting reCAPTCHA test response during registration.");
             }
-
-            // Hash the IP address before storage or checks
-            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
-
-            // Check if the IP is banned for registration
-            // Note: All new registrations are subject to IP bans since new users always start as normal users
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
-            if (ipBan != null && ipBan.IsActive)
+            else
             {
-                this.ModelState.AddModelError("", $"Registration from your IP address is not allowed. Reason: {ipBan.Reason}");
+                this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA response missing (Test Mode).");
                 return this.View(model);
             }
 
-            // Create the user with hashed IP
-            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, hashedIpAddress);
-
-            if (response.Success && response.User != null)
+            try
             {
-                // Create claims
-                List<Claim> claims = new()
+                string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+                if (string.IsNullOrEmpty(ipAddress))
                 {
-                    new Claim(ClaimTypes.Name, response.User.Username),
-                    new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
-                };
-
-                // Add role claims based on UserTier
-                this.AddAdminRoleClaim(claims, response.User.Tier);
-
-                ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                ClaimsPrincipal principal = new(identity);
-
-                AuthenticationProperties authProperties = new()
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                };
-
-                // Record the IP address if it's new for this user
-                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-                if (!string.IsNullOrEmpty(currentIpAddress))
-                {
-                    // Ensure IpAddressHistory is not null before processing (Renamed)
-                    response.User.IpAddressHistory ??= string.Empty;
-
-                    // Split the known IPs by newline, handling potential carriage returns as well (Renamed)
-                    List<string> knownIPs = response.User.IpAddressHistory
-                        .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-
-                    // Check if the current IP is already known (case-insensitive comparison)
-                    if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
-                    {
-                        // Append the new IP address (Renamed)
-                        if (!string.IsNullOrEmpty(response.User.IpAddressHistory))
-                        {
-                            response.User.IpAddressHistory += "\n"; // Add newline separator if not empty
-                        }
-                        response.User.IpAddressHistory += currentIpAddress;
-
-                        // Save the updated user information
-                        CurrentRequest.UserRepository.UpdateUser(response.User);
-                    }
+                    this._logManager.Error("Registration failed: Unable to retrieve client IP address.");
+                    throw new RedUserException("Unable to retrieve your IP address. Registration cannot proceed.");
                 }
 
-                await this.HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal,
-                    authProperties);
+                AuthResponse response = await this._authService.RegisterAsync(model, ipAddress);
 
+                this._logManager.Information($"UserLogin {model.Username} successfully registered and logged in.");
                 return this.RedirectToAction("Index", "Home");
             }
-
-            this.ModelState.AddModelError("", response.Message);
-            return this.View(model);
+            catch (UserFriendlyExceptionBase ex)
+            {
+                this._logManager.Warning($"Registration failed for {model.Username}: {ex.Message}");
+                this.ModelState.AddModelError("", ex.Message);
+                return this.View(model);
+            }
+            catch (Exception ex)
+            {
+                this._logManager.Error($"Unexpected error during registration for {model.Username}.", exception: ex);
+                this.ModelState.AddModelError("", "An unexpected error occurred during registration. Please try again later.");
+                return this.View(model);
+            }
         }
 
         [HttpPost]
@@ -222,7 +185,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Logout()
         {
-            await this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await this._authService.LogoutAsync();
+            this._logManager.Information($"UserLogin logged out: {this._userContextService.Username}");
             return this.RedirectToAction("Index", "Home");
         }
 
@@ -230,7 +194,6 @@ namespace MapHive.Controllers
         [Authorize]
         public IActionResult Profile()
         {
-            // Redirect to the private profile when user accesses /Account/Profile
             return this.RedirectToAction("PrivateProfile");
         }
 
@@ -238,36 +201,26 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
         {
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null || !int.TryParse(userId, out int id))
+            if (!this._userContextService.IsAuthenticated || this._userContextService.UserId == null)
             {
-                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
-                throw new OrangeUserException("Your session is invalid, login again.");
+                return this.RedirectToAction("Login");
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(this._userContextService.UserId.Value);
+            if (userGet == null)
             {
-                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
-                throw new OrangeUserException("Your session is invalid, login again.");
+                return this.NotFound("UserLogin profile not found.");
             }
-
-            // Get the user's places
-            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id);
-
-            // Get the user's threads
-            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id);
-
-            PrivateProfileViewModel model = new()
+            PrivateProfileViewModel viewModel = new()
             {
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations,
-                UserThreads = userThreads
+                RegistrationDate = userGet.RegistrationDate,
+                Tier = userGet.Tier,
+                Username = userGet.Username,
+                ChangeUsernameModel = new ChangeUsernameViewModel { NewUsername = userGet.Username },
+                ChangePasswordModel = new ChangePasswordViewModel()
             };
 
-            return this.View(model);
+            return this.View(viewModel);
         }
 
         [HttpGet]
@@ -278,60 +231,50 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Index", "Home");
             }
 
-            // Check if user exists
-            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByUsernameAsync(username);
+            if (userGet == null)
             {
                 return this.NotFound();
             }
 
-            // Only redirect to private profile if the user is viewing their own profile
-            // AND they didn't explicitly request to see their public profile
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isOwnProfile = currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id;
+            bool isOwnProfile = currentUserId != null && int.TryParse(currentUserId, out int id) && userGet.Id == id;
 
-            // Check if the request came from the "Show Public Profile" button
             bool isExplicitPublicProfileRequest = this.Request.Headers["Referer"].ToString().Contains("/PrivateProfile");
 
-            // Only redirect if viewing own profile and not explicitly requesting public view
             if (isOwnProfile && !isExplicitPublicProfileRequest && !this.Request.Query.ContainsKey("viewPublic"))
             {
                 return this.RedirectToAction("PrivateProfile");
             }
 
-            // Get the user's places
-            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(user.Id);
+            IEnumerable<MapLocationGet> userLocations = await this._mapLocation.GetLocationsByUserIdAsync(userGet.Id);
 
-            // Get the user's threads
-            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(user.Id);
+            IEnumerable<DiscussionThreadGet> userThreads = await this._discussionRepository.GetThreadsByUserIdAsync(userGet.Id);
 
-            // Check if current user is an admin
             bool isAdmin = false;
             if (currentUserId != null && int.TryParse(currentUserId, out int currentId))
             {
-                User? currentUser = CurrentRequest.UserRepository.GetUserById(currentId);
-                isAdmin = currentUser != null && currentUser.Tier == UserTier.Admin;
+                UserGet? currentUserGet = await this._userRepository.GetUserByIdAsync(currentId);
+                isAdmin = currentUserGet != null && currentUserGet.Tier == UserTier.Admin;
             }
 
-            // Get active ban if any
-            UserBan? activeBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(user.Id);
+            UserBanGet? activeBan = await this._userRepository.GetActiveBanByUserIdAsync(userGet.Id);
 
-            // If no account ban, check for IP ban based on registration IP
             if (activeBan == null || !activeBan.IsActive)
             {
-                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                string? registrationIp = userGet.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
                 if (!string.IsNullOrEmpty(registrationIp))
                 {
-                    activeBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(registrationIp);
+                    activeBan = await this._userRepository.GetActiveBanByIpAddressAsync(registrationIp);
                 }
             }
 
             PublicProfileViewModel model = new()
             {
-                UserId = user.Id,
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
+                UserId = userGet.Id,
+                Username = userGet.Username,
+                Tier = userGet.Tier,
+                RegistrationDate = userGet.RegistrationDate,
                 UserLocations = userLocations,
                 UserThreads = userThreads,
                 IsAdmin = isAdmin,
@@ -343,35 +286,31 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize]
-        public IActionResult BanUser(string username)
+        public async Task<IActionResult> BanUser(string username)
         {
-            // Check if current user is an admin
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
             {
                 return this.Forbid();
             }
 
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            UserGet? adminGet = await this._userRepository.GetUserByIdAsync(adminId);
+            if (adminGet == null || adminGet.Tier != UserTier.Admin)
             {
                 return this.Forbid();
             }
 
-            // Check if target user exists
-            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByUsernameAsync(username);
+            if (userGet == null)
             {
                 return this.NotFound();
             }
 
-            // Set up viewbag data
-            this.ViewBag.Username = user.Username;
-            this.ViewBag.UserId = user.Id;
-            // Add registration IP to ViewBag for potential IP ban
-            string registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "N/A";
+            this.ViewBag.Username = userGet.Username;
+            this.ViewBag.UserId = userGet.Id;
+            string registrationIp = userGet.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "N/A";
             this.ViewBag.RegistrationIp = registrationIp;
-            this.ViewBag.UserTier = user.Tier;
+            this.ViewBag.UserTier = userGet.Tier;
 
             return this.View();
         }
@@ -381,28 +320,25 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ProcessBan(int userId, string username, BanViewModel model)
         {
-            // Check if current user is an admin
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
             {
                 return this.Forbid();
             }
 
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            UserGet? adminGet = await this._userRepository.GetUserByIdAsync(adminId);
+            if (adminGet == null || adminGet.Tier != UserTier.Admin)
             {
                 return this.Forbid();
             }
 
-            // Check if the target user exists
-            User? user = CurrentRequest.UserRepository.GetUserById(userId);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(userId);
+            if (userGet == null)
             {
                 return this.NotFound();
             }
 
-            // Prevent admins from banning other admins
-            if (user.Tier == UserTier.Admin)
+            if (userGet.Tier == UserTier.Admin)
             {
                 this.TempData["ErrorMessage"] = "Cannot ban another administrator.";
                 return this.RedirectToAction("PublicProfile", new { username });
@@ -414,8 +350,7 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("BanUser", new { username });
             }
 
-            // Create the ban object
-            UserBan ban = new()
+            UserBanGetCreate ban = new()
             {
                 BannedByUserId = adminId,
                 Reason = model.Reason,
@@ -423,24 +358,21 @@ namespace MapHive.Controllers
                 BannedAt = DateTime.UtcNow
             };
 
-            // Set expiry date if not permanent
             if (!model.IsPermanent && model.BanDurationDays.HasValue)
             {
                 ban.ExpiresAt = DateTime.UtcNow.AddDays(model.BanDurationDays.Value);
             }
 
-            // Set the appropriate ID or IP based on ban type
             if (model.BanType == BanType.Account)
             {
                 ban.UserId = userId;
             }
             else if (model.BanType == BanType.IpAddress)
             {
-                // Get registration IP from history (already hashed)
                 string? registrationIp = null;
-                if (!string.IsNullOrEmpty(user.IpAddressHistory))
+                if (!string.IsNullOrEmpty(userGet.IpAddressHistory))
                 {
-                    registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                    registrationIp = userGet.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
                 }
 
                 if (string.IsNullOrEmpty(registrationIp))
@@ -448,18 +380,16 @@ namespace MapHive.Controllers
                     this.TempData["ErrorMessage"] = "Could not determine registration IP for IP ban.";
                     return this.RedirectToAction("PublicProfile", new { username });
                 }
-                
-                // The IP in IpAddressHistory should already be hashed
+
                 ban.HashedIpAddress = registrationIp;
             }
 
-            // Save the ban
-            int banId = await CurrentRequest.UserRepository.BanUserAsync(ban);
+            int banId = await this._userRepository.BanUserAsync(ban);
 
             if (banId > 0)
             {
                 this.TempData["SuccessMessage"] = model.BanType == BanType.Account
-                    ? $"User {user.Username} has been banned successfully."
+                    ? $"UserLogin {userGet.Username} has been banned successfully."
                     : $"IP address ban applied successfully.";
             }
             else
@@ -475,21 +405,19 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> UnbanUser(int banId, string username)
         {
-            // Check if current user is an admin
             string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
             {
                 return this.Forbid();
             }
 
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            UserGet? adminGet = await this._userRepository.GetUserByIdAsync(adminId);
+            if (adminGet == null || adminGet.Tier != UserTier.Admin)
             {
                 return this.Forbid();
             }
 
-            // Remove the ban
-            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(banId);
+            bool success = await this._userRepository.UnbanUserAsync(banId);
 
             if (success)
             {
@@ -510,7 +438,7 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                MapHive.Models.ViewModels.PrivateProfileViewModel? profileModel = await this.GetCurrentUserPrivateProfileAsync();
                 return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
@@ -520,34 +448,31 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(id);
+            if (userGet == null)
             {
                 return this.RedirectToAction("Login");
             }
 
-            // Check if the username already exists
-            if (CurrentRequest.UserRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
+            if (await this._userRepository.CheckUsernameExistsAsync(model.NewUsername) && !userGet.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
             {
                 this.ModelState.AddModelError("ChangeUsernameModel.NewUsername", "Username already exists");
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                PrivateProfileViewModel? profileModel = await this.GetCurrentUserPrivateProfileAsync();
                 return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
-            // Update the username
-            user.Username = model.NewUsername;
-            CurrentRequest.UserRepository.UpdateUser(user);
+            userGet.Username = model.NewUsername;
+            UserUpdate updateDto = this._mapper.Map<UserUpdate>(userGet);
+            _ = await this._userRepository.UpdateUserAsync(updateDto);
 
-            // Update user claims
             List<Claim> claims = new()
             {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("UserTier", ((int)user.Tier).ToString()),
+                new Claim(ClaimTypes.Name, userGet.Username),
+                new Claim(ClaimTypes.NameIdentifier, userGet.Id.ToString()),
+                new Claim("UserTier", ((int)userGet.Tier).ToString()),
             };
 
-            // Add role claims based on UserTier
-            this.AddAdminRoleClaim(claims, user.Tier);
+            this.AddAdminRoleClaim(claims, userGet.Tier);
 
             ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             ClaimsPrincipal principal = new(identity);
@@ -571,11 +496,11 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize]
-        public IActionResult ChangePassword(ChangePasswordViewModel model)
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
             if (!this.ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                MapHive.Models.ViewModels.PrivateProfileViewModel? profileModel = await this.GetCurrentUserPrivateProfileAsync();
                 return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
@@ -585,29 +510,28 @@ namespace MapHive.Controllers
                 return this.RedirectToAction("Login");
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(id);
+            if (userGet == null)
             {
                 return this.RedirectToAction("Login");
             }
 
-            // Verify current password
-            if (!CurrentRequest.AuthService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            if (!this._authService.VerifyPassword(model.CurrentPassword, userGet.PasswordHash))
             {
                 this.ModelState.AddModelError("ChangePasswordModel.CurrentPassword", "Current password is incorrect");
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
+                PrivateProfileViewModel? profileModel = await this.GetCurrentUserPrivateProfileAsync();
                 return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
             }
 
-            // Update password
-            user.PasswordHash = CurrentRequest.AuthService.HashPassword(model.NewPassword);
-            CurrentRequest.UserRepository.UpdateUser(user);
+            UserUpdate userUpdate = this._mapper.Map<UserUpdate>(userGet);
+            userUpdate.PasswordHash = this._authService.HashPassword(model.NewPassword);
+            _ = await this._userRepository.UpdateUserAsync(userUpdate);
 
             this.TempData["SuccessMessage"] = "Password changed successfully";
             return this.RedirectToAction("PrivateProfile");
         }
 
-        private PrivateProfileViewModel? GetCurrentUserPrivateProfile()
+        private async Task<MapHive.Models.ViewModels.PrivateProfileViewModel?> GetCurrentUserPrivateProfileAsync()
         {
             string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null || !int.TryParse(userId, out int id))
@@ -615,23 +539,21 @@ namespace MapHive.Controllers
                 return null;
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            UserGet? userGet = await this._userRepository.GetUserByIdAsync(id);
+            if (userGet == null)
             {
                 return null;
             }
 
-            // Get user locations
-            IEnumerable<MapLocation> userLocations = CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
+            IEnumerable<MapLocationGet> userLocations = await this._mapLocation.GetLocationsByUserIdAsync(id);
 
-            // Get user threads
-            IEnumerable<DiscussionThread> userThreads = CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
+            IEnumerable<DiscussionThreadGet> userThreads = await this._discussionRepository.GetThreadsByUserIdAsync(id);
 
-            return new PrivateProfileViewModel
+            return new MapHive.Models.ViewModels.PrivateProfileViewModel
             {
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
+                Username = userGet.Username,
+                Tier = userGet.Tier,
+                RegistrationDate = userGet.RegistrationDate,
                 UserLocations = userLocations,
                 UserThreads = userThreads
             };
@@ -643,91 +565,6 @@ namespace MapHive.Controllers
             return this.View();
         }
 
-        #region Login Helpers
-
-        private async Task<bool> CheckForUserBanAsync(int userId)
-        {
-            UserBan? userBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(userId);
-            if (userBan != null && userBan.IsActive)
-            {
-                string banMessage = userBan.ExpiresAt.HasValue
-                    ? $"Your account has been banned until {userBan.ExpiresAt.Value.ToString("g")}. Reason: {userBan.Reason}"
-                    : $"Your account has been permanently banned. Reason: {userBan.Reason}";
-                this.ModelState.AddModelError("", banMessage);
-                return true; // User is banned
-            }
-            return false; // User is not banned
-        }
-
-        private async Task<bool> CheckForIpBanAsync(string? ipAddress, UserTier userTier)
-        {
-            // Skip IP ban check for admins or if IP is missing
-            if (userTier == UserTier.Admin || string.IsNullOrEmpty(ipAddress))
-            {
-                return false; // Not banned (or check skipped)
-            }
-
-            // Hash the IP address before checking the UserBans table
-            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(ipAddress);
-            
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
-            if (ipBan != null && ipBan.IsActive)
-            {
-                this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
-                return true; // IP is banned
-            }
-            return false; // IP is not banned
-        }
-
-        private ClaimsPrincipal CreatePrincipal(User user)
-        {
-            List<Claim> claims = new()
-            {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("UserTier", ((int)user.Tier).ToString()),
-            };
-
-            // Add role claims based on UserTier
-            this.AddAdminRoleClaim(claims, user.Tier);
-
-            ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            return new ClaimsPrincipal(identity);
-        }
-
-        private void RecordLoginIpAddress(User user, string? currentIpAddress)
-        {
-            if (string.IsNullOrEmpty(currentIpAddress))
-            {
-                return; // Cannot record if IP is missing
-            }
-
-            // Hash the IP address before storing it
-            string hashedIpAddress = MapHive.Utilities.NetworkingUtility.HashIpAddress(currentIpAddress);
-
-            // Ensure IpAddressHistory is not null before processing
-            user.IpAddressHistory ??= string.Empty;
-
-            // Split the known IPs by newline, handling potential carriage returns as well
-            List<string> knownIPs = user.IpAddressHistory
-                .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                .ToList();
-
-            // Check if the current IP is already known (case-insensitive comparison)
-            if (!knownIPs.Contains(hashedIpAddress, StringComparer.OrdinalIgnoreCase))
-            {
-                // Append the new IP address
-                if (!string.IsNullOrEmpty(user.IpAddressHistory))
-                {
-                    user.IpAddressHistory += "\n"; // Add newline separator if not empty
-                }
-                user.IpAddressHistory += hashedIpAddress;
-
-                // Save the updated user information
-                CurrentRequest.UserRepository.UpdateUser(user);
-            }
-        }
-
         private void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
         {
             if (tier == UserTier.Admin)
@@ -735,7 +572,5 @@ namespace MapHive.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, "Admin"));
             }
         }
-
-        #endregion
     }
 }
