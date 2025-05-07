@@ -28,8 +28,8 @@ namespace MapHive.Repositories
 
         public async Task<MapLocationGet?> GetLocationByIdAsync(int id)
         {
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE Id_MapLocation = @Id", parameters);
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE Id_MapLocation = @Id_Log", parameters);
             return dt.Rows.Count == 0 ? null : this.MapDataRowToGet(dt.Rows[0]);
         }
 
@@ -86,7 +86,7 @@ namespace MapHive.Repositories
             DateTime now = DateTime.UtcNow;
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@Id", updateDto.Id),
+                new("@Id_Log", updateDto.Id),
                 new("@Name", updateDto.Name),
                 new("@Description", updateDto.Description),
                 new("@Latitude", updateDto.Latitude),
@@ -103,14 +103,14 @@ namespace MapHive.Repositories
                   SET Name=@Name, Description=@Description, Latitude=@Latitude, Longitude=@Longitude,
                       Address=@Address, Website=@Website, PhoneNumber=@PhoneNumber,
                       UpdatedAt=@UpdatedAt, IsAnonymous=@IsAnonymous, CategoryId=@CategoryId
-                  WHERE Id_MapLocation=@Id", parameters);
+                  WHERE Id_MapLocation=@Id_Log", parameters);
             return rows > 0 ? await this.GetLocationByIdAsync(updateDto.Id) : null;
         }
 
         public async Task<bool> DeleteLocationAsync(int id)
         {
-            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM MapLocations WHERE Id_MapLocation=@Id", p);
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
+            int rows = await this._sqlClient.DeleteAsync("DELETE FROM MapLocations WHERE Id_MapLocation=@Id_Log", p);
             return rows > 0;
         }
 
@@ -153,8 +153,8 @@ namespace MapHive.Repositories
 
         public async Task<CategoryGet?> GetCategoryByIdAsync(int id)
         {
-            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories WHERE Id_Category=@Id", p);
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
+            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories WHERE Id_Category=@Id_Log", p);
             return dt.Rows.Count == 0 ? null : this.MapCategoryRow(dt.Rows[0]);
         }
 
@@ -175,20 +175,20 @@ namespace MapHive.Repositories
         {
             SQLiteParameter[] p = new SQLiteParameter[]
             {
-                new("@Id", updateDto.Id),
+                new("@Id_Log", updateDto.Id),
                 new("@Name", updateDto.Name),
                 new("@Description", updateDto.Description ?? (object)DBNull.Value),
                 new("@Icon", updateDto.Icon ?? (object)DBNull.Value)
             };
             int rows = await this._sqlClient.UpdateAsync(
-                @"UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon WHERE Id_Category=@Id", p);
+                @"UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon WHERE Id_Category=@Id_Log", p);
             return rows > 0 ? await this.GetCategoryByIdAsync(updateDto.Id) : null;
         }
 
         public async Task<bool> DeleteCategoryAsync(int id)
         {
-            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM Categories WHERE Id_Category=@Id", p);
+            SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
+            int rows = await this._sqlClient.DeleteAsync("DELETE FROM Categories WHERE Id_Category=@Id_Log", p);
             return rows > 0;
         }
 

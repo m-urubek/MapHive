@@ -26,8 +26,8 @@ namespace MapHive.Repositories
             string idColumn = await this.GetIdColumnNameAsync(tableName);
 
             // Build query to get all data for the specified item
-            string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
+            string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id_Log";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
 
             // Execute query using injected _sqlClient
             DataTable result = await this._sqlClient.SelectAsync(query, parameters);
@@ -86,16 +86,16 @@ namespace MapHive.Repositories
             // If Id_{tableName} not found, return the first column name (usually the PK)
             if (schemaTable.Rows.Count > 0 && schemaTable.Rows[0]["pk"] != DBNull.Value && Convert.ToInt32(schemaTable.Rows[0]["pk"]) > 0)
             {
-                return schemaTable.Rows[0]["name"].ToString() ?? "Id";
+                return schemaTable.Rows[0]["name"].ToString() ?? "Id_Log";
             }
             // Fallback if no explicit PK or specific Id_ pattern found
             else if (schemaTable.Rows.Count > 0)
             {
-                return schemaTable.Rows[0]["name"].ToString() ?? "Id";
+                return schemaTable.Rows[0]["name"].ToString() ?? "Id_Log";
             }
 
-            // Default to "Id" if no columns found (should ideally not happen for existing tables)
-            return "Id";
+            // Default to "Id_Log" if no columns found (should ideally not happen for existing tables)
+            return "Id_Log";
         }
 
         private static Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns)

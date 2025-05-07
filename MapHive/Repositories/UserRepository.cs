@@ -41,8 +41,8 @@ namespace MapHive.Repositories
         // Basic user lookup
         public async Task<UserGet?> GetUserByIdAsync(int id)
         {
-            string query = "SELECT * FROM Users WHERE Id_User = @Id";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
+            string query = "SELECT * FROM Users WHERE Id_User = @Id_Log";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
             DataTable result = await this._sqlClient.SelectAsync(query, parameters);
             return result.Rows.Count > 0 ? MapDataRowToUserGet(result.Rows[0]) : null;
         }
@@ -124,11 +124,11 @@ namespace MapHive.Repositories
                     PasswordHash = @PasswordHash,
                     Tier = @Tier,
                     IpAddressHistory = @IpAddressHistory
-                WHERE Id_User = @Id";
+                WHERE Id_User = @Id_Log";
 
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                new("@Id", updateDto.Id),
+                new("@Id_Log", updateDto.Id),
                 new("@Username", updateDto.Username),
                 new("@PasswordHash", updateDto.PasswordHash as object ?? DBNull.Value),
                 new("@Tier", (int)updateDto.Tier),
@@ -139,8 +139,8 @@ namespace MapHive.Repositories
 
         public async Task<string> GetUsernameByIdAsync(int userId)
         {
-            string query = "SELECT Username FROM Users WHERE Id_User = @Id";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", userId) };
+            string query = "SELECT Username FROM Users WHERE Id_User = @Id_Log";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", userId) };
             DataTable result = await this._sqlClient.SelectAsync(query, parameters);
             return result.Rows.Count > 0 && result.Rows[0]["Username"] != DBNull.Value
                  ? result.Rows[0]["Username"].ToString()!

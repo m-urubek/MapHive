@@ -11,10 +11,21 @@ namespace MapHive.Controllers
 {
     public class DataGridController : Controller
     {
+        /// <summary>
+        /// Maps foreign table names to their display column names.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, string> ForeignTableDisplayColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Users", "Username" }
+            // Add other table display columns as needed
+        };
+
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly IDataGridRepository _dataGridRepository;
         private readonly IMapper _mapper;
-        public DataGridController(IDataGridRepository dataGridRepository, IMapper mapper)
+        private readonly IDisplayRepository _displayRepository;
+
+        public DataGridController(IDataGridRepository dataGridRepository, IMapper mapper, IDisplayRepository displayRepository)
         {
             this._jsonOptions = new JsonSerializerOptions
             {
@@ -23,6 +34,7 @@ namespace MapHive.Controllers
             };
             this._dataGridRepository = dataGridRepository;
             this._mapper = mapper;
+            this._displayRepository = displayRepository;
         }
 
         /// <summary>
@@ -48,6 +60,32 @@ namespace MapHive.Controllers
                         sortField,
                         sortDirection)
                 );
+
+                // Replace foreign key values with display values
+                foreach (DataGridColumnGet column in viewModel.Columns)
+                {
+                    ColumnInfo columnInfo = await this._dataGridRepository.GetColumnInfoAsync(tableName, column.InternalName);
+                    if (columnInfo.IsForeignKey && !string.IsNullOrEmpty(columnInfo.ForeignTable))
+                    {
+                        if (ForeignTableDisplayColumns.TryGetValue(columnInfo.ForeignTable, out string? displayColumn))
+                        {
+                            foreach (DataGridRowGet item in viewModel.Items)
+                            {
+                                if (item.CellsByColumnNames.TryGetValue(column.InternalName, out DataGridCellGet? cell))
+                                {
+                                    if (int.TryParse(cell.Content, out int fkId))
+                                    {
+                                        Dictionary<string, string> foreignData = await this._displayRepository.GetItemDataAsync(columnInfo.ForeignTable, fkId);
+                                        if (foreignData.TryGetValue(displayColumn, out string? displayValue))
+                                        {
+                                            cell.Content = displayValue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Return grid data as JSON with proper serialization options
                 return this.Json(new
@@ -76,7 +114,7 @@ namespace MapHive.Controllers
         /// Get column info for a table
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetSearchColumnInfo(string tableName, string columnName)
+        public async Task<IActionResult> GetColumnInfo(string tableName, string columnName)
         {
             try
             {

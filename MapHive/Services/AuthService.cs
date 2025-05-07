@@ -70,13 +70,12 @@ namespace MapHive.Services
                 throw new InvalidOperationException("Unable to retrieve newly created user.");
             }
 
-            // LogGet registration, including hashed IP
-            // Use injected _logManager
-            this._logManager.Information($"New user registered: {request.Username}",
-                additionalData: $"Hashed IP: {hashedIpAddress}");
-
             // Automatically log in the user after registration
             await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
+
+            // Log registration, including hashed IP after sign-in so UserId is available
+            this._logManager.Information($"New user registered: {userId}",
+                additionalData: $"Hashed IP: {hashedIpAddress}");
 
             return new AuthResponse
             {
@@ -128,8 +127,10 @@ namespace MapHive.Services
                 throw new OrangeUserException("Login failed due to security reasons.");
             }
 
-            // LogGet successful login
-            // Use injected _logManager
+            // Sign in the user before logging so HttpContext.User includes the ID
+            await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
+
+            // Log successful login after sign-in
             this._logManager.Information($"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
 
             // Update IP history if necessary (consider rate limiting or specific logic)
@@ -146,9 +147,6 @@ namespace MapHive.Services
                 };
                 _ = await this._userRepository.UpdateUserAsync(updateDto);
             }
-
-            // Sign in the user
-            await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
 
             return new AuthResponse
             {

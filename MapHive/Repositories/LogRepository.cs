@@ -30,11 +30,6 @@ namespace MapHive.Repositories
 
             // Sanitize sort field to prevent SQL injection
             string sanitizedSortField = IsValidColumnName(sortField) ? QuoteIdentifier(sortField) : QuoteIdentifier("Timestamp");
-            // Adjust Id column name for DB
-            if (sanitizedSortField.Equals(QuoteIdentifier("Id"), StringComparison.OrdinalIgnoreCase))
-            {
-                sanitizedSortField = QuoteIdentifier("Id_Log");
-            }
 
             // Build query
             StringBuilder queryBuilder = new();
@@ -105,9 +100,9 @@ namespace MapHive.Repositories
                 SELECT l.*, s.Name AS SeverityName
                 FROM Logs l
                 LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity
-                WHERE l.Id_Log = @Id";
+                WHERE l.Id_Log = @Id_Log";
 
-            SQLiteParameter[] parameters = { new("@Id", id) };
+            SQLiteParameter[] parameters = { new("@Id_Log", id) };
 
             // Use injected _sqlClient
             DataTable result = await this._sqlClient.SelectAsync(query, parameters);
@@ -117,8 +112,8 @@ namespace MapHive.Repositories
 
         public async Task<int> CreateLogRowAsync(LogCreate logCreate)
         {
-            const string query = @"INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserName, RequestPath, AdditionalData)"
-                                             + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserName, @RequestPath, @AdditionalData);";
+            const string query = @"INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserId, RequestPath, AdditionalData)"
+                                             + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserId, @RequestPath, @AdditionalData);";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
                         new("@Timestamp", logCreate.Timestamp.ToString("o")),
@@ -126,7 +121,7 @@ namespace MapHive.Repositories
                         new("@Message", logCreate.Message),
                         new("@Source", logCreate.Source as object ?? DBNull.Value),
                         new("@Exception", logCreate.Exception?.ToString() as object ?? DBNull.Value),
-                        new("@UserName", logCreate.UserName as object ?? DBNull.Value),
+                        new("@UserId", logCreate.UserId as object ?? DBNull.Value),
                         new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
                         new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
             };
@@ -138,12 +133,13 @@ namespace MapHive.Repositories
             // Simplified mapping
             return new LogGet
             {
-                Id = Convert.ToInt32(row["Id_Log"]),
+                Id_Log = Convert.ToInt32(row["Id_Log"]),
                 Timestamp = Convert.ToDateTime(row["Timestamp"]),
                 SeverityId = Convert.ToInt32(row["SeverityId"]),
                 Message = row["Message"].ToString() ?? string.Empty,
                 Source = row["Source"]?.ToString(), // Nullable
                 Exception = row["Exception"]?.ToString(), // Nullable
+                UserId = row["UserId"] != DBNull.Value ? (int?)Convert.ToInt32(row["UserId"]) : null,
                 UserName = row["UserName"]?.ToString(), // Nullable
                 RequestPath = row["RequestPath"]?.ToString(), // Nullable
                 AdditionalData = row["AdditionalData"]?.ToString(), // Nullable
@@ -166,7 +162,7 @@ namespace MapHive.Repositories
 
         // More robust column name validation/quoting
         private static readonly HashSet<string> _validSortColumns = new(StringComparer.OrdinalIgnoreCase)
-        { "Id", "Id_Log", "Timestamp", "SeverityId", "Message", "Source", "UserName", "RequestPath" };
+        { "Id_Log", "Id_Log", "Timestamp", "SeverityId", "Message", "Source", "UserName", "RequestPath" };
 
         private static bool IsValidColumnName(string columnName)
         {

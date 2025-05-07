@@ -44,8 +44,8 @@ namespace MapHive.Repositories
 
         public async Task<ReviewGet?> GetReviewByIdAsync(int id)
         {
-            string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
+            string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id_Log";
+            SQLiteParameter[] parameters = { new("@Id_Log", id) };
             DataTable result = await this._sqlClient.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
@@ -103,10 +103,10 @@ namespace MapHive.Repositories
                     ReviewText = @ReviewText,
                     IsAnonymous = @IsAnonymous,
                     UpdatedAt = @UpdatedAt
-                WHERE Id_Reviews = @Id AND UserId = @UserId";
+                WHERE Id_Reviews = @Id_Log AND UserId = @UserId";
 
             SQLiteParameter[] parameters = {
-                new("@Id", review.Id),
+                new("@Id_Log", review.Id),
                 new("@Rating", review.Rating),
                 new("@ReviewText", review.ReviewText),
                 new("@IsAnonymous", review.IsAnonymous),
@@ -121,8 +121,8 @@ namespace MapHive.Repositories
         public async Task<bool> DeleteReviewAsync(int id)
         {
             // Consider adding user ID check if only owners can delete
-            string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
+            string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id_Log";
+            SQLiteParameter[] parameters = { new("@Id_Log", id) };
             // Use injected _sqlClient
             int rowsAffected = await this._sqlClient.DeleteAsync(query, parameters);
             return rowsAffected > 0;

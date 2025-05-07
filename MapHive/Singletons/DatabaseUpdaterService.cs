@@ -68,11 +68,11 @@ namespace MapHive.Singletons
 
                 if (updatesApplied)
                 {
-                    string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id";
+                    string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id_Log";
                     SQLiteParameter[] parameters = new SQLiteParameter[]
                     {
                         new("@Value", lastUpdateNumber),
-                        new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
+                        new("@Id_Log", versionRawData.Rows[0]["Id_VersionNumber"])
                     };
                     if (await this._sqlClient.UpdateAsync(query, parameters) != 1)
                     {
@@ -95,16 +95,5 @@ namespace MapHive.Singletons
 
         // --- Update Methods ---
         // Add private async Task methods named V1, V2, etc. for each database update.
-        // Example:
-        // private async Task V1()
-        // {
-        //     string sql = "ALTER TABLE YourTable ADD COLUMN NewColumn TEXT;";
-        //     await _sqlClient.ExecuteNonQueryAsync(sql);
-        // }
-        // private async Task V2()
-        // {
-        //     // Another update
-        // }
-
     }
 }

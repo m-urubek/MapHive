@@ -21,21 +21,25 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Index(string searchTerm = "", int page = 1, int pageSize = 20,
-            string sortField = "Timestamp", string sortDirection = "desc")
+        public async Task<IActionResult> Index(
+            string searchTerm = "",
+            int page = 1,
+            int pageSize = 20,
+            string sortField = "Timestamp",
+            string sortDirection = "desc")
         {
-            // Get logs using the DataGridRepository
-            DataGridGet logDataGridGet = await this._dataGridRepository.GetGridDataAsync(
-                "Logs",
-                page,
-                pageSize,
-                searchTerm,
-                sortField,
-                sortDirection);
-
-            // Map to DataGridViewModel
-            DataGridViewModel viewModel = this._mapper.Map<DataGridViewModel>(logDataGridGet);
-
+            // Prepare empty grid: fetch only column definitions
+            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("Logs");
+            DataGridViewModel viewModel = new()
+            {
+                TableName = "Logs",
+                Columns = columns,
+                SearchTerm = searchTerm,
+                SortField = sortField,
+                SortDirection = sortDirection,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
             return this.View(viewModel);
         }
     }

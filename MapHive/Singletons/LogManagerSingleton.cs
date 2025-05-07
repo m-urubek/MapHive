@@ -74,6 +74,21 @@ namespace MapHive.Singletons
             return user?.Identity?.IsAuthenticated == true ? user?.Identity?.Name ?? "system" : "guest";
         }
 
+        private int? GetCurrentUserId()
+        {
+            // Try to get user ID from claims
+            System.Security.Claims.ClaimsPrincipal? user = this._httpContextAccessor.HttpContext?.User;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                string? userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out int userId))
+                {
+                    return userId;
+                }
+            }
+            return null;
+        }
+
         private string? GetCurrentPath()
         {
             return this._httpContextAccessor.HttpContext?.Request?.Path.ToString() ?? "system";
@@ -82,6 +97,7 @@ namespace MapHive.Singletons
         private void WriteLog(LogWrite logWrite)
         {
             string capturedUser = this.GetCurrentUsername();
+            int? capturedUserId = this.GetCurrentUserId();
             string? capturedPath = this.GetCurrentPath();
             string? formattedData = this.TryFormatAdditionalData(logWrite.AdditionalData);
 
@@ -94,7 +110,7 @@ namespace MapHive.Singletons
                     {
                         AdditionalData = formattedData,
                         RequestPath = capturedPath,
-                        UserName = capturedUser,
+                        UserId = capturedUserId,
                         Severity = logWrite.Severity,
                         Timestamp = DateTime.UtcNow,
                         Exception = logWrite.Exception,

@@ -55,12 +55,6 @@ namespace MapHive.Repositories
                 DataRow row = schemaTable.Rows[i];
                 string columnName = row["name"].ToString() ?? string.Empty;
 
-                // Skip internal ID columns
-                if (columnName.StartsWith("Id_") && i == 0)
-                {
-                    continue;
-                }
-
                 DataGridColumnGet column = new()
                 {
                     DisplayName = columnName, //translate later

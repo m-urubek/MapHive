@@ -52,8 +52,8 @@ namespace MapHive.Repositories
 
         public async Task<DiscussionThreadGet?> GetThreadByIdAsync(int id)
         {
-            string query = "SELECT * FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
+            string query = "SELECT * FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id_Log";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
             DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
             if (dt.Rows.Count == 0)
             {
@@ -111,8 +111,8 @@ namespace MapHive.Repositories
 
         public async Task<bool> DeleteThreadAsync(int id)
         {
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id", parameters);
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
+            int rows = await this._sqlClient.DeleteAsync("DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id_Log", parameters);
             return rows > 0;
         }
 
@@ -148,8 +148,8 @@ namespace MapHive.Repositories
 
         public async Task<ThreadMessageGet?> GetMessageByIdAsync(int id)
         {
-            string query = "SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id", id) };
+            string query = "SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id_Log";
+            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
             DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
             return dt.Rows.Count == 0 ? null : this.MapRowToMessageGet(dt.Rows[0]);
         }
@@ -168,21 +168,21 @@ namespace MapHive.Repositories
                 new("@CreatedAt", now)
             };
             int msgId = await this._sqlClient.InsertAsync(query, parameters);
-            ThreadMessageGet message = this.MapRowToMessageGet((await this._sqlClient.SelectAsync("SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id", new SQLiteParameter[] { new("@Id", msgId) })).Rows[0]);
+            ThreadMessageGet message = this.MapRowToMessageGet((await this._sqlClient.SelectAsync("SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id_Log", new SQLiteParameter[] { new("@Id_Log", msgId) })).Rows[0]);
             return message;
         }
 
         public async Task<bool> DeleteMessageAsync(int id, int deletedByUserId)
         {
-            int rows = await this._sqlClient.UpdateAsync("UPDATE ThreadMessages SET IsDeleted=1, DeletedByUserId=@Del, DeletedAt=@DeletedAt WHERE Id_ThreadMessages=@Id",
-                new SQLiteParameter[] { new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), new("@Id", id) });
+            int rows = await this._sqlClient.UpdateAsync("UPDATE ThreadMessages SET IsDeleted=1, DeletedByUserId=@Del, DeletedAt=@DeletedAt WHERE Id_ThreadMessages=@Id_Log",
+                new SQLiteParameter[] { new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), new("@Id_Log", id) });
             return rows > 0;
         }
 
         public async Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage)
         {
-            string query = "UPDATE DiscussionThreads SET IsReviewThread=0 WHERE Id_DiscussionThreads=@Id";
-            _ = await this._sqlClient.UpdateAsync(query, new SQLiteParameter[] { new("@Id", threadId) });
+            string query = "UPDATE DiscussionThreads SET IsReviewThread=0 WHERE Id_DiscussionThreads=@Id_Log";
+            _ = await this._sqlClient.UpdateAsync(query, new SQLiteParameter[] { new("@Id_Log", threadId) });
             return true;
         }
 

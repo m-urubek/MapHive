@@ -124,16 +124,19 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Get users using the DataGridRepository
-            DataGridGet dataGridGet = await this._dataGridRepository.GetGridDataAsync(
-                "Users",
-                page,
-                pageSize,
-                searchTerm,
-                sortField,
-                sortDirection);
-
-            return this.View(this._mapper.Map<DataGridViewModel>(dataGridGet));
+            // Prepare column definitions for client-side loading
+            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("Users");
+            DataGridViewModel viewModel = new()
+            {
+                TableName = "Users",
+                Columns = columns,
+                SearchTerm = searchTerm,
+                SortField = sortField,
+                SortDirection = sortDirection,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
+            return this.View(viewModel);
         }
 
         [HttpPost]
@@ -292,22 +295,23 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Get bans using the DataGridRepository
-            DataGridGet dataGridGet = await this._dataGridRepository.GetGridDataAsync(
-                "UserBans",
-                page,
-                pageSize,
-                searchTerm,
-                sortField,
-                sortDirection);
+            // Prepare column definitions for client-side loading
+            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("UserBans");
+            DataGridViewModel viewModel = new()
+            {
+                TableName = "UserBans",
+                Columns = columns,
+                SearchTerm = searchTerm,
+                SortField = sortField,
+                SortDirection = sortDirection,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
 
-            DataGridViewModel dataGridViewModel = this._mapper.Map<DataGridViewModel>(dataGridGet);
-
-            // Store sort information in ViewData to be used in the view
+            // Store sort information in ViewData if still used by view
             this.ViewData["SortField"] = sortField;
             this.ViewData["SortDirection"] = sortDirection;
-
-            return this.View(dataGridViewModel);
+            return this.View(viewModel);
         }
 
         [HttpGet]
