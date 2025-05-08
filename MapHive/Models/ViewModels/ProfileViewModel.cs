@@ -22,10 +22,10 @@ namespace MapHive.Models.ViewModels
     public class PrivateProfileViewModel : BaseProfileViewModel
     {
         // For changing username
-        public ChangeUsernameViewModel ChangeUsernameModel { get; set; } = new ChangeUsernameViewModel();
+        public ChangeUsernameViewModel ChangeUsernameViewModel { get; set; } = new ChangeUsernameViewModel();
 
         // For changing password
-        public ChangePasswordViewModel ChangePasswordModel { get; set; } = new ChangePasswordViewModel();
+        public ChangePasswordViewModel ChangePasswordViewModel { get; set; } = new ChangePasswordViewModel();
     }
 
     // Public profile - for viewing another user's profile

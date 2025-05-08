@@ -1,7 +1,5 @@
-using AutoMapper;
-using MapHive.Models.RepositoryModels;
 using MapHive.Models.ViewModels;
-using MapHive.Repositories;
+using MapHive.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,13 +8,11 @@ namespace MapHive.Controllers
     [Authorize]
     public class LogsController : Controller
     {
-        private readonly IDataGridRepository _dataGridRepository;
-        private readonly IMapper _mapper;
+        private readonly IDataGridService _dataGridService;
 
-        public LogsController(IDataGridRepository dataGridRepository, IMapper mapper)
+        public LogsController(IDataGridService dataGridService)
         {
-            this._dataGridRepository = dataGridRepository;
-            this._mapper = mapper;
+            this._dataGridService = dataGridService;
         }
 
         [HttpGet]
@@ -28,18 +24,12 @@ namespace MapHive.Controllers
             string sortField = "Timestamp",
             string sortDirection = "desc")
         {
-            // Prepare empty grid: fetch only column definitions
-            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("Logs");
-            DataGridViewModel viewModel = new()
-            {
-                TableName = "Logs",
-                Columns = columns,
-                SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
-                CurrentPage = page,
-                PageSize = pageSize
-            };
+            DataGridViewModel viewModel = await this._dataGridService.GetGridDataAsync(
+                tableName: "Logs",
+                page: page,
+                searchTerm: searchTerm,
+                sortField: sortField,
+                sortDirection: sortDirection);
             return this.View(viewModel);
         }
     }

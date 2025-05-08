@@ -3,36 +3,21 @@ using MapHive.Models;
 using MapHive.Models.Enums;
 using MapHive.Models.RepositoryModels;
 using MapHive.Models.ViewModels;
-using MapHive.Repositories;
-using MapHive.Singletons;
+using MapHive.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
 
 namespace MapHive.Controllers
 {
     [Authorize]
     public class AdminController : Controller
     {
-        private readonly ISqlClientSingleton _sqlClient;
-        private readonly IDataGridRepository _dataGridRepository;
-        private readonly IConfigurationSingleton _configSingleton;
-        private readonly IMapLocationRepository _mapLocationRepository;
-        private readonly IUserRepository _userRepository;
+        private readonly IAdminService _adminService;
         private readonly IMapper _mapper;
-        public AdminController(
-            ISqlClientSingleton sqlClient,
-            IDataGridRepository dataGridRepository,
-            IConfigurationSingleton configSingleton,
-            IMapLocationRepository mapLocationRepository,
-            IUserRepository userRepository,
-            IMapper mapper)
+
+        public AdminController(IAdminService adminService, IMapper mapper)
         {
-            this._sqlClient = sqlClient;
-            this._dataGridRepository = dataGridRepository;
-            this._configSingleton = configSingleton;
-            this._mapLocationRepository = mapLocationRepository;
-            this._userRepository = userRepository;
+            this._adminService = adminService;
             this._mapper = mapper;
         }
 
@@ -49,7 +34,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Categories()
         {
-            IEnumerable<CategoryGet> categories = await this._mapLocationRepository.GetAllCategoriesAsync();
+            IEnumerable<CategoryGet> categories = await this._adminService.GetAllCategoriesAsync();
             return this.View(categories);
         }
 
@@ -63,14 +48,14 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> AddCategory(CategoryCreate categoryDto)
+        public async Task<IActionResult> AddCategory(CategoryCreate categoryCreate)
         {
             if (!this.ModelState.IsValid)
             {
-                return this.View(categoryDto);
+                return this.View(categoryCreate);
             }
 
-            _ = await this._mapLocationRepository.AddCategoryAsync(categoryDto);
+            await this._adminService.AddCategoryAsync(categoryCreate);
             return this.RedirectToAction("Categories");
         }
 
@@ -78,32 +63,26 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditCategory(int id)
         {
-            CategoryGet? categoryGet = await this._mapLocationRepository.GetCategoryByIdAsync(id);
+            CategoryGet? categoryGet = await this._adminService.GetCategoryByIdAsync(id);
             if (categoryGet == null)
             {
                 return this.NotFound();
             }
-            CategoryUpdate categoryDto = new()
-            {
-                Id = categoryGet.Id,
-                Name = categoryGet.Name,
-                Description = categoryGet.Description,
-                Icon = categoryGet.Icon
-            };
+            CategoryUpdate categoryDto = this._mapper.Map<CategoryUpdate>(categoryGet);
             return this.View(categoryDto);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditCategory(CategoryUpdate categoryDto)
+        public async Task<IActionResult> EditCategory(CategoryUpdate categoryUpdate)
         {
             if (!this.ModelState.IsValid)
             {
-                return this.View(categoryDto);
+                return this.View(categoryUpdate);
             }
 
-            _ = await this._mapLocationRepository.UpdateCategoryAsync(categoryDto);
+            await this._adminService.UpdateCategoryAsync(categoryUpdate);
             return this.RedirectToAction("Categories");
         }
 
@@ -112,7 +91,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            _ = await this._mapLocationRepository.DeleteCategoryAsync(id);
+            await this._adminService.DeleteCategoryAsync(id);
             return this.RedirectToAction("Categories");
         }
 
@@ -124,29 +103,16 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Prepare column definitions for client-side loading
-            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("Users");
-            DataGridViewModel viewModel = new()
-            {
-                TableName = "Users",
-                Columns = columns,
-                SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
-                CurrentPage = page,
-                PageSize = pageSize
-            };
+            DataGridViewModel viewModel = await this._adminService.GetUsersGridViewModelAsync(searchTerm, page, pageSize, sortField, sortDirection);
             return this.View(viewModel);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> UpdateUserTier(int userId, UserTier tier)
+        public async Task<IActionResult> UpdateUserTier(int userId, UserTier userTier)
         {
-            // Use UserTierUpdate DTO for updating user tier
-            UserTierUpdate tierDto = new() { UserId = userId, Tier = tier };
-            _ = await this._userRepository.UpdateUserTierAsync(tierDto);
+            await this._adminService.UpdateUserTierAsync(userId, userTier);
             return this.RedirectToAction("Users");
         }
 
@@ -164,63 +130,15 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> SqlQuery(SqlQueryViewModel model)
+        public async Task<IActionResult> SqlQuery(SqlQueryViewModel sqlQueryViewModel)
         {
             if (!this.ModelState.IsValid)
             {
-                return this.View(model);
+                return this.View(sqlQueryViewModel);
             }
 
-            try
-            {
-                string query = model.Query.Trim();
-
-                // Execute based on query type
-                if (query.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
-                {
-                    DataTable result = await this._sqlClient.SelectAsync(query);
-                    model.HasResults = true;
-                    model.DataTable = result;
-                    model.RowsAffected = result.Rows.Count;
-                    model.Message = $"Query executed successfully. {model.RowsAffected} rows returned.";
-                }
-                else if (query.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
-                {
-                    int result = await this._sqlClient.InsertAsync(query);
-                    model.HasResults = false;
-                    model.RowsAffected = 1;
-                    model.Message = $"Insert executed successfully. ID of inserted row: {result}";
-                }
-                else if (query.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
-                {
-                    int result = await this._sqlClient.UpdateAsync(query);
-                    model.HasResults = false;
-                    model.RowsAffected = result;
-                    model.Message = $"Update executed successfully. {result} rows affected.";
-                }
-                else if (query.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
-                {
-                    int result = await this._sqlClient.DeleteAsync(query);
-                    model.HasResults = false;
-                    model.RowsAffected = result;
-                    model.Message = $"Delete executed successfully. {result} rows affected.";
-                }
-                else
-                {
-                    // For other statements like ALTER, CREATE, etc.
-                    int result = await this._sqlClient.AlterAsync(query);
-                    model.HasResults = false;
-                    model.RowsAffected = result;
-                    model.Message = "Query executed successfully.";
-                }
-            }
-            catch (Exception ex)
-            {
-                model.HasResults = false;
-                model.Message = $"Error executing query: {ex.Message}";
-            }
-
-            return this.View(model);
+            SqlQueryViewModel resultModel = await this._adminService.ExecuteSqlQueryAsync(sqlQueryViewModel.Query);
+            return this.View(resultModel);
         }
 
         #endregion
@@ -231,7 +149,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Configuration()
         {
-            List<ConfigurationItem> configurations = await this._configSingleton.GetAllConfigurationItemsAsync();
+            List<ConfigurationItem> configurations = await this._adminService.GetAllConfigurationItemsAsync();
             return this.View(configurations);
         }
 
@@ -245,14 +163,14 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> AddConfiguration(ConfigurationItem configItem)
+        public async Task<IActionResult> AddConfiguration(ConfigurationItem configurationItem)
         {
             if (!this.ModelState.IsValid)
             {
-                return this.View(configItem);
+                return this.View(configurationItem);
             }
 
-            _ = await this._configSingleton.AddConfigurationItemAsync(configItem);
+            await this._adminService.AddConfigurationItemAsync(configurationItem);
             return this.RedirectToAction("Configuration");
         }
 
@@ -260,21 +178,21 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditConfiguration(string key)
         {
-            ConfigurationItem? configItem = await this._configSingleton.GetConfigurationItemAsync(key);
+            ConfigurationItem? configItem = await this._adminService.GetConfigurationItemAsync(key);
             return configItem == null ? this.NotFound() : this.View(configItem);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditConfiguration(ConfigurationItem configItem)
+        public async Task<IActionResult> EditConfiguration(ConfigurationItem configurationItem)
         {
             if (!this.ModelState.IsValid)
             {
-                return this.View(configItem);
+                return this.View(configurationItem);
             }
 
-            _ = await this._configSingleton.UpdateConfigurationItemAsync(configItem);
+            await this._adminService.UpdateConfigurationItemAsync(configurationItem);
             return this.RedirectToAction("Configuration");
         }
 
@@ -283,7 +201,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteConfiguration(string key)
         {
-            _ = await this._configSingleton.DeleteConfigurationItemAsync(key);
+            await this._adminService.DeleteConfigurationItemAsync(key);
             return this.RedirectToAction("Configuration");
         }
 
@@ -295,20 +213,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            // Prepare column definitions for client-side loading
-            List<DataGridColumnGet> columns = await this._dataGridRepository.GetColumnsForTableAsync("UserBans");
-            DataGridViewModel viewModel = new()
-            {
-                TableName = "UserBans",
-                Columns = columns,
-                SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
-                CurrentPage = page,
-                PageSize = pageSize
-            };
-
-            // Store sort information in ViewData if still used by view
+            DataGridViewModel viewModel = await this._adminService.GetBansGridViewModelAsync(searchTerm, page, pageSize, sortField, sortDirection);
             this.ViewData["SortField"] = sortField;
             this.ViewData["SortDirection"] = sortDirection;
             return this.View(viewModel);
@@ -318,42 +223,15 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> BanDetails(int id)
         {
-            UserBanGet? ban = await this._userRepository.GetActiveBanByUserIdAsync(id);
-            if (ban == null)
+            try
+            {
+                BanDetailViewModel viewModel = await this._adminService.GetBanDetailsAsync(id);
+                return this.View(viewModel);
+            }
+            catch (KeyNotFoundException)
             {
                 return this.NotFound();
             }
-
-            string bannedUsername = string.Empty;
-            if (ban.Properties.TryGetValue("BannedUsername", out string? username))
-            {
-                bannedUsername = username;
-            }
-            else if (ban.UserId.HasValue)
-            {
-                // Get username from UserId
-                bannedUsername = await this._userRepository.GetUsernameByIdAsync(ban.UserId.Value);
-            }
-
-            string bannedByUsername;
-            if (ban.Properties.TryGetValue("BannedByUsername", out string? adminUsername))
-            {
-                bannedByUsername = adminUsername;
-            }
-            else
-            {
-                // Get admin username
-                bannedByUsername = await this._userRepository.GetUsernameByIdAsync(ban.BannedByUserId);
-            }
-
-            BanDetailViewModel viewModel = new()
-            {
-                Ban = ban,
-                BannedUsername = bannedUsername,
-                BannedByUsername = bannedByUsername
-            };
-
-            return this.View(viewModel);
         }
 
         [HttpPost]
@@ -361,14 +239,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> RemoveBan(int id)
         {
-            UserBanGet? ban = await this._userRepository.GetActiveBanByUserIdAsync(id);
-            if (ban == null)
-            {
-                return this.NotFound();
-            }
-
-            bool success = await this._userRepository.UnbanUserAsync(id);
-
+            bool success = await this._adminService.RemoveBanAsync(id);
             if (success)
             {
                 this.TempData["SuccessMessage"] = "Ban has been removed successfully.";

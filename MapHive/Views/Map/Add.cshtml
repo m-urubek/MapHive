@@ -1,4 +1,4 @@
-@model MapHive.Models.RepositoryModels.MapLocationCreate
+@model MapHive.Models.ViewModels.AddLocationPageViewModel
 
 @{
     ViewData["Title"] = "Add New Location";
@@ -11,24 +11,25 @@
         <div class="col-md-6">
             <form asp-action="Add" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="CreateModel.UserId" />
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Name" class="control-label"></label>
-                    <input asp-for="Name" class="form-control" />
-                    <span asp-validation-for="Name" class="text-danger"></span>
+                    <label asp-for="CreateModel.Name" class="control-label"></label>
+                    <input asp-for="CreateModel.Name" class="form-control" />
+                    <span asp-validation-for="CreateModel.Name" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Description" class="control-label"></label>
-                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-                    <span asp-validation-for="Description" class="text-danger"></span>
+                    <label asp-for="CreateModel.Description" class="control-label"></label>
+                    <textarea asp-for="CreateModel.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="CreateModel.Description" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="CategoryId" class="control-label">Category</label>
-                    <select asp-for="CategoryId" class="form-select">
+                    <label asp-for="CreateModel.CategoryId" class="control-label">Category</label>
+                    <select asp-for="CreateModel.CategoryId" class="form-select">
                         <option value="">-- Select Category --</option>
-                        @foreach (var category in ViewBag.Categories)
+                        @foreach (var category in Model.Categories)
                         {
                             <option value="@category.Id">@category.Name</option>
                         }
@@ -38,41 +39,41 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Latitude" class="control-label"></label>
-                            <input asp-for="Latitude" class="form-control" id="latitude" />
-                            <span asp-validation-for="Latitude" class="text-danger"></span>
+                            <label asp-for="CreateModel.Latitude" class="control-label"></label>
+                            <input asp-for="CreateModel.Latitude" class="form-control" id="latitude" />
+                            <span asp-validation-for="CreateModel.Latitude" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Longitude" class="control-label"></label>
-                            <input asp-for="Longitude" class="form-control" id="longitude" />
-                            <span asp-validation-for="Longitude" class="text-danger"></span>
+                            <label asp-for="CreateModel.Longitude" class="control-label"></label>
+                            <input asp-for="CreateModel.Longitude" class="form-control" id="longitude" />
+                            <span asp-validation-for="CreateModel.Longitude" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Address" class="control-label"></label>
-                    <input asp-for="Address" class="form-control" />
-                    <span asp-validation-for="Address" class="text-danger"></span>
+                    <label asp-for="CreateModel.Address" class="control-label"></label>
+                    <input asp-for="CreateModel.Address" class="form-control" />
+                    <span asp-validation-for="CreateModel.Address" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Website" class="control-label"></label>
-                    <input asp-for="Website" class="form-control" placeholder="https://example.com" />
-                    <span asp-validation-for="Website" class="text-danger"></span>
+                    <label asp-for="CreateModel.Website" class="control-label"></label>
+                    <input asp-for="CreateModel.Website" class="form-control" placeholder="https://example.com" />
+                    <span asp-validation-for="CreateModel.Website" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="PhoneNumber" class="control-label"></label>
-                    <input asp-for="PhoneNumber" class="form-control" />
-                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    <label asp-for="CreateModel.PhoneNumber" class="control-label"></label>
+                    <input asp-for="CreateModel.PhoneNumber" class="form-control" />
+                    <span asp-validation-for="CreateModel.PhoneNumber" class="text-danger"></span>
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input asp-for="IsAnonymous" class="form-check-input" />
-                    <label asp-for="IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
+                    <input asp-for="CreateModel.IsAnonymous" class="form-check-input" />
+                    <label asp-for="CreateModel.IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
                 </div>
                 
                 <div class="form-group mt-4">

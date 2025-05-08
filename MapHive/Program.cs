@@ -26,7 +26,10 @@ builder.Services.AddSingleton<ILogRepository, LogRepository>();
 
 // Add application services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
+builder.Services.AddScoped<IDataGridService, DataGridService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterService>();
 
@@ -65,6 +68,17 @@ builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>()
 
 // Register FileLoggerService as Singleton
 builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
+
+// Register IDisplayService
+builder.Services.AddScoped<IDisplayService, DisplayService>();
+
+// Register application services for MVC controllers
+builder.Services.AddScoped<IMapService, MapService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IDiscussionService, DiscussionService>();
+
+// Register ProfileService
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 // Register DatabaseUpdaterService as Singleton
 

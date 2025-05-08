@@ -1,5 +1,5 @@
-@using MapHive.Models.RepositoryModels
-@model MapLocationUpdate
+@using MapHive.Models.ViewModels
+@model EditLocationPageViewModel
 
 @{
     ViewData["Title"] = "Edit Location";
@@ -12,27 +12,27 @@
         <div class="col-md-6">
             <form asp-action="Edit" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="UpdateModel.Id" />
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Name" class="control-label"></label>
-                    <input asp-for="Name" class="form-control" />
-                    <span asp-validation-for="Name" class="text-danger"></span>
+                    <label asp-for="UpdateModel.Name" class="control-label"></label>
+                    <input asp-for="UpdateModel.Name" class="form-control" />
+                    <span asp-validation-for="UpdateModel.Name" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Description" class="control-label"></label>
-                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-                    <span asp-validation-for="Description" class="text-danger"></span>
+                    <label asp-for="UpdateModel.Description" class="control-label"></label>
+                    <textarea asp-for="UpdateModel.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="UpdateModel.Description" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="CategoryId" class="control-label">Category</label>
-                    <select asp-for="CategoryId" class="form-select">
+                    <label asp-for="UpdateModel.CategoryId" class="control-label">Category</label>
+                    <select asp-for="UpdateModel.CategoryId" class="form-select">
                         <option value="">-- Select Category --</option>
-                        @foreach (var category in ViewBag.Categories)
+                        @foreach (var category in Model.Categories)
                         {
-                            if (Model.CategoryId == category.Id)
+                            if (Model.UpdateModel.CategoryId == category.Id)
                             {
                                 <option value="@category.Id" selected>@category.Name</option>
                             }
@@ -47,41 +47,41 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Latitude" class="control-label"></label>
-                            <input asp-for="Latitude" class="form-control" id="latitude" />
-                            <span asp-validation-for="Latitude" class="text-danger"></span>
+                            <label asp-for="UpdateModel.Latitude" class="control-label"></label>
+                            <input asp-for="UpdateModel.Latitude" class="form-control" id="latitude" />
+                            <span asp-validation-for="UpdateModel.Latitude" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Longitude" class="control-label"></label>
-                            <input asp-for="Longitude" class="form-control" id="longitude" />
-                            <span asp-validation-for="Longitude" class="text-danger"></span>
+                            <label asp-for="UpdateModel.Longitude" class="control-label"></label>
+                            <input asp-for="UpdateModel.Longitude" class="form-control" id="longitude" />
+                            <span asp-validation-for="UpdateModel.Longitude" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Address" class="control-label"></label>
-                    <input asp-for="Address" class="form-control" />
-                    <span asp-validation-for="Address" class="text-danger"></span>
+                    <label asp-for="UpdateModel.Address" class="control-label"></label>
+                    <input asp-for="UpdateModel.Address" class="form-control" />
+                    <span asp-validation-for="UpdateModel.Address" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Website" class="control-label"></label>
-                    <input asp-for="Website" class="form-control" placeholder="https://example.com" />
-                    <span asp-validation-for="Website" class="text-danger"></span>
+                    <label asp-for="UpdateModel.Website" class="control-label"></label>
+                    <input asp-for="UpdateModel.Website" class="form-control" placeholder="https://example.com" />
+                    <span asp-validation-for="UpdateModel.Website" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="PhoneNumber" class="control-label"></label>
-                    <input asp-for="PhoneNumber" class="form-control" />
-                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    <label asp-for="UpdateModel.PhoneNumber" class="control-label"></label>
+                    <input asp-for="UpdateModel.PhoneNumber" class="form-control" />
+                    <span asp-validation-for="UpdateModel.PhoneNumber" class="text-danger"></span>
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input asp-for="IsAnonymous" class="form-check-input" />
-                    <label asp-for="IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
+                    <input asp-for="UpdateModel.IsAnonymous" class="form-check-input" />
+                    <label asp-for="UpdateModel.IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
                 </div>
                 
                 <div class="form-group mt-4">
@@ -125,7 +125,7 @@
     <script>
         $(document).ready(function() {
             // Initialize the map
-            var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
+            var map = L.map('map').setView([@Model.UpdateModel.Latitude, @Model.UpdateModel.Longitude], 13);
             
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -134,7 +134,7 @@
             }).addTo(map);
             
             // Create a marker variable and initialize it with the model's coordinates
-            var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
+            var marker = L.marker([@Model.UpdateModel.Latitude, @Model.UpdateModel.Longitude]).addTo(map);
             
             // Function to update the marker
             function updateMarker(lat, lng) {
