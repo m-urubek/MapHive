@@ -1,26 +1,20 @@
-using MapHive.Models.ViewModels;
-using MapHive.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace MapHive.Controllers
 {
-    public class ReviewController : Controller
-    {
-        private readonly IReviewService _reviewService;
-        private readonly IUserContextService _userContextService;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
 
-        public ReviewController(IReviewService reviewService, IUserContextService userContextService)
-        {
-            this._reviewService = reviewService;
-            this._userContextService = userContextService;
-        }
+    public class ReviewController(IReviewService reviewService, IUserContextService userContextService) : Controller
+    {
+        private readonly IReviewService _reviewService = reviewService;
+        private readonly IUserContextService _userContextService = userContextService;
 
         [Authorize]
         public async Task<IActionResult> Create(int id)
         {
-            ReviewViewModel model = await this._reviewService.GetCreateModelAsync(id);
-            return this.View(model);
+            ReviewViewModel model = await _reviewService.GetCreateModelAsync(locationId: id);
+            return View(model: model);
         }
 
         // POST: Review/Create
@@ -29,22 +23,22 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Create(ReviewViewModel reviewViewModel)
         {
-            if (this.ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId;
-                _ = await this._reviewService.CreateReviewAsync(reviewViewModel, userId);
-                return this.RedirectToAction("Details", "Map", new { id = reviewViewModel.LocationId });
+                int userId = _userContextService.UserId;
+                _ = await _reviewService.CreateReviewAsync(model: reviewViewModel, userId: userId);
+                return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
-            return this.View(reviewViewModel);
+            return View(model: reviewViewModel);
         }
 
         // GET: Review/Edit/5
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = this._userContextService.UserId;
-            ReviewViewModel model = await this._reviewService.GetEditModelAsync(id, userId);
-            return this.View(model);
+            int userId = _userContextService.UserId;
+            ReviewViewModel model = await _reviewService.GetEditModelAsync(reviewId: id, userId: userId);
+            return View(model: model);
         }
 
         // POST: Review/Edit/5
@@ -53,13 +47,13 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id, ReviewViewModel reviewViewModel)
         {
-            if (this.ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId;
-                await this._reviewService.EditReviewAsync(id, reviewViewModel, userId);
-                return this.RedirectToAction("Details", "Map", new { id = reviewViewModel.LocationId });
+                int userId = _userContextService.UserId;
+                await _reviewService.EditReviewAsync(id: id, model: reviewViewModel, userId: userId);
+                return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
-            return this.View(reviewViewModel);
+            return View(model: reviewViewModel);
         }
 
         // POST: Review/Delete/5
@@ -68,10 +62,10 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = this._userContextService.UserId;
-            bool isAdmin = this.User.IsInRole("Admin");
-            int locationId = await this._reviewService.DeleteReviewAsync(id, userId, isAdmin);
-            return this.RedirectToAction("Details", "Map", new { id = locationId });
+            int userId = _userContextService.UserId;
+            bool isAdmin = User.IsInRole(role: "Admin");
+            int locationId = await _reviewService.DeleteReviewAsync(id: id, userId: userId, isAdmin: isAdmin);
+            return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
         }
     }
 }

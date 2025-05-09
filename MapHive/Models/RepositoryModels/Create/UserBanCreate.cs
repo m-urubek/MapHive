@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using MapHive.Models.Enums;
+
     public class UserBanGetCreate
     {
         public int? UserId { get; set; }

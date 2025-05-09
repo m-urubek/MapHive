@@ -1,10 +1,10 @@
-using MapHive.Models;
-using MapHive.Models.Enums;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-
 namespace MapHive.Services
 {
+    using MapHive.Models;
+    using MapHive.Models.Enums;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+
     public interface IAdminService
     {
         // Category management

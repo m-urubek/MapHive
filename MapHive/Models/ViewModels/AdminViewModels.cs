@@ -1,8 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-using System.Data;
-
 namespace MapHive.Models
 {
+    using System.ComponentModel.DataAnnotations;
+    using System.Data;
+
     public class SqlQueryViewModel
     {
         [Required(ErrorMessage = "Query is required")]

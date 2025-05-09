@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class CategoryGet
     {
         public int Id { get; set; }

@@ -1,8 +1,8 @@
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-
 namespace MapHive.Services
 {
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+
     public interface IMapService
     {
         Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync();

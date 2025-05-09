@@ -65,9 +65,9 @@
                                         @foreach (System.Data.DataRow row in Model.DataTable.Rows)
                                         {
                                             <tr>
-                                                @foreach (var item in row.ItemArray)
+                                                @foreach (object? item in row.ItemArray)
                                                 {
-                                                    <td>@(item == DBNull.Value ? "NULL" : item.ToString())</td>
+                                                    <td>@(item == null || item == DBNull.Value ? "NULL" : item.ToString())</td>
                                                 }
                                             </tr>
                                         }

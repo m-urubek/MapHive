@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class ReviewUpdate
     {
         [Required]

@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Models.BusinessModels
 {
+    using MapHive.Models.Enums;
+
     public class UserLogin
     {
         public int Id { get; set; }

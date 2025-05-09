@@ -1,8 +1,8 @@
-using MapHive.Models.Enums;
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.ComponentModel.DataAnnotations;
+    using MapHive.Models.Enums;
+
     public class UserCreate
     {
         [Required(ErrorMessage = "Username is required")]

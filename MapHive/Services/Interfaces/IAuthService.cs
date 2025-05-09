@@ -1,8 +1,8 @@
-using MapHive.Models;
-using MapHive.Models.BusinessModels;
-
 namespace MapHive.Services
 {
+    using MapHive.Models;
+    using MapHive.Models.BusinessModels;
+
     public interface IAuthService
     {
         Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress);

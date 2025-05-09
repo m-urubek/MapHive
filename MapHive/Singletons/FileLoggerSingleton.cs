@@ -1,7 +1,7 @@
-using MapHive.Utilities;
-
 namespace MapHive.Singletons
 {
+    using MapHive.Utilities;
+
     /// <summary>
     /// Service for logging messages to files with rotation and cleanup.
     /// </summary>
@@ -17,19 +17,20 @@ namespace MapHive.Singletons
 
         public FileLoggerSingleton()
         {
-            this._logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+            _currentLogFile = "";
+            _logDirectory = Path.Combine(path1: AppDomain.CurrentDomain.BaseDirectory, path2: "Logs");
 
             // Ensure log directory exists
-            if (!Directory.Exists(this._logDirectory))
+            if (!Directory.Exists(path: _logDirectory))
             {
-                _ = Directory.CreateDirectory(this._logDirectory);
+                _ = Directory.CreateDirectory(path: _logDirectory);
             }
 
             // Initialize the current log file on startup
-            this.InitializeCurrentLogFile();
+            InitializeCurrentLogFile();
 
             // Set up a timer to check for old log files once per day
-            this._cleanupTimer = new Timer(this.CleanupOldLogFiles, null, TimeSpan.FromDays(1), TimeSpan.FromDays(1)); // Start after 1 day, repeat daily
+            _cleanupTimer = new Timer(CleanupOldLogFiles, null, TimeSpan.FromDays(value: 1), TimeSpan.FromDays(value: 1)); // Start after 1 day, repeat daily
         }
 
         /// <summary>
@@ -38,13 +39,13 @@ namespace MapHive.Singletons
         public void LogToFile(string message)
         {
             // Ensure we have a valid log file that's not too large
-            this.EnsureLogFile();
+            EnsureLogFile();
 
             // Format the log entry with timestamp
             string formattedMessage = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}";
 
             // Write to the file using the thread-safe writer
-            ThreadSafeFileWriter.Write(this._currentLogFile, formattedMessage);
+            ThreadSafeFileWriter.Write(fileName: _currentLogFile, text: formattedMessage);
         }
 
         /// <summary>
@@ -52,11 +53,11 @@ namespace MapHive.Singletons
         /// </summary>
         private void InitializeCurrentLogFile()
         {
-            lock (this._lockObject)
+            lock (_lockObject)
             {
-                this._currentLogFileCreationTime = DateTime.UtcNow;
-                string timestamp = this._currentLogFileCreationTime.ToString("yyyyMMdd_HHmmss");
-                this._currentLogFile = Path.Combine(this._logDirectory, $"log_{timestamp}.txt");
+                _currentLogFileCreationTime = DateTime.UtcNow;
+                string timestamp = _currentLogFileCreationTime.ToString(format: "yyyyMMdd_HHmmss");
+                _currentLogFile = Path.Combine(path1: _logDirectory, path2: $"log_{timestamp}.txt");
             }
         }
 
@@ -65,28 +66,28 @@ namespace MapHive.Singletons
         /// </summary>
         private void EnsureLogFile()
         {
-            if (string.IsNullOrEmpty(this._currentLogFile))
+            if (string.IsNullOrEmpty(value: _currentLogFile))
             {
-                this.InitializeCurrentLogFile();
+                InitializeCurrentLogFile();
                 return;
             }
 
-            lock (this._lockObject)
+            lock (_lockObject)
             {
                 // Check if the current log file exists and is not too large
-                if (File.Exists(this._currentLogFile))
+                if (File.Exists(path: _currentLogFile))
                 {
-                    FileInfo fileInfo = new(this._currentLogFile);
+                    FileInfo fileInfo = new(_currentLogFile);
                     if (fileInfo.Length >= MaxLogFileSize)
                     {
                         // Create a new log file if the current one is too large
-                        this.InitializeCurrentLogFile();
+                        InitializeCurrentLogFile();
                     }
                 }
                 else
                 {
                     // If file doesn't exist (e.g., manually deleted), create a new one
-                    this.InitializeCurrentLogFile();
+                    InitializeCurrentLogFile();
                 }
             }
         }
@@ -98,8 +99,8 @@ namespace MapHive.Singletons
         {
             try
             {
-                DateTime cutoffDate = DateTime.UtcNow.AddDays(-MaxLogFileAgeDays);
-                string[] logFiles = Directory.GetFiles(this._logDirectory, "log_*.txt");
+                DateTime cutoffDate = DateTime.UtcNow.AddDays(value: -MaxLogFileAgeDays);
+                string[] logFiles = Directory.GetFiles(path: _logDirectory, searchPattern: "log_*.txt");
 
                 foreach (string file in logFiles)
                 {
@@ -121,9 +122,9 @@ namespace MapHive.Singletons
                     }
 
                     // Skip the current log file
-                    lock (this._lockObject)
+                    lock (_lockObject)
                     {
-                        if (file == this._currentLogFile)
+                        if (file == _currentLogFile)
                         {
                             continue;
                         }
@@ -150,14 +151,14 @@ namespace MapHive.Singletons
             {
                 // LogGet cleanup failure? Avoid using LogToFile here to prevent recursion.
                 // Consider logging to Debug output or a separate error file.
-                System.Diagnostics.Debug.WriteLine($"Error during log cleanup: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(message: $"Error during log cleanup: {ex.Message}");
             }
         }
 
         public void Dispose()
         {
-            this._cleanupTimer?.Dispose();
-            GC.SuppressFinalize(this);
+            _cleanupTimer?.Dispose();
+            GC.SuppressFinalize(obj: this);
         }
     }
 }

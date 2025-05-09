@@ -1,20 +1,15 @@
-using MapHive.Models.Enums;
-using MapHive.Models.RepositoryModels;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-using System.Text;
-
 namespace MapHive.Repositories
 {
-    public class LogRepository : ILogRepository
-    {
-        private readonly ISqlClientSingleton _sqlClientSingleton;
+    using System.Data;
+    using System.Data.SQLite;
+    using System.Text;
+    using MapHive.Models.Enums;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Singletons;
 
-        public LogRepository(ISqlClientSingleton sqlClientSingleton)
-        {
-            this._sqlClientSingleton = sqlClientSingleton;
-        }
+    public class LogRepository(ISqlClientSingleton sqlClientSingleton) : ILogRepository
+    {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
 
         public async Task<IEnumerable<LogGet>> GetLogsAsync(
             int page = 1,
@@ -24,46 +19,46 @@ namespace MapHive.Repositories
             string sortDirection = "desc")
         {
             // Validate parameters
-            page = Math.Max(1, page);
-            pageSize = Math.Clamp(pageSize, 1, 100);
-            sortDirection = sortDirection.ToLowerInvariant() == "desc" ? "DESC" : "ASC";
+            page = Math.Max(val1: 1, val2: page);
+            pageSize = Math.Clamp(value: pageSize, min: 1, max: 100);
+            sortDirection = sortDirection.Equals("desc", StringComparison.InvariantCultureIgnoreCase) ? "DESC" : "ASC";
 
             // Sanitize sort field to prevent SQL injection
-            string sanitizedSortField = IsValidColumnName(sortField) ? QuoteIdentifier(sortField) : QuoteIdentifier("Timestamp");
+            string sanitizedSortField = IsValidColumnName(columnName: sortField) ? QuoteIdentifier(identifier: sortField) : QuoteIdentifier(identifier: "Timestamp");
 
             // Build query
             StringBuilder queryBuilder = new();
             List<SQLiteParameter> parameters = new();
 
-            _ = queryBuilder.Append("SELECT l.*, s.Name AS SeverityName FROM Logs l ");
-            _ = queryBuilder.Append("LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity ");
+            _ = queryBuilder.Append(value: "SELECT l.*, s.Name AS SeverityName FROM Logs l ");
+            _ = queryBuilder.Append(value: "LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity ");
 
             // Add WHERE clause
-            _ = queryBuilder.Append("WHERE 1=1 ");
+            _ = queryBuilder.Append(value: "WHERE 1=1 ");
 
             // Add search term
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            if (!string.IsNullOrWhiteSpace(value: searchTerm))
             {
-                _ = queryBuilder.Append("AND (l.Message LIKE @SearchTerm OR l.Source LIKE @SearchTerm OR l.UserName LIKE @SearchTerm OR l.RequestPath LIKE @SearchTerm) ");
-                parameters.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
+                _ = queryBuilder.Append(value: "AND (l.Message LIKE @SearchTerm OR l.Source LIKE @SearchTerm OR l.UserName LIKE @SearchTerm OR l.RequestPath LIKE @SearchTerm) ");
+                parameters.Add(item: new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
 
             // Add sorting
-            _ = queryBuilder.Append($"ORDER BY {sanitizedSortField} {sortDirection} ");
+            _ = queryBuilder.Append(handler: $"ORDER BY {sanitizedSortField} {sortDirection} ");
 
             // Add pagination
-            _ = queryBuilder.Append("LIMIT @PageSize OFFSET @Offset");
-            parameters.Add(new SQLiteParameter("@PageSize", pageSize));
-            parameters.Add(new SQLiteParameter("@Offset", (page - 1) * pageSize));
+            _ = queryBuilder.Append(value: "LIMIT @PageSize OFFSET @Offset");
+            parameters.Add(item: new SQLiteParameter("@PageSize", pageSize));
+            parameters.Add(item: new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: parameters.ToArray());
 
             // Map results to LogGet objects
             List<LogGet> logs = new();
             foreach (DataRow row in result.Rows)
             {
-                logs.Add(MapDataRowToLog(row));
+                logs.Add(item: MapDataRowToLog(row: row));
             }
 
             return logs;
@@ -75,23 +70,23 @@ namespace MapHive.Repositories
             StringBuilder queryBuilder = new();
             List<SQLiteParameter> parameters = new();
 
-            _ = queryBuilder.Append("SELECT COUNT(*) FROM Logs l ");
+            _ = queryBuilder.Append(value: "SELECT COUNT(*) FROM Logs l ");
 
             // Add WHERE clause
-            _ = queryBuilder.Append("WHERE 1=1 ");
+            _ = queryBuilder.Append(value: "WHERE 1=1 ");
 
             // Add search term
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            if (!string.IsNullOrWhiteSpace(value: searchTerm))
             {
-                _ = queryBuilder.Append("AND (l.Message LIKE @SearchTerm OR l.Source LIKE @SearchTerm OR l.UserName LIKE @SearchTerm OR l.RequestPath LIKE @SearchTerm) ");
-                parameters.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
+                _ = queryBuilder.Append(value: "AND (l.Message LIKE @SearchTerm OR l.Source LIKE @SearchTerm OR l.UserName LIKE @SearchTerm OR l.RequestPath LIKE @SearchTerm) ");
+                parameters.Add(item: new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: parameters.ToArray());
 
             // Return count
-            return result.Rows.Count > 0 && result.Rows[0][0] != DBNull.Value ? Convert.ToInt32(result.Rows[0][0]) : 0;
+            return result.Rows.Count > 0 && result.Rows[0][0] != DBNull.Value ? Convert.ToInt32(value: result.Rows[0][0]) : 0;
         }
 
         public async Task<LogGet?> GetLogByIdAsync(int id)
@@ -105,9 +100,9 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
 
             // Use injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
-            return result.Rows.Count == 0 ? null : MapDataRowToLog(result.Rows[0]);
+            return result.Rows.Count == 0 ? null : MapDataRowToLog(row: result.Rows[0]);
         }
 
         public async Task<int> CreateLogRowAsync(LogCreate logCreate)
@@ -116,7 +111,7 @@ namespace MapHive.Repositories
                                              + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserId, @RequestPath, @AdditionalData);";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
-                        new("@Timestamp", logCreate.Timestamp.ToString("o")),
+                        new("@Timestamp", logCreate.Timestamp.ToString(format: "o")),
                         new("@SeverityId", (int)logCreate.Severity),
                         new("@Message", logCreate.Message),
                         new("@Source", logCreate.Source as object ?? DBNull.Value),
@@ -125,7 +120,7 @@ namespace MapHive.Repositories
                         new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
                         new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
             };
-            return await this._sqlClientSingleton.InsertAsync(query, parameters);
+            return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
         private static LogGet MapDataRowToLog(DataRow row) //TODO make dynamic
@@ -133,17 +128,17 @@ namespace MapHive.Repositories
             // Simplified mapping
             return new LogGet
             {
-                Id_Log = Convert.ToInt32(row["Id_Log"]),
-                Timestamp = Convert.ToDateTime(row["Timestamp"]),
-                SeverityId = Convert.ToInt32(row["SeverityId"]),
+                Id_Log = Convert.ToInt32(value: row["Id_Log"]),
+                Timestamp = Convert.ToDateTime(value: row["Timestamp"]),
+                SeverityId = Convert.ToInt32(value: row["SeverityId"]),
                 Message = row["Message"].ToString() ?? string.Empty,
                 Source = row["Source"]?.ToString(), // Nullable
                 Exception = row["Exception"]?.ToString(), // Nullable
-                UserId = row["UserId"] != DBNull.Value ? (int?)Convert.ToInt32(row["UserId"]) : null,
+                UserId = row["UserId"] != DBNull.Value ? (int?)Convert.ToInt32(value: row["UserId"]) : null,
                 UserName = row["UserName"]?.ToString(), // Nullable
                 RequestPath = row["RequestPath"]?.ToString(), // Nullable
                 AdditionalData = row["AdditionalData"]?.ToString(), // Nullable
-                Severity = (LogSeverity)Convert.ToInt32(row["SeverityId"])
+                Severity = (LogSeverity)Convert.ToInt32(value: row["SeverityId"])
             };
         }
 
@@ -166,13 +161,13 @@ namespace MapHive.Repositories
 
         private static bool IsValidColumnName(string columnName)
         {
-            return !string.IsNullOrWhiteSpace(columnName) && _validSortColumns.Contains(columnName);
+            return !string.IsNullOrWhiteSpace(value: columnName) && _validSortColumns.Contains(item: columnName);
         }
 
         // Helper to quote identifiers for SQLite
         private static string QuoteIdentifier(string identifier)
         {
-            return $"\"{identifier.Replace("\"", "\"\"")}\""; // Basic quoting
+            return $"\"{identifier.Replace(oldValue: "\"", newValue: "\"\"")}\""; // Basic quoting
         }
     }
 }

@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Repositories
 {
+    using MapHive.Models.RepositoryModels;
+
     public interface IConfigurationRepository
     {
         Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync();

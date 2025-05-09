@@ -1,14 +1,14 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using MapHive.Models.Enums;
+
     public class UserGet
     {
-        public int Id { get; set; }
+        public required int Id { get; set; }
         public required string Username { get; set; }
-        public string PasswordHash { get; set; } = string.Empty;
-        public UserTier Tier { get; set; }
-        public DateTime RegistrationDate { get; set; }
-        public string IpAddressHistory { get; set; } = string.Empty;
+        public required string PasswordHash { get; set; }
+        public required UserTier Tier { get; set; }
+        public required DateTime RegistrationDate { get; set; }
+        public required string IpAddressHistory { get; set; }
     }
 }

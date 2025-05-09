@@ -16,13 +16,25 @@ namespace MapHive.Models.Exceptions
 
         protected UserFriendlyExceptionBase(string message, MessageType type) : base(message)
         {
-            this.Type = type;
+            Type = type;
         }
 
         protected UserFriendlyExceptionBase(string message, Exception innerException, MessageType type)
             : base(message, innerException)
         {
-            this.Type = type;
+            Type = type;
+        }
+
+        public UserFriendlyExceptionBase() : base()
+        {
+        }
+
+        public UserFriendlyExceptionBase(string? message) : base(message)
+        {
+        }
+
+        public UserFriendlyExceptionBase(string? message, Exception? innerException) : base(message, innerException)
+        {
         }
     }
 }

@@ -1,36 +1,31 @@
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-using System.Text.RegularExpressions;
-
 namespace MapHive.Repositories
 {
-    public class DisplayPageRepository : IDisplayPageRepository
-    {
-        private readonly ISqlClientSingleton _sqlClientSingleton;
+    using System.Data;
+    using System.Data.SQLite;
+    using System.Text.RegularExpressions;
+    using MapHive.Singletons;
 
-        public DisplayPageRepository(ISqlClientSingleton sqlClientSingleton)
-        {
-            this._sqlClientSingleton = sqlClientSingleton;
-        }
+    public partial class DisplayPageRepository(ISqlClientSingleton sqlClientSingleton) : IDisplayPageRepository
+    {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
 
         public async Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id)
         {
             // Validate table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             // Determine the ID column name (first column or Id_{tableName})
-            string idColumn = await this.GetIdColumnNameAsync(tableName);
+            string idColumn = await GetIdColumnNameAsync(tableName: tableName);
 
             // Build query to get all data for the specified item
             string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id_Log";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             // If no item found with the specified ID, return empty dictionary
             if (result.Rows.Count == 0)
@@ -39,13 +34,13 @@ namespace MapHive.Repositories
             }
 
             // Convert DataRow to Dictionary
-            return ConvertDataRowToDictionary(result.Rows[0], result.Columns);
+            return ConvertDataRowToDictionary(row: result.Rows[0], columns: result.Columns);
         }
 
         public async Task<bool> TableExistsAsync(string tableName)
         {
             // Validate table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
@@ -55,7 +50,7 @@ namespace MapHive.Repositories
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@TableName", tableName) };
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             // Return true if table exists
             return result.Rows.Count > 0;
@@ -64,27 +59,27 @@ namespace MapHive.Repositories
         private async Task<string> GetIdColumnNameAsync(string tableName)
         {
             // Validate table name
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name for schema lookup");
             }
             // Get table schema using injected _sqlClientSingleton
             string query = $"PRAGMA table_info(\"{tableName}\")";
-            DataTable schemaTable = await this._sqlClientSingleton.SelectAsync(query);
+            DataTable schemaTable = await _sqlClientSingleton.SelectAsync(query: query);
 
             // Check for Id_{tableName} column
             string expectedIdColumn = $"Id_{tableName}";
             foreach (DataRow row in schemaTable.Rows)
             {
                 string columnName = row["name"].ToString() ?? string.Empty;
-                if (columnName.Equals(expectedIdColumn, StringComparison.OrdinalIgnoreCase))
+                if (columnName.Equals(value: expectedIdColumn, comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
                     return columnName;
                 }
             }
 
             // If Id_{tableName} not found, return the first column name (usually the PK)
-            if (schemaTable.Rows.Count > 0 && schemaTable.Rows[0]["pk"] != DBNull.Value && Convert.ToInt32(schemaTable.Rows[0]["pk"]) > 0)
+            if (schemaTable.Rows.Count > 0 && schemaTable.Rows[0]["pk"] != DBNull.Value && Convert.ToInt32(value: schemaTable.Rows[0]["pk"]) > 0)
             {
                 return schemaTable.Rows[0]["name"].ToString() ?? "Id_Log";
             }
@@ -108,12 +103,12 @@ namespace MapHive.Repositories
                 string value = row[columnName]?.ToString() ?? string.Empty;
 
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
-                string displayName = FormatColumnNameForDisplay(columnName);
+                string displayName = FormatColumnNameForDisplay(columnName: columnName);
 
                 // Only add non-ID columns to the display dictionary
-                if (!columnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
+                if (!columnName.StartsWith(value: "Id_", comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
-                    result.Add(displayName, value);
+                    result.Add(key: displayName, value: value);
                 }
             }
 
@@ -123,21 +118,26 @@ namespace MapHive.Repositories
         private static string FormatColumnNameForDisplay(string columnName)
         {
             // Remove Id_ prefix if exists
-            if (columnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
+            if (columnName.StartsWith(value: "Id_", comparisonType: StringComparison.OrdinalIgnoreCase))
             {
                 columnName = columnName[3..];
             }
 
             // Insert space before capital letters, handle acronyms (like ID)
-            return Regex.Replace(columnName, "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ");
+            return MyRegex().Replace(input: columnName, replacement: " ");
         }
 
         // Validate table name to prevent SQL injection
         private static bool IsValidTableName(string tableName)
         {
             // Allow alphanumeric and underscore
-            return !string.IsNullOrWhiteSpace(tableName) &&
-                   Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
+            return !string.IsNullOrWhiteSpace(value: tableName) &&
+                   MyRegex1().IsMatch(input: tableName);
         }
+
+        [GeneratedRegex("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")]
+        private static partial Regex MyRegex();
+        [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+        private static partial Regex MyRegex1();
     }
 }

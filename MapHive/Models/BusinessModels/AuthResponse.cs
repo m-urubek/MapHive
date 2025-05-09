@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Models.BusinessModels
 {
+    using MapHive.Models.RepositoryModels;
+
     public class AuthResponse
     {
         public bool Success { get; set; }

@@ -1,8 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace MapHive.Utilities
 {
+    using System.Security.Cryptography;
+    using System.Text;
+
     public static class NetworkingUtility
     {
         /// <summary>
@@ -12,18 +12,16 @@ namespace MapHive.Utilities
         /// <returns>A SHA256 hash of the IP address</returns>
         public static string HashIpAddress(string ipAddress)
         {
-            if (string.IsNullOrEmpty(ipAddress))
+            if (string.IsNullOrEmpty(value: ipAddress))
             {
                 return string.Empty;
             }
-
-            using SHA256 sha256 = SHA256.Create();
-            byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(ipAddress));
+            byte[] bytes = SHA256.HashData(source: Encoding.UTF8.GetBytes(s: ipAddress));
 
             StringBuilder builder = new();
             for (int i = 0; i < bytes.Length; i++)
             {
-                _ = builder.Append(bytes[i].ToString("x2"));
+                _ = builder.Append(value: bytes[i].ToString(format: "x2"));
             }
 
             return builder.ToString();

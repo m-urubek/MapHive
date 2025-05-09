@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Models.ViewModels
 {
+    using MapHive.Models.RepositoryModels;
+
     /// <summary>
     /// ViewModel for the Map/Edit page, containing the update DTO and list of categories.
     /// </summary>

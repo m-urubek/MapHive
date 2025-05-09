@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Services
 {
+    using MapHive.Models.Enums;
+
     public interface ILogManagerService
     {
         public void Log(

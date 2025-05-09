@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using MapHive.Models.Enums;
+
     public class LogGet
     {
         public int Id_Log { get; set; }

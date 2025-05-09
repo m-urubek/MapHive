@@ -1,4 +1,4 @@
-﻿namespace MapHive.Services
+namespace MapHive.Services
 {
     public interface IUserFriendlyExceptionService
     {

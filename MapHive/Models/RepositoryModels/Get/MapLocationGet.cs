@@ -1,8 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.ComponentModel.DataAnnotations;
+    using System.Text.Json.Serialization;
+
     public class MapLocationGet
     {
         [Key]

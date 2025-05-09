@@ -5,11 +5,11 @@ using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using reCAPTCHA.AspNetCore;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddAutoMapper(typeof(MapHive.Models.BusinessModels.MappingProfile).Assembly);
+builder.Services.AddAutoMapper(assemblies: typeof(MapHive.Models.BusinessModels.MappingProfile).Assembly);
 
 // Register HttpContextAccessor first
 builder.Services.AddHttpContextAccessor();
@@ -39,15 +39,15 @@ builder.Services.AddSingleton<ISqlClientSingleton, SqlClientSingleton>();
 builder.Services.AddScoped<ILogManagerService, LogManagerService>();
 
 // Add reCAPTCHA service
-builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("RecaptchaSettings"));
+builder.Services.Configure<RecaptchaSettings>(config: builder.Configuration.GetSection(key: "RecaptchaSettings"));
 builder.Services.AddTransient<RecaptchaService>();
 builder.Services.AddTransient<IRecaptchaService, RecaptchaService>();
 
 // Add authentication
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+builder.Services.AddAuthentication(defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(configureOptions: options =>
     {
-        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.ExpireTimeSpan = TimeSpan.FromDays(value: 7);
         options.SlidingExpiration = true;
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/Account/Logout";
@@ -56,9 +56,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 // Add session state services
 builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
+builder.Services.AddSession(configure: options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.IdleTimeout = TimeSpan.FromMinutes(value: 30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
@@ -69,9 +69,7 @@ builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>()
 // Register FileLoggerService as Singleton
 builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
 
-
 builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
-
 
 // Register IDisplayPageService
 builder.Services.AddScoped<IDisplayPageService, DisplayPageService>();
@@ -106,15 +104,16 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 // Run the DatabaseUpdaterService to apply any pending updates
-IDatabaseUpdaterSingleton? dbUpdaterService = app.Services.GetService<IDatabaseUpdaterSingleton>();
-await dbUpdaterService?.RunAsync();
+IDatabaseUpdaterSingleton dbUpdaterService = app.Services.GetService<IDatabaseUpdaterSingleton>() ?? throw new Exception($"{nameof(IDatabaseUpdaterSingleton)} not found!");
+await dbUpdaterService.RunAsync();
 
 // Use the injected ConfigService to check DevelopmentMode
-if (!await app.Services.GetService<IConfigurationSingleton>().GetDevelopmentModeAsync())
+if (!await (app.Services.GetService<IConfigurationSingleton>() ?? throw new Exception($"{nameof(IConfigurationSingleton)} not found!")).GetDevelopmentModeAsync())
 {
-    _ = app.UseExceptionHandler("/Home/Error");
+    _ = app.UseExceptionHandler(errorHandlingPath: "/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     _ = app.UseHsts();
 }
 
 app.Run();
+{ }

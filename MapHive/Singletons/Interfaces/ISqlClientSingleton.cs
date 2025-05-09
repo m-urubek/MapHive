@@ -1,8 +1,8 @@
-﻿using System.Data;
-using System.Data.SQLite;
-
 namespace MapHive.Singletons
 {
+    using System.Data;
+    using System.Data.SQLite;
+
     public interface ISqlClientSingleton
     {
 

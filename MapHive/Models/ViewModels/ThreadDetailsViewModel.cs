@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Models.ViewModels
 {
+    using MapHive.Models.RepositoryModels;
+
     public class ThreadDetailsViewModel
     {
         public int Id { get; set; }
@@ -18,7 +18,7 @@ namespace MapHive.Models.ViewModels
         public ReviewGet? Review { get; set; }
 
         // Helpers for view rendering
-        public bool HasInitialMessage => this.InitialMessage != null;
-        public ThreadMessageGet? InitialMessage => this.Messages.FirstOrDefault(m => m.IsInitialMessage);
+        public bool HasInitialMessage => InitialMessage != null;
+        public ThreadMessageGet InitialMessage => Messages.FirstOrDefault(predicate: m => m.IsInitialMessage) ?? throw new Exception($"Thread \"{Id}\" does not have initial message");
     }
 }

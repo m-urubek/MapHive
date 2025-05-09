@@ -1,25 +1,20 @@
-using MapHive.Models.Exceptions;
-using System.Security.Claims;
-
 namespace MapHive.Services
 {
+    using System.Security.Claims;
+    using MapHive.Models.Exceptions;
+
     /// <summary>
     /// Implementation of IUserContextService providing user details from HttpContext.
     /// </summary>
-    public class UserContextService : IUserContextService
+    public class UserContextService(IHttpContextAccessor httpContextAccessor) : IUserContextService
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
-        public UserContextService(IHttpContextAccessor httpContextAccessor)
-        {
-            this._httpContextAccessor = httpContextAccessor;
-        }
-
-        private HttpContext HttpContext => this._httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
+        private HttpContext HttpContext => _httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
 
         private void EnsureAuthenticated()
         {
-            if (!this.IsAuthenticated)
+            if (!IsAuthenticated)
             {
                 throw new WarningException("Not authenticated");
             }
@@ -29,9 +24,9 @@ namespace MapHive.Services
         {
             get
             {
-                this.EnsureAuthenticated();
-                Claim? userIdClaim = this.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-                return userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId) ? userId : throw new Exception("Unable to retreive user claims");
+                EnsureAuthenticated();
+                Claim? userIdClaim = HttpContext.User.FindFirst(type: ClaimTypes.NameIdentifier);
+                return userIdClaim != null && int.TryParse(s: userIdClaim.Value, result: out int userId) ? userId : throw new Exception("Unable to retreive user claims");
             }
         }
 
@@ -39,11 +34,11 @@ namespace MapHive.Services
         {
             get
             {
-                this.EnsureAuthenticated();
-                return this.HttpContext.User.Identity?.Name ?? throw new Exception("Unable to retreive HttpContext.User.Identity");
+                EnsureAuthenticated();
+                return HttpContext.User.Identity?.Name ?? throw new Exception("Unable to retreive HttpContext.User.Identity");
             }
         }
 
-        public bool IsAuthenticated => this.HttpContext?.User?.Identity?.IsAuthenticated == true;
+        public bool IsAuthenticated => HttpContext?.User?.Identity?.IsAuthenticated == true;
     }
 }

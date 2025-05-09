@@ -1,9 +1,9 @@
-using MapHive.Models.BusinessModels;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-
 namespace MapHive.Services
 {
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+
     public interface IDataGridService
     {
         Task<DataGridViewModel> GetGridDataAsync(

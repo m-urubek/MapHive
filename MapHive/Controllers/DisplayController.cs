@@ -1,19 +1,14 @@
-using MapHive.Models.ViewModels;
-using MapHive.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace MapHive.Controllers
 {
-    [Authorize]
-    public class DisplayController : Controller
-    {
-        private readonly IDisplayPageService _displayService;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
 
-        public DisplayController(IDisplayPageService displayService)
-        {
-            this._displayService = displayService;
-        }
+    [Authorize]
+    public class DisplayController(IDisplayPageService displayService) : Controller
+    {
+        private readonly IDisplayPageService _displayService = displayService;
 
         /// <summary>
         /// Displays all data for a specific item from a table
@@ -26,17 +21,17 @@ namespace MapHive.Controllers
         public async Task<IActionResult> Item(string tableName, int id)
         {
             // Retrieve item and metadata via service
-            DisplayItemViewModel vm = await this._displayService.GetItemAsync(tableName, id);
+            DisplayItemViewModel vm = await _displayService.GetItemAsync(tableName: tableName, id: id);
             // Pass metadata to view
-            this.ViewBag.TableName = vm.TableName;
-            this.ViewBag.ItemId = vm.ItemId;
-            this.ViewBag.IsUsersTable = vm.IsUsersTable;
+            ViewBag.TableName = vm.TableName;
+            ViewBag.ItemId = vm.ItemId;
+            ViewBag.IsUsersTable = vm.IsUsersTable;
             if (vm.IsUsersTable)
             {
-                this.ViewBag.Username = vm.Username;
+                ViewBag.Username = vm.Username;
             }
             // Render view with item data
-            return this.View(vm.Data);
+            return View(model: vm.Data);
         }
     }
 }

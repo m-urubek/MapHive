@@ -1,9 +1,9 @@
-using MapHive.Models.Enums;
-using MapHive.Utilities.Extensions;
-using System.Text;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.Text;
+    using MapHive.Models.Enums;
+    using MapHive.Utilities.Extensions;
+
     public class LogCreate
     {
         public required DateTime Timestamp { get; set; }
@@ -21,14 +21,14 @@ namespace MapHive.Models.RepositoryModels
             {
                 StringBuilder sb = new();
 
-                _ = sb.AppendLine($"SEVERITY: {this.Severity}");
-                _ = sb.AppendLine($"MESSAGE: {this.Message}");
-                sb.AppendLineIfNotNullOrWhitespace($"SOURCE: {this.Source}");
-                _ = sb.AppendLine($"USER: {this.UserId?.ToString() ?? "system"}");
-                sb.AppendLineIfNotNullOrWhitespace($"SOURCE: {this.RequestPath}");
-                sb.AppendLineIfNotNullOrWhitespace($"EXCEPTION: {this.Exception?.ToString()}");
-                sb.AppendLineIfNotNullOrWhitespace($"ADDITIONAL: {this.AdditionalData}");
-                _ = sb.AppendLine(new string('-', 80));
+                _ = sb.AppendLine(handler: $"SEVERITY: {Severity}");
+                _ = sb.AppendLine(handler: $"MESSAGE: {Message}");
+                sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {Source}");
+                _ = sb.AppendLine(handler: $"USER: {UserId?.ToString() ?? "system"}");
+                sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {RequestPath}");
+                sb.AppendLineIfNotNullOrWhitespace(value: $"EXCEPTION: {Exception?.ToString()}");
+                sb.AppendLineIfNotNullOrWhitespace(value: $"ADDITIONAL: {AdditionalData}");
+                _ = sb.AppendLine(value: new string('-', 80));
 
                 return sb.ToString();
             }

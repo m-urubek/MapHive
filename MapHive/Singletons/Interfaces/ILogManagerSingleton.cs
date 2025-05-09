@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Singletons
 {
+    using MapHive.Models.Enums;
+
     public interface ILogManagerSingleton
     {
         public void Log(

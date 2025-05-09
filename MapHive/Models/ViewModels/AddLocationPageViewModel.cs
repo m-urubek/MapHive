@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Models.ViewModels
 {
+    using MapHive.Models.RepositoryModels;
+
     /// <summary>
     /// ViewModel for the Map/Add page, containing the create DTO and list of categories.
     /// </summary>

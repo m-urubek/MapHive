@@ -1,7 +1,7 @@
-using MapHive.Models.ViewModels;
-
 namespace MapHive.Services
 {
+    using MapHive.Models.ViewModels;
+
     public interface IDisplayPageService
     {
         Task<bool> TableExistsAsync(string tableName);

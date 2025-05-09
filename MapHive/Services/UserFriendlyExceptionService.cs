@@ -1,31 +1,26 @@
-﻿namespace MapHive.Services
+namespace MapHive.Services
 {
-    public class UserFriendlyExceptionService : IUserFriendlyExceptionService
+    public class UserFriendlyExceptionService(IHttpContextAccessor httpContextAccessor) : IUserFriendlyExceptionService
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
-        public UserFriendlyExceptionService(IHttpContextAccessor httpContextAccessor)
-        {
-            this._httpContextAccessor = httpContextAccessor;
-        }
-
-        private ISession Session => this._httpContextAccessor.HttpContext?.Session ?? throw new Exception("Not in request");
+        private ISession Session => _httpContextAccessor.HttpContext?.Session ?? throw new Exception("Not in request");
 
         public string? Message
         {
-            get => this.Session.GetString("UserFriendlyExceptionMessage");
-            set => this.Session.SetString("UserFriendlyExceptionMessage", value ?? string.Empty);
+            get => Session.GetString(key: "UserFriendlyExceptionMessage");
+            set => Session.SetString(key: "UserFriendlyExceptionMessage", value: value ?? string.Empty);
         }
         public string? Type
         {
-            get => this.Session.GetString("UserFriendlyExceptionType");
-            set => this.Session.SetString("UserFriendlyExceptionType", value ?? string.Empty);
+            get => Session.GetString(key: "UserFriendlyExceptionType");
+            set => Session.SetString(key: "UserFriendlyExceptionType", value: value ?? string.Empty);
         }
 
         public void Clear()
         {
-            this.Session.Remove("UserFriendlyExceptionMessage");
-            this.Session.Remove("UserFriendlyExceptionType");
+            Session.Remove(key: "UserFriendlyExceptionMessage");
+            Session.Remove(key: "UserFriendlyExceptionType");
         }
     }
 }

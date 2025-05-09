@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.ViewModels
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class ReviewViewModel
     {
         public int LocationId { get; set; }

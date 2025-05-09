@@ -1,12 +1,12 @@
-using MapHive.Models.BusinessModels;
-using MapHive.Models.RepositoryModels;
-using MapHive.Services;
-using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
 namespace MapHive.Controllers
 {
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Mvc;
+
     public class DataGridController : Controller
     {
         private readonly JsonSerializerOptions _jsonOptions;
@@ -14,8 +14,8 @@ namespace MapHive.Controllers
 
         public DataGridController(IDataGridService dataGridService)
         {
-            this._dataGridService = dataGridService;
-            this._jsonOptions = new JsonSerializerOptions
+            _dataGridService = dataGridService;
+            _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
@@ -33,8 +33,8 @@ namespace MapHive.Controllers
             string sortField = "",
             string sortDirection = "asc")
         {
-            Models.ViewModels.DataGridViewModel vm = await this._dataGridService.GetGridDataAsync(tableName, page, searchTerm, sortField, sortDirection);
-            return this.Json(new
+            Models.ViewModels.DataGridViewModel vm = await _dataGridService.GetGridDataAsync(tableName: tableName, page: page, searchTerm: searchTerm, sortField: sortField, sortDirection: sortDirection);
+            return Json(data: new
             {
                 success = true,
                 totalPages = vm.TotalPages,
@@ -47,7 +47,7 @@ namespace MapHive.Controllers
                 sortDirection = vm.SortDirection,
                 searchTerm = vm.SearchTerm,
                 searchColumn = vm.SearchColumn
-            }, this._jsonOptions);
+            }, serializerSettings: _jsonOptions);
         }
 
         /// <summary>
@@ -56,8 +56,8 @@ namespace MapHive.Controllers
         [HttpGet]
         public async Task<IActionResult> GetColumnInfo(string tableName, string columnName)
         {
-            ColumnInfo info = await this._dataGridService.GetColumnInfoAsync(tableName, columnName);
-            return this.Json(new { success = true, columnInfo = info }, this._jsonOptions);
+            ColumnInfo info = await _dataGridService.GetColumnInfoAsync(tableName: tableName, columnName: columnName);
+            return Json(data: new { success = true, columnInfo = info }, serializerSettings: _jsonOptions);
         }
 
         /// <summary>
@@ -66,8 +66,8 @@ namespace MapHive.Controllers
         [HttpGet]
         public async Task<IActionResult> GetColumns(string tableName)
         {
-            List<DataGridColumnGet> columns = await this._dataGridService.GetColumnsForTableAsync(tableName);
-            return this.Json(new { success = true, columns }, this._jsonOptions);
+            List<DataGridColumnGet> columns = await _dataGridService.GetColumnsForTableAsync(tableName: tableName);
+            return Json(data: new { success = true, columns }, serializerSettings: _jsonOptions);
         }
     }
 }

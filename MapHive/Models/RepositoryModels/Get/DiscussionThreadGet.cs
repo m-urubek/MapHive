@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.RepositoryModels
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class DiscussionThreadGet
     {
         [Key]
@@ -30,7 +30,7 @@ namespace MapHive.Models.RepositoryModels
         public List<ThreadMessageGet> Messages { get; set; } = new List<ThreadMessageGet>();
 
         // Helpers for initial message
-        public bool HasInitialMessage => this.Messages.Any(m => m.IsInitialMessage);
-        public ThreadMessageGet? InitialMessage => this.Messages.FirstOrDefault(m => m.IsInitialMessage);
+        public bool HasInitialMessage => Messages.Any(predicate: m => m.IsInitialMessage);
+        public ThreadMessageGet InitialMessage => Messages.FirstOrDefault(predicate: m => m.IsInitialMessage) ?? throw new Exception($"Thread \"{Id}\" does not have initial message");
     }
 }

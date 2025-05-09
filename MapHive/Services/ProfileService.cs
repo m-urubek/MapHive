@@ -1,38 +1,26 @@
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-using MapHive.Repositories;
-
 namespace MapHive.Services
 {
-    public class ProfileService : IProfileService
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+    using MapHive.Repositories;
+
+    public class ProfileService(
+        IUserRepository userRepository,
+        IMapLocationRepository mapRepository,
+        IDiscussionRepository discussionRepository,
+        IUserContextService userContextService) : IProfileService
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IMapLocationRepository _mapRepository;
-        private readonly IDiscussionRepository _discussionRepository;
-        private readonly IUserContextService _userContextService;
+        private readonly IUserRepository _userRepository = userRepository;
+        private readonly IMapLocationRepository _mapRepository = mapRepository;
+        private readonly IDiscussionRepository _discussionRepository = discussionRepository;
+        private readonly IUserContextService _userContextService = userContextService;
+        private static readonly char[] separator = new[] { '\n', '\r' };
 
-        public ProfileService(
-            IUserRepository userRepository,
-            IMapLocationRepository mapRepository,
-            IDiscussionRepository discussionRepository,
-            IUserContextService userContextService)
+        public async Task<PrivateProfileViewModel> GetPrivateProfileAsync(int userId)
         {
-            this._userRepository = userRepository;
-            this._mapRepository = mapRepository;
-            this._discussionRepository = discussionRepository;
-            this._userContextService = userContextService;
-        }
-
-        public async Task<PrivateProfileViewModel?> GetPrivateProfileAsync(int userId)
-        {
-            UserGet? user = await this._userRepository.GetUserByIdAsync(userId);
-            if (user == null)
-            {
-                return null;
-            }
-
-            IEnumerable<MapLocationGet> locations = await this._mapRepository.GetLocationsByUserIdAsync(userId);
-            IEnumerable<DiscussionThreadGet> threads = await this._discussionRepository.GetThreadsByUserIdAsync(userId);
+            UserGet? user = await _userRepository.GetUserByIdAsync(id: userId) ?? throw new Exception(message: $"User \"{userId}\" not found!");
+            IEnumerable<MapLocationGet> locations = await _mapRepository.GetLocationsByUserIdAsync(userId: userId);
+            IEnumerable<DiscussionThreadGet> threads = await _discussionRepository.GetThreadsByUserIdAsync(userId: userId);
 
             return new PrivateProfileViewModel
             {
@@ -46,40 +34,31 @@ namespace MapHive.Services
             };
         }
 
-        public async Task<PublicProfileViewModel?> GetPublicProfileAsync(string username)
+        public async Task<PublicProfileViewModel> GetPublicProfileAsync(string username)
         {
-            if (string.IsNullOrEmpty(username))
-            {
-                return null;
-            }
+            UserGet userGet = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new Exception($"User \"{username}\" not found!");
 
-            UserGet? userGet = await this._userRepository.GetUserByUsernameAsync(username);
-            if (userGet == null)
-            {
-                return null;
-            }
-
-            int? currentUserId = this._userContextService.UserId;
+            int? currentUserId = _userContextService.UserId;
             _ = currentUserId.HasValue && userGet.Id == currentUserId.Value;
 
             // Check ban status
-            UserBanGet? activeBan = await this._userRepository.GetActiveBanByUserIdAsync(userGet.Id);
+            UserBanGet? activeBan = await _userRepository.GetActiveBanByUserIdAsync(userId: userGet.Id);
             if (activeBan == null || !activeBan.IsActive)
             {
-                string? registrationIp = userGet.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (!string.IsNullOrEmpty(registrationIp))
+                string? registrationIp = userGet.IpAddressHistory?.Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                if (!string.IsNullOrEmpty(value: registrationIp))
                 {
-                    activeBan = await this._userRepository.GetActiveBanByIpAddressAsync(registrationIp);
+                    activeBan = await _userRepository.GetActiveBanByIpAddressAsync(hashedIpAddress: registrationIp);
                 }
             }
 
-            IEnumerable<MapLocationGet> locations = await this._mapRepository.GetLocationsByUserIdAsync(userGet.Id);
-            IEnumerable<DiscussionThreadGet> threads = await this._discussionRepository.GetThreadsByUserIdAsync(userGet.Id);
+            IEnumerable<MapLocationGet> locations = await _mapRepository.GetLocationsByUserIdAsync(userId: userGet.Id);
+            IEnumerable<DiscussionThreadGet> threads = await _discussionRepository.GetThreadsByUserIdAsync(userId: userGet.Id);
 
             bool isAdmin = false;
             if (currentUserId.HasValue)
             {
-                UserGet? currentUser = await this._userRepository.GetUserByIdAsync(currentUserId.Value);
+                UserGet? currentUser = await _userRepository.GetUserByIdAsync(id: currentUserId.Value);
                 isAdmin = currentUser != null && currentUser.Tier == Models.Enums.UserTier.Admin;
             }
 

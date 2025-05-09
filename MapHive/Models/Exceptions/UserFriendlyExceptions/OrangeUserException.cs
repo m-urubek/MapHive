@@ -14,5 +14,17 @@ namespace MapHive.Models.Exceptions
             : base(message, innerException, MessageType.Orange)
         {
         }
+
+        protected OrangeUserException(string message, MessageType type) : base(message, type)
+        {
+        }
+
+        protected OrangeUserException(string message, Exception innerException, MessageType type) : base(message, innerException, type)
+        {
+        }
+
+        public OrangeUserException() : base()
+        {
+        }
     }
 }

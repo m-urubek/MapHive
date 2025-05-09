@@ -1,4 +1,4 @@
-﻿namespace MapHive.Models.Exceptions
+namespace MapHive.Models.Exceptions
 {
     public class NonCriticalException : Exception
     {
@@ -9,6 +9,10 @@
 
         public NonCriticalException(string message, Exception innerException)
             : base(message, innerException)
+        {
+        }
+
+        public NonCriticalException() : base()
         {
         }
     }

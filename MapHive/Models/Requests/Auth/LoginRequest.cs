@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class LoginRequest
     {
         [Required]

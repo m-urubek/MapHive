@@ -1,52 +1,47 @@
-using MapHive.Models.BusinessModels;
-using MapHive.Models.RepositoryModels;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-using System.Text.RegularExpressions;
-
 namespace MapHive.Repositories
 {
-    public class DataGridRepository : IDataGridRepository
-    {
-        private readonly ISqlClientSingleton _sqlClientSingleton;
+    using System.Data;
+    using System.Data.SQLite;
+    using System.Text.RegularExpressions;
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Singletons;
 
-        public DataGridRepository(ISqlClientSingleton sqlClientSingleton)
-        {
-            this._sqlClientSingleton = sqlClientSingleton;
-        }
+    public partial class DataGridRepository(ISqlClientSingleton sqlClientSingleton) : IDataGridRepository
+    {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
 
         // Get schema information for a table
         public async Task<DataTable> GetTableSchemaAsync(string tableName)
         {
             // Sanitize table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             string query = $"PRAGMA table_info({tableName})";
-            return await this._sqlClientSingleton.SelectAsync(query);
+            return await _sqlClientSingleton.SelectAsync(query: query);
         }
 
         // Get schema information about foreign keys for a table
         private async Task<DataTable> GetForeignKeysAsync(string tableName)
         {
             // Sanitize table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             string query = $"PRAGMA foreign_key_list({tableName})";
-            return await this._sqlClientSingleton.SelectAsync(query);
+            return await _sqlClientSingleton.SelectAsync(query: query);
         }
 
         // Get columns for a table
         public async Task<List<DataGridColumnGet>> GetColumnsForTableAsync(string tableName)
         {
-            DataTable schemaTable = await this.GetTableSchemaAsync(tableName);
-            DataTable foreignKeysTable = await this.GetForeignKeysAsync(tableName);
+            DataTable schemaTable = await GetTableSchemaAsync(tableName: tableName);
+            DataTable foreignKeysTable = await GetForeignKeysAsync(tableName: tableName);
 
             List<DataGridColumnGet> columns = new();
 
@@ -65,9 +60,9 @@ namespace MapHive.Repositories
 
                 // Check if this column is a foreign key
                 bool isForeignKey = foreignKeysTable.AsEnumerable()
-                                        .Any(fkRow => fkRow["from"].ToString() == columnName);
+                                        .Any(predicate: fkRow => fkRow["from"].ToString() == columnName);
 
-                columns.Add(column);
+                columns.Add(item: column);
             }
 
             // Mark the last column
@@ -83,7 +78,7 @@ namespace MapHive.Repositories
         public async Task<ColumnInfo> GetColumnInfoAsync(string tableName, string columnName)
         {
             // Sanitize table and column names
-            if (!IsValidTableName(tableName) || !IsValidColumnName(columnName))
+            if (!IsValidTableName(tableName: tableName) || !IsValidColumnName(columnName: columnName))
             {
                 throw new ArgumentException("Invalid table or column name");
             }
@@ -95,9 +90,9 @@ namespace MapHive.Repositories
             };
 
             // Check if this column is a foreign key
-            DataTable foreignKeysTable = await this.GetForeignKeysAsync(tableName);
+            DataTable foreignKeysTable = await GetForeignKeysAsync(tableName: tableName);
             DataRow? fkRow = foreignKeysTable.AsEnumerable()
-                                .FirstOrDefault(row => row["from"].ToString() == columnName);
+                                .FirstOrDefault(predicate: row => row["from"].ToString() == columnName);
 
             if (fkRow != null)
             {
@@ -119,19 +114,19 @@ namespace MapHive.Repositories
             string sortDirection = "asc")
         {
             // Validate parameters
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
-            if (!string.IsNullOrEmpty(sortField) && !IsValidColumnName(sortField))
+            if (!string.IsNullOrEmpty(value: sortField) && !IsValidColumnName(columnName: sortField))
             {
                 throw new ArgumentException("Invalid sort field");
             }
 
             // Ensure page and pageSize are valid
-            page = Math.Max(1, page);
-            pageSize = Math.Clamp(pageSize, 1, 100); // Example clamp
+            page = Math.Max(val1: 1, val2: page);
+            pageSize = Math.Clamp(value: pageSize, min: 1, max: 100); // Example clamp
 
             // Initialize view model
             DataGridGet viewModel = new()
@@ -141,30 +136,30 @@ namespace MapHive.Repositories
                 PageSize = pageSize,
                 SearchTerm = searchTerm,
                 SortField = sortField,
-                SortDirection = sortDirection.ToLowerInvariant() == "desc" ? "desc" : "asc", // Sanitize direction
+                SortDirection = sortDirection.Equals("desc", StringComparison.InvariantCultureIgnoreCase) ? "desc" : "asc", // Sanitize direction
                 // Get table columns
-                Columns = await this.GetColumnsForTableAsync(tableName)
+                Columns = await GetColumnsForTableAsync(tableName: tableName)
             };
 
             // Build query
-            (string query, List<SQLiteParameter> parameters) = await this.BuildQueryAsync(
-                tableName,
-                viewModel.Columns, // Pass columns to avoid re-fetching
-                page,
-                pageSize,
-                searchTerm,
-                sortField,
-                viewModel.SortDirection
+            (string query, List<SQLiteParameter> parameters) = await BuildQueryAsync(
+tableName: tableName,
+columns: viewModel.Columns, // Pass columns to avoid re-fetching
+page: page,
+pageSize: pageSize,
+searchTerm: searchTerm,
+sortField: sortField,
+sortDirection: viewModel.SortDirection
             );
 
             // Execute query to get data
-            DataTable dataTable = await this._sqlClientSingleton.SelectAsync(query, parameters.ToArray());
+            DataTable dataTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters.ToArray());
 
             // Convert data to grid rows
-            viewModel.Items = ConvertDataTableToGridRows(dataTable, viewModel.Columns);
+            viewModel.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: viewModel.Columns);
 
             // Get total count for pagination
-            viewModel.TotalCount = await this.GetTotalRowsCountAsync(tableName, searchTerm, viewModel.Columns);
+            viewModel.TotalCount = await GetTotalRowsCountAsync(tableName: tableName, searchTerm: searchTerm, columns: viewModel.Columns);
 
             return viewModel;
         }
@@ -173,16 +168,16 @@ namespace MapHive.Repositories
         private static List<DataGridRowGet> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumnGet> columns)
         {
             List<DataGridRowGet> rows = new();
-            string? idColumnName = columns.FirstOrDefault(c => c.InternalName.StartsWith("Id_"))?.InternalName;
+            string? idColumnName = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName;
 
             foreach (DataRow dataRow in dataTable.Rows)
             {
                 DataGridRowGet gridRow = new();
 
                 // Assign RowId if an ID column exists and has a value
-                if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(idColumnName) && dataRow[idColumnName] != DBNull.Value)
+                if (!string.IsNullOrEmpty(value: idColumnName) && dataTable.Columns.Contains(name: idColumnName) && dataRow[idColumnName] != DBNull.Value)
                 {
-                    if (int.TryParse(dataRow[idColumnName].ToString(), out int idValue))
+                    if (int.TryParse(s: dataRow[idColumnName].ToString(), result: out int idValue))
                     {
                         gridRow.RowId = idValue;
                     }
@@ -191,7 +186,7 @@ namespace MapHive.Repositories
                 foreach (DataGridColumnGet column in columns)
                 {
                     string columnName = column.InternalName;
-                    if (dataTable.Columns.Contains(columnName))
+                    if (dataTable.Columns.Contains(name: columnName))
                     {
                         string cellContent = dataRow[columnName]?.ToString() ?? string.Empty;
                         gridRow.CellsByColumnNames[columnName] = new DataGridCellGet { Content = cellContent };
@@ -202,7 +197,7 @@ namespace MapHive.Repositories
                         gridRow.CellsByColumnNames[columnName] = new DataGridCellGet { Content = string.Empty }; // Or handle differently
                     }
                 }
-                rows.Add(gridRow);
+                rows.Add(item: gridRow);
             }
             return rows;
         }
@@ -211,20 +206,20 @@ namespace MapHive.Repositories
         public async Task<int> GetTotalRowsCountAsync(string tableName, string searchTerm, List<DataGridColumnGet> columns)
         {
             // Validate
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             // Build WHERE clause for counting
-            (string whereClause, List<SQLiteParameter> parameters) = this.BuildWhereClause(searchTerm, columns);
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchTerm: searchTerm, columns: columns);
 
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
             // Execute query
-            DataTable resultTable = await this._sqlClientSingleton.SelectAsync(query, parameters.ToArray());
+            DataTable resultTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters.ToArray());
 
-            return resultTable.Rows.Count > 0 && resultTable.Rows[0][0] != DBNull.Value ? Convert.ToInt32(resultTable.Rows[0][0]) : 0;
+            return resultTable.Rows.Count > 0 && resultTable.Rows[0][0] != DBNull.Value ? Convert.ToInt32(value: resultTable.Rows[0][0]) : 0;
         }
 
         // Build the main SQL query for fetching grid data
@@ -238,20 +233,20 @@ namespace MapHive.Repositories
             string sortDirection)
         {
             // Build WHERE clause
-            (string whereClause, List<SQLiteParameter> parameters) = this.BuildWhereClause(searchTerm, columns);
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchTerm: searchTerm, columns: columns);
 
             // Build ORDER BY clause
             string orderByClause = string.Empty;
-            if (!string.IsNullOrEmpty(sortField) && IsValidColumnName(sortField) && columns.Any(c => c.InternalName == sortField))
+            if (!string.IsNullOrEmpty(value: sortField) && IsValidColumnName(columnName: sortField) && columns.Any(predicate: c => c.InternalName == sortField))
             {
-                string direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+                string direction = sortDirection.Equals(value: "desc", comparisonType: StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
                 orderByClause = $"ORDER BY \"{sortField}\" {direction}"; // Quote column name
             }
             else
             {
                 // Default sort by the first column (usually ID) if available
-                string? firstColumn = columns.FirstOrDefault(c => c.InternalName.StartsWith("Id_"))?.InternalName ?? columns.FirstOrDefault()?.InternalName;
-                if (!string.IsNullOrEmpty(firstColumn))
+                string? firstColumn = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName ?? columns.FirstOrDefault()?.InternalName;
+                if (!string.IsNullOrEmpty(value: firstColumn))
                 {
                     orderByClause = $"ORDER BY \"{firstColumn}\" ASC"; // Quote column name
                 }
@@ -260,20 +255,20 @@ namespace MapHive.Repositories
             // Build LIMIT/OFFSET clause for pagination
             int offset = (page - 1) * pageSize;
             string limitClause = $"LIMIT @PageSize OFFSET @Offset";
-            parameters.Add(new SQLiteParameter("@PageSize", pageSize));
-            parameters.Add(new SQLiteParameter("@Offset", offset));
+            parameters.Add(item: new SQLiteParameter("@PageSize", pageSize));
+            parameters.Add(item: new SQLiteParameter("@Offset", offset));
 
             // Select only the columns needed for the grid
-            string selectColumns = string.Join(", ", columns.Select(c => $"\"{c.InternalName}\"")); // Quote column names
-            if (!columns.Any(c => c.InternalName.StartsWith("Id_"))) // Ensure ID column is selected if not already included
+            string selectColumns = string.Join(separator: ", ", values: columns.Select(selector: c => $"\"{c.InternalName}\"")); // Quote column names
+            if (!columns.Any(predicate: c => c.InternalName.StartsWith(value: "Id_"))) // Ensure ID column is selected if not already included
             {
-                DataRow? idCol = (await this.GetTableSchemaAsync(tableName)).AsEnumerable().FirstOrDefault(r => r["name"].ToString().StartsWith("Id_"));
-                if (idCol != null && !selectColumns.Contains($"\"{idCol["name"]}\""))
+                DataRow? idCol = (await GetTableSchemaAsync(tableName: tableName)).AsEnumerable().FirstOrDefault(predicate: r => ((string)r["name"]).StartsWith(value: "Id_"));
+                if (idCol != null && !selectColumns.Contains(value: $"\"{idCol["name"]}\""))
                 {
                     selectColumns = $"\"{idCol["name"]}\", {selectColumns}";
                 }
             }
-            if (string.IsNullOrEmpty(selectColumns))
+            if (string.IsNullOrEmpty(value: selectColumns))
             {
                 selectColumns = "*"; // Fallback if no columns somehow
             }
@@ -284,11 +279,11 @@ namespace MapHive.Repositories
         }
 
         // Build the WHERE clause based on the search term
-        private (string whereClause, List<SQLiteParameter> parameters) BuildWhereClause(
+        private static (string whereClause, List<SQLiteParameter> parameters) BuildWhereClause(
             string searchTerm,
             List<DataGridColumnGet> columns)
         {
-            if (string.IsNullOrWhiteSpace(searchTerm))
+            if (string.IsNullOrWhiteSpace(value: searchTerm))
             {
                 return (string.Empty, new List<SQLiteParameter>());
             }
@@ -302,13 +297,13 @@ namespace MapHive.Repositories
             {
                 // Maybe add type checking here later to avoid searching non-text fields?
                 string paramName = $"@SearchParam{paramIndex++}";
-                conditions.Add($"CAST(\"{column.InternalName}\" AS TEXT) LIKE {paramName}"); // Quote column name
-                parameters.Add(new SQLiteParameter(paramName, $"%{searchTerm}%"));
+                conditions.Add(item: $"CAST(\"{column.InternalName}\" AS TEXT) LIKE {paramName}"); // Quote column name
+                parameters.Add(item: new SQLiteParameter(paramName, $"%{searchTerm}%"));
             }
 
-            if (conditions.Any())
+            if (conditions.Count != 0)
             {
-                return ($"WHERE " + string.Join(" OR ", conditions), parameters);
+                return ($"WHERE " + string.Join(separator: " OR ", values: conditions), parameters);
             }
             else
             {
@@ -319,13 +314,18 @@ namespace MapHive.Repositories
         // Validate table name to prevent SQL injection
         private static bool IsValidTableName(string tableName)
         {
-            return !string.IsNullOrWhiteSpace(tableName) && Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
+            return !string.IsNullOrWhiteSpace(value: tableName) && MyRegex().IsMatch(input: tableName);
         }
 
         // Validate column name to prevent SQL injection
         private static bool IsValidColumnName(string columnName)
         {
-            return !string.IsNullOrWhiteSpace(columnName) && Regex.IsMatch(columnName, @"^[a-zA-Z0-9_]+$");
+            return !string.IsNullOrWhiteSpace(value: columnName) && MyRegex1().IsMatch(input: columnName);
         }
+
+        [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+        private static partial Regex MyRegex();
+        [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+        private static partial Regex MyRegex1();
     }
 }

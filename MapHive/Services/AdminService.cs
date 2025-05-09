@@ -1,65 +1,57 @@
-using MapHive.Models;
-using MapHive.Models.Enums;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-using MapHive.Repositories;
-using MapHive.Singletons;
-using System.Data;
-
 namespace MapHive.Services
 {
-    public class AdminService : IAdminService
-    {
-        private readonly IMapLocationRepository _mapLocationRepository;
-        private readonly IDataGridService _dataGridService;
-        private readonly ISqlClientSingleton _sqlClientSingleton;
-        private readonly IConfigurationSingleton _configSingleton;
-        private readonly IUserRepository _userRepository;
+    using System.Data;
+    using MapHive.Models;
+    using MapHive.Models.Enums;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+    using MapHive.Repositories;
+    using MapHive.Singletons;
 
-        public AdminService(
-            IMapLocationRepository mapLocationRepository,
-            IDataGridService dataGridService,
-            ISqlClientSingleton sqlClient,
-            IConfigurationSingleton configSingleton,
-            IUserRepository userRepository)
-        {
-            this._mapLocationRepository = mapLocationRepository;
-            this._dataGridService = dataGridService;
-            this._sqlClientSingleton = sqlClient;
-            this._configSingleton = configSingleton;
-            this._userRepository = userRepository;
-        }
+    public class AdminService(
+        IMapLocationRepository mapLocationRepository,
+        IDataGridService dataGridService,
+        ISqlClientSingleton sqlClient,
+        IConfigurationSingleton configSingleton,
+        IUserRepository userRepository) : IAdminService
+    {
+        private readonly IMapLocationRepository _mapLocationRepository = mapLocationRepository;
+        private readonly IDataGridService _dataGridService = dataGridService;
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClient;
+        private readonly IConfigurationSingleton _configSingleton = configSingleton;
+        private readonly IUserRepository _userRepository = userRepository;
+        private static readonly char[] separator = new[] { '\n', '\r' };
 
         // Category management
         public Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
         {
-            return this._mapLocationRepository.GetAllCategoriesAsync();
+            return _mapLocationRepository.GetAllCategoriesAsync();
         }
 
         public Task AddCategoryAsync(CategoryCreate createDto)
         {
-            return Task.Run(() => this._mapLocationRepository.AddCategoryAsync(createDto));
+            return Task.Run(function: () => _mapLocationRepository.AddCategoryAsync(category: createDto));
         }
 
         public Task<CategoryGet?> GetCategoryByIdAsync(int id)
         {
-            return this._mapLocationRepository.GetCategoryByIdAsync(id);
+            return _mapLocationRepository.GetCategoryByIdAsync(id: id);
         }
 
         public Task UpdateCategoryAsync(CategoryUpdate updateDto)
         {
-            return Task.Run(() => this._mapLocationRepository.UpdateCategoryAsync(updateDto));
+            return Task.Run(function: () => _mapLocationRepository.UpdateCategoryAsync(category: updateDto));
         }
 
         public Task DeleteCategoryAsync(int id)
         {
-            return Task.Run(() => this._mapLocationRepository.DeleteCategoryAsync(id));
+            return Task.Run(function: () => _mapLocationRepository.DeleteCategoryAsync(id: id));
         }
 
         // User management grid
         public async Task<DataGridViewModel> GetUsersGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection)
         {
-            List<DataGridColumnGet> columns = await this._dataGridService.GetColumnsForTableAsync("Users");
+            List<DataGridColumnGet> columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Users");
             return new DataGridViewModel
             {
                 TableName = "Users",
@@ -74,7 +66,7 @@ namespace MapHive.Services
 
         public Task UpdateUserTierAsync(int userId, UserTier tier)
         {
-            return this._userRepository.UpdateUserTierAsync(new UserTierUpdate { UserId = userId, Tier = tier });
+            return _userRepository.UpdateUserTierAsync(tierDto: new UserTierUpdate { UserId = userId, Tier = tier });
         }
 
         // SQL execution
@@ -83,38 +75,38 @@ namespace MapHive.Services
             SqlQueryViewModel model = new() { Query = query.Trim() };
             try
             {
-                if (query.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+                if (query.StartsWith(value: "SELECT", comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
-                    DataTable result = await this._sqlClientSingleton.SelectAsync(query);
+                    DataTable result = await _sqlClientSingleton.SelectAsync(query: query);
                     model.HasResults = true;
                     model.DataTable = result;
                     model.RowsAffected = result.Rows.Count;
                     model.Message = $"Query executed successfully. {model.RowsAffected} rows returned.";
                 }
-                else if (query.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+                else if (query.StartsWith(value: "INSERT", comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClientSingleton.InsertAsync(query);
+                    int result = await _sqlClientSingleton.InsertAsync(query: query);
                     model.HasResults = false;
                     model.RowsAffected = 1;
                     model.Message = $"Insert executed successfully. ID of inserted row: {result}";
                 }
-                else if (query.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
+                else if (query.StartsWith(value: "UPDATE", comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClientSingleton.UpdateAsync(query);
+                    int result = await _sqlClientSingleton.UpdateAsync(query: query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Update executed successfully. {result} rows affected.";
                 }
-                else if (query.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
+                else if (query.StartsWith(value: "DELETE", comparisonType: StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClientSingleton.DeleteAsync(query);
+                    int result = await _sqlClientSingleton.DeleteAsync(query: query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Delete executed successfully. {result} rows affected.";
                 }
                 else
                 {
-                    int result = await this._sqlClientSingleton.AlterAsync(query);
+                    int result = await _sqlClientSingleton.AlterAsync(query: query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = "Query executed successfully.";
@@ -132,33 +124,33 @@ namespace MapHive.Services
         // Configuration management
         public Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync()
         {
-            return this._configSingleton.GetAllConfigurationItemsAsync();
+            return _configSingleton.GetAllConfigurationItemsAsync();
         }
 
         public Task AddConfigurationItemAsync(ConfigurationItem item)
         {
-            return this._configSingleton.AddConfigurationItemAsync(item);
+            return _configSingleton.AddConfigurationItemAsync(item: item);
         }
 
         public Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
         {
-            return this._configSingleton.GetConfigurationItemAsync(key);
+            return _configSingleton.GetConfigurationItemAsync(key: key);
         }
 
         public Task UpdateConfigurationItemAsync(ConfigurationItem item)
         {
-            return this._configSingleton.UpdateConfigurationItemAsync(item);
+            return _configSingleton.UpdateConfigurationItemAsync(item: item);
         }
 
         public Task DeleteConfigurationItemAsync(string key)
         {
-            return this._configSingleton.DeleteConfigurationItemAsync(key);
+            return _configSingleton.DeleteConfigurationItemAsync(key: key);
         }
 
         // Ban management grid
         public async Task<DataGridViewModel> GetBansGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection)
         {
-            List<DataGridColumnGet> columns = await this._dataGridService.GetColumnsForTableAsync("UserBans");
+            List<DataGridColumnGet> columns = await _dataGridService.GetColumnsForTableAsync(tableName: "UserBans");
             return new DataGridViewModel
             {
                 TableName = "UserBans",
@@ -173,18 +165,13 @@ namespace MapHive.Services
 
         public async Task<BanDetailViewModel> GetBanDetailsAsync(int id)
         {
-            UserBanGet? ban = await this._userRepository.GetActiveBanByUserIdAsync(id);
-            if (ban == null)
-            {
-                throw new KeyNotFoundException($"Ban {id} not found");
-            }
-
-            string bannedUsername = ban.Properties.TryGetValue("BannedUsername", out string? userVal)
+            UserBanGet? ban = await _userRepository.GetActiveBanByUserIdAsync(userId: id) ?? throw new KeyNotFoundException($"Ban {id} not found");
+            string bannedUsername = ban.Properties.TryGetValue(key: "BannedUsername", value: out string? userVal)
                 ? userVal
-                : ban.UserId.HasValue ? await this._userRepository.GetUsernameByIdAsync(ban.UserId.Value) : string.Empty;
-            string bannedByUsername = ban.Properties.TryGetValue("BannedByUsername", out string? adminVal)
+                : ban.UserId.HasValue ? await _userRepository.GetUsernameByIdAsync(userId: ban.UserId.Value) : string.Empty;
+            string bannedByUsername = ban.Properties.TryGetValue(key: "BannedByUsername", value: out string? adminVal)
                 ? adminVal
-                : await this._userRepository.GetUsernameByIdAsync(ban.BannedByUserId);
+                : await _userRepository.GetUsernameByIdAsync(userId: ban.BannedByUserId);
             return new BanDetailViewModel
             {
                 Ban = ban,
@@ -195,7 +182,7 @@ namespace MapHive.Services
 
         public Task<bool> RemoveBanAsync(int id)
         {
-            return this._userRepository.UnbanUserAsync(id);
+            return _userRepository.UnbanUserAsync(banId: id);
         }
 
         /// <summary>
@@ -204,22 +191,18 @@ namespace MapHive.Services
         public async Task<BanUserPageViewModel> GetBanUserPageViewModelAsync(int adminId, string username)
         {
             // Ensure caller is admin
-            UserGet? admin = await this._userRepository.GetUserByIdAsync(adminId);
+            UserGet? admin = await _userRepository.GetUserByIdAsync(id: adminId);
             if (admin == null || admin.Tier != UserTier.Admin)
             {
                 throw new UnauthorizedAccessException("Only administrators can access ban functionality.");
             }
 
             // Get user to ban
-            UserGet? user = await this._userRepository.GetUserByUsernameAsync(username);
-            if (user == null)
-            {
-                throw new KeyNotFoundException($"User '{username}' not found.");
-            }
+            UserGet? user = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new KeyNotFoundException($"User '{username}' not found.");
 
             // Determine registration IP
             string? registrationIp = user.IpAddressHistory?
-                .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault() ?? "N/A";
 
             return new BanUserPageViewModel
@@ -237,18 +220,14 @@ namespace MapHive.Services
         public async Task<bool> BanUserAsync(int adminId, string username, BanViewModel model)
         {
             // Ensure caller is admin
-            UserGet? admin = await this._userRepository.GetUserByIdAsync(adminId);
+            UserGet? admin = await _userRepository.GetUserByIdAsync(id: adminId);
             if (admin == null || admin.Tier != UserTier.Admin)
             {
                 throw new UnauthorizedAccessException("Only administrators can perform bans.");
             }
 
             // Get target user
-            UserGet? user = await this._userRepository.GetUserByUsernameAsync(username);
-            if (user == null)
-            {
-                throw new KeyNotFoundException($"User '{username}' not found.");
-            }
+            UserGet? user = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new KeyNotFoundException($"User '{username}' not found.");
 
             // Build ban DTO
             UserBanGetCreate banDto = new()
@@ -260,7 +239,7 @@ namespace MapHive.Services
             };
             if (!model.IsPermanent && model.BanDurationDays.HasValue)
             {
-                banDto.ExpiresAt = DateTime.UtcNow.AddDays(model.BanDurationDays.Value);
+                banDto.ExpiresAt = DateTime.UtcNow.AddDays(value: model.BanDurationDays.Value);
             }
             if (model.BanType == BanType.Account)
             {
@@ -269,9 +248,9 @@ namespace MapHive.Services
             else // IP ban
             {
                 string? registrationIp = user.IpAddressHistory?
-                    .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries)
                     .FirstOrDefault();
-                if (string.IsNullOrEmpty(registrationIp))
+                if (string.IsNullOrEmpty(value: registrationIp))
                 {
                     throw new InvalidOperationException("Cannot determine registration IP for IP ban.");
                 }
@@ -279,7 +258,7 @@ namespace MapHive.Services
                 banDto.HashedIpAddress = registrationIp;
             }
 
-            int banId = await this._userRepository.BanUserAsync(banDto);
+            int banId = await _userRepository.BanUserAsync(banDto: banDto);
             return banId > 0;
         }
     }

@@ -1,47 +1,39 @@
-using AutoMapper;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-using MapHive.Repositories;
-
 namespace MapHive.Services
 {
-    public class DiscussionService : IDiscussionService
-    {
-        private readonly IDiscussionRepository _discussionRepository;
-        private readonly IMapLocationRepository _mapRepository;
-        private readonly IReviewRepository _reviewRepository;
-        private readonly IMapper _mapper;
+    using AutoMapper;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+    using MapHive.Repositories;
 
-        public DiscussionService(
-            IDiscussionRepository discussionRepository,
-            IMapLocationRepository mapRepository,
-            IReviewRepository reviewRepository,
-            IMapper mapper)
-        {
-            this._discussionRepository = discussionRepository;
-            this._mapRepository = mapRepository;
-            this._reviewRepository = reviewRepository;
-            this._mapper = mapper;
-        }
+    public class DiscussionService(
+        IDiscussionRepository discussionRepository,
+        IMapLocationRepository mapRepository,
+        IReviewRepository reviewRepository,
+        IMapper mapper) : IDiscussionService
+    {
+        private readonly IDiscussionRepository _discussionRepository = discussionRepository;
+        private readonly IMapLocationRepository _mapRepository = mapRepository;
+        private readonly IReviewRepository _reviewRepository = reviewRepository;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<ThreadDetailsViewModel> GetThreadDetailsAsync(int threadId)
         {
-            DiscussionThreadGet dto = await this._discussionRepository.GetThreadByIdAsync(threadId)
+            DiscussionThreadGet dto = await _discussionRepository.GetThreadByIdAsync(id: threadId)
                 ?? throw new KeyNotFoundException($"Thread {threadId} not found");
-            ThreadDetailsViewModel viewModel = this._mapper.Map<ThreadDetailsViewModel>(dto);
-            viewModel.Messages = (await this._discussionRepository.GetMessagesByThreadIdAsync(threadId)).ToList();
-            viewModel.Location = await this._mapRepository.GetLocationByIdAsync(dto.LocationId)
+            ThreadDetailsViewModel viewModel = _mapper.Map<ThreadDetailsViewModel>(source: dto);
+            viewModel.Messages = [.. await _discussionRepository.GetMessagesByThreadIdAsync(threadId: threadId)];
+            viewModel.Location = await _mapRepository.GetLocationByIdAsync(id: dto.LocationId)
                 ?? throw new Exception("Location not found");
             if (dto.IsReviewThread && dto.ReviewId.HasValue)
             {
-                viewModel.Review = await this._reviewRepository.GetReviewByIdAsync(dto.ReviewId.Value);
+                viewModel.Review = await _reviewRepository.GetReviewByIdAsync(id: dto.ReviewId.Value);
             }
             return viewModel;
         }
 
         public async Task<DiscussionThreadViewModel> GetCreateModelAsync(int locationId)
         {
-            MapLocationGet location = await this._mapRepository.GetLocationByIdAsync(locationId)
+            MapLocationGet location = await _mapRepository.GetLocationByIdAsync(id: locationId)
                 ?? throw new KeyNotFoundException($"Location {locationId} not found");
             return new DiscussionThreadViewModel
             {
@@ -54,39 +46,39 @@ namespace MapHive.Services
 
         public Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadViewModel model, int userId)
         {
-            DiscussionThreadCreate dto = this._mapper.Map<DiscussionThreadCreate>(model);
+            DiscussionThreadCreate dto = _mapper.Map<DiscussionThreadCreate>(source: model);
             dto.UserId = userId;
             dto.IsReviewThread = false;
             dto.ReviewId = null;
-            return this._discussionRepository.CreateDiscussionThreadAsync(dto, model.InitialMessage);
+            return _discussionRepository.CreateDiscussionThreadAsync(thread: dto, initialMessage: model.InitialMessage);
         }
 
         public Task<ThreadMessageGet> AddMessageAsync(ThreadMessageViewModel model, int userId)
         {
-            ThreadMessageCreate dto = this._mapper.Map<ThreadMessageCreate>(model);
+            ThreadMessageCreate dto = _mapper.Map<ThreadMessageCreate>(source: model);
             dto.UserId = userId;
             dto.IsInitialMessage = false;
-            return this._discussionRepository.AddMessageAsync(dto);
+            return _discussionRepository.AddMessageAsync(message: dto);
         }
 
         public async Task DeleteMessageAsync(int messageId, int userId, bool isAdmin)
         {
-            ThreadMessageGet message = await this._discussionRepository.GetMessageByIdAsync(messageId)
+            ThreadMessageGet message = await _discussionRepository.GetMessageByIdAsync(id: messageId)
                 ?? throw new KeyNotFoundException($"Message {messageId} not found");
             if (!isAdmin && message.UserId != userId)
             {
                 throw new UnauthorizedAccessException();
             }
 
-            _ = await this._discussionRepository.DeleteMessageAsync(messageId, userId);
+            _ = await _discussionRepository.DeleteMessageAsync(id: messageId, deletedByUserId: userId);
         }
 
         public async Task<int> DeleteThreadAsync(int threadId)
         {
-            DiscussionThreadGet thread = await this._discussionRepository.GetThreadByIdAsync(threadId)
+            DiscussionThreadGet thread = await _discussionRepository.GetThreadByIdAsync(id: threadId)
                 ?? throw new KeyNotFoundException($"Thread {threadId} not found");
             int locId = thread.LocationId;
-            _ = await this._discussionRepository.DeleteThreadAsync(threadId);
+            _ = await _discussionRepository.DeleteThreadAsync(id: threadId);
             return locId;
         }
 
@@ -96,7 +88,7 @@ namespace MapHive.Services
         public async Task<ThreadPageViewModel> GetThreadPageViewModelAsync(int threadId)
         {
             // Get thread details
-            ThreadDetailsViewModel threadDetails = await this.GetThreadDetailsAsync(threadId);
+            ThreadDetailsViewModel threadDetails = await GetThreadDetailsAsync(threadId: threadId);
             // Prepare new message model
             ThreadMessageViewModel newMessage = new()
             {

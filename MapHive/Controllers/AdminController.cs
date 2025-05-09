@@ -1,31 +1,25 @@
-using AutoMapper;
-using MapHive.Models;
-using MapHive.Models.Enums;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-using MapHive.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace MapHive.Controllers
 {
-    [Authorize]
-    public class AdminController : Controller
-    {
-        private readonly IAdminService _adminService;
-        private readonly IMapper _mapper;
+    using AutoMapper;
+    using MapHive.Models;
+    using MapHive.Models.Enums;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
 
-        public AdminController(IAdminService adminService, IMapper mapper)
-        {
-            this._adminService = adminService;
-            this._mapper = mapper;
-        }
+    [Authorize]
+    public class AdminController(IAdminService adminService, IMapper mapper) : Controller
+    {
+        private readonly IAdminService _adminService = adminService;
+        private readonly IMapper _mapper = mapper;
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
         public IActionResult Index()
         {
-            return this.View();
+            return View();
         }
 
         #region Categories Management
@@ -34,15 +28,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Categories()
         {
-            IEnumerable<CategoryGet> categories = await this._adminService.GetAllCategoriesAsync();
-            return this.View(categories);
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public IActionResult AddCategory()
-        {
-            return this.View(new CategoryCreate());
+            IEnumerable<CategoryGet> categories = await _adminService.GetAllCategoriesAsync();
+            return View(model: categories);
         }
 
         [HttpPost]
@@ -50,26 +37,26 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> AddCategory(CategoryCreate categoryCreate)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(categoryCreate);
+                return View(model: categoryCreate);
             }
 
-            await this._adminService.AddCategoryAsync(categoryCreate);
-            return this.RedirectToAction("Categories");
+            await _adminService.AddCategoryAsync(createDto: categoryCreate);
+            return RedirectToAction(actionName: "Categories");
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditCategory(int id)
         {
-            CategoryGet? categoryGet = await this._adminService.GetCategoryByIdAsync(id);
+            CategoryGet? categoryGet = await _adminService.GetCategoryByIdAsync(id: id);
             if (categoryGet == null)
             {
-                return this.NotFound();
+                return NotFound();
             }
-            CategoryUpdate categoryDto = this._mapper.Map<CategoryUpdate>(categoryGet);
-            return this.View(categoryDto);
+            CategoryUpdate categoryDto = _mapper.Map<CategoryUpdate>(source: categoryGet);
+            return View(model: categoryDto);
         }
 
         [HttpPost]
@@ -77,13 +64,13 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditCategory(CategoryUpdate categoryUpdate)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(categoryUpdate);
+                return View(model: categoryUpdate);
             }
 
-            await this._adminService.UpdateCategoryAsync(categoryUpdate);
-            return this.RedirectToAction("Categories");
+            await _adminService.UpdateCategoryAsync(updateDto: categoryUpdate);
+            return RedirectToAction(actionName: "Categories");
         }
 
         [HttpPost]
@@ -91,8 +78,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            await this._adminService.DeleteCategoryAsync(id);
-            return this.RedirectToAction("Categories");
+            await _adminService.DeleteCategoryAsync(id: id);
+            return RedirectToAction(actionName: "Categories");
         }
 
         #endregion
@@ -103,8 +90,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            DataGridViewModel viewModel = await this._adminService.GetUsersGridViewModelAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            return this.View(viewModel);
+            DataGridViewModel viewModel = await _adminService.GetUsersGridViewModelAsync(searchTerm: searchTerm, page: page, pageSize: pageSize, sortField: sortField, sortDirection: sortDirection);
+            return View(model: viewModel);
         }
 
         [HttpPost]
@@ -112,8 +99,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> UpdateUserTier(int userId, UserTier userTier)
         {
-            await this._adminService.UpdateUserTierAsync(userId, userTier);
-            return this.RedirectToAction("Users");
+            await _adminService.UpdateUserTierAsync(userId: userId, tier: userTier);
+            return RedirectToAction(actionName: "Users");
         }
 
         #endregion
@@ -124,7 +111,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public IActionResult SqlQuery()
         {
-            return this.View(new SqlQueryViewModel());
+            return View(model: new SqlQueryViewModel());
         }
 
         [HttpPost]
@@ -132,13 +119,13 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> SqlQuery(SqlQueryViewModel sqlQueryViewModel)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(sqlQueryViewModel);
+                return View(model: sqlQueryViewModel);
             }
 
-            SqlQueryViewModel resultModel = await this._adminService.ExecuteSqlQueryAsync(sqlQueryViewModel.Query);
-            return this.View(resultModel);
+            SqlQueryViewModel resultModel = await _adminService.ExecuteSqlQueryAsync(query: sqlQueryViewModel.Query);
+            return View(model: resultModel);
         }
 
         #endregion
@@ -149,15 +136,15 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Configuration()
         {
-            List<ConfigurationItem> configurations = await this._adminService.GetAllConfigurationItemsAsync();
-            return this.View(configurations);
+            List<ConfigurationItem> configurations = await _adminService.GetAllConfigurationItemsAsync();
+            return View(model: configurations);
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
         public IActionResult AddConfiguration()
         {
-            return this.View(new ConfigurationItem());
+            return View(model: new ConfigurationItem());
         }
 
         [HttpPost]
@@ -165,21 +152,21 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> AddConfiguration(ConfigurationItem configurationItem)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(configurationItem);
+                return View(model: configurationItem);
             }
 
-            await this._adminService.AddConfigurationItemAsync(configurationItem);
-            return this.RedirectToAction("Configuration");
+            await _adminService.AddConfigurationItemAsync(item: configurationItem);
+            return RedirectToAction(actionName: "Configuration");
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditConfiguration(string key)
         {
-            ConfigurationItem? configItem = await this._adminService.GetConfigurationItemAsync(key);
-            return configItem == null ? this.NotFound() : this.View(configItem);
+            ConfigurationItem? configItem = await _adminService.GetConfigurationItemAsync(key: key);
+            return configItem == null ? NotFound() : View(model: configItem);
         }
 
         [HttpPost]
@@ -187,13 +174,13 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> EditConfiguration(ConfigurationItem configurationItem)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(configurationItem);
+                return View(model: configurationItem);
             }
 
-            await this._adminService.UpdateConfigurationItemAsync(configurationItem);
-            return this.RedirectToAction("Configuration");
+            await _adminService.UpdateConfigurationItemAsync(item: configurationItem);
+            return RedirectToAction(actionName: "Configuration");
         }
 
         [HttpPost]
@@ -201,8 +188,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> DeleteConfiguration(string key)
         {
-            await this._adminService.DeleteConfigurationItemAsync(key);
-            return this.RedirectToAction("Configuration");
+            await _adminService.DeleteConfigurationItemAsync(key: key);
+            return RedirectToAction(actionName: "Configuration");
         }
 
         #endregion
@@ -213,10 +200,10 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
         {
-            DataGridViewModel viewModel = await this._adminService.GetBansGridViewModelAsync(searchTerm, page, pageSize, sortField, sortDirection);
-            this.ViewData["SortField"] = sortField;
-            this.ViewData["SortDirection"] = sortDirection;
-            return this.View(viewModel);
+            DataGridViewModel viewModel = await _adminService.GetBansGridViewModelAsync(searchTerm: searchTerm, page: page, pageSize: pageSize, sortField: sortField, sortDirection: sortDirection);
+            ViewData["SortField"] = sortField;
+            ViewData["SortDirection"] = sortDirection;
+            return View(model: viewModel);
         }
 
         [HttpGet]
@@ -225,12 +212,12 @@ namespace MapHive.Controllers
         {
             try
             {
-                BanDetailViewModel viewModel = await this._adminService.GetBanDetailsAsync(id);
-                return this.View(viewModel);
+                BanDetailViewModel viewModel = await _adminService.GetBanDetailsAsync(id: id);
+                return View(model: viewModel);
             }
             catch (KeyNotFoundException)
             {
-                return this.NotFound();
+                return NotFound();
             }
         }
 
@@ -239,17 +226,17 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> RemoveBan(int id)
         {
-            bool success = await this._adminService.RemoveBanAsync(id);
+            bool success = await _adminService.RemoveBanAsync(id: id);
             if (success)
             {
-                this.TempData["SuccessMessage"] = "Ban has been removed successfully.";
+                TempData["SuccessMessage"] = "Ban has been removed successfully.";
             }
             else
             {
-                this.TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
+                TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
             }
 
-            return this.RedirectToAction("Bans");
+            return RedirectToAction(actionName: "Bans");
         }
 
         #endregion

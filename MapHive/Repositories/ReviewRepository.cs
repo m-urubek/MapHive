@@ -1,20 +1,14 @@
-using MapHive.Models.RepositoryModels;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-
 namespace MapHive.Repositories
 {
-    public class ReviewRepository : IReviewRepository
-    {
-        private readonly ISqlClientSingleton _sqlClientSingleton;
-        private readonly IUserRepository _userRepository;
+    using System.Data;
+    using System.Data.SQLite;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Singletons;
 
-        public ReviewRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository)
-        {
-            this._sqlClientSingleton = sqlClientSingleton;
-            this._userRepository = userRepository;
-        }
+    public class ReviewRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository) : IReviewRepository
+    {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly IUserRepository _userRepository = userRepository;
 
         public async Task<IEnumerable<ReviewGet>> GetReviewsByLocationIdAsync(int locationId)
         {
@@ -26,17 +20,17 @@ namespace MapHive.Repositories
                 ORDER BY r.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             List<ReviewGet> reviews = new();
             foreach (DataRow row in result.Rows)
             {
-                ReviewGet rg = this.MapRowToReviewGet(row);
-                string? username = row.Table.Columns.Contains("Username") && row["Username"] != DBNull.Value
+                ReviewGet rg = MapRowToReviewGet(row: row);
+                string? username = row.Table.Columns.Contains(name: "Username") && row["Username"] != DBNull.Value
                                      ? row["Username"].ToString()
-                                     : await this._userRepository.GetUsernameByIdAsync(rg.UserId);
+                                     : await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
                 rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
-                reviews.Add(rg);
+                reviews.Add(item: rg);
             }
 
             return reviews;
@@ -46,15 +40,15 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id_Log";
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             if (result.Rows.Count == 0)
             {
                 return null;
             }
 
-            ReviewGet rg = this.MapRowToReviewGet(result.Rows[0]);
-            string username = await this._userRepository.GetUsernameByIdAsync(rg.UserId);
+            ReviewGet rg = MapRowToReviewGet(row: result.Rows[0]);
+            string username = await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
             rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
 
             return rg;
@@ -77,8 +71,8 @@ namespace MapHive.Repositories
                 new("@UpdatedAt", now)
             };
 
-            int reviewId = await this._sqlClientSingleton.InsertAsync(query, parameters);
-            string username = await this._userRepository.GetUsernameByIdAsync(review.UserId);
+            int reviewId = await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
+            string username = await _userRepository.GetUsernameByIdAsync(userId: review.UserId);
 
             return new ReviewGet
             {
@@ -114,7 +108,7 @@ namespace MapHive.Repositories
                 new("@UserId", review.UserId)
             };
 
-            int rowsAffected = await this._sqlClientSingleton.UpdateAsync(query, parameters);
+            int rowsAffected = await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
             return rowsAffected > 0;
         }
 
@@ -124,7 +118,7 @@ namespace MapHive.Repositories
             string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id_Log";
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
             // Use injected _sqlClientSingleton
-            int rowsAffected = await this._sqlClientSingleton.DeleteAsync(query, parameters);
+            int rowsAffected = await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
             return rowsAffected > 0;
         }
 
@@ -133,11 +127,11 @@ namespace MapHive.Repositories
             string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
             // Use injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
                 ? 0.0 // Return double
-                : Convert.ToDouble(result.Rows[0]["AverageRating"]);
+                : Convert.ToDouble(value: result.Rows[0]["AverageRating"]);
         }
 
         public async Task<int> GetReviewCountForLocationAsync(int locationId)
@@ -145,11 +139,11 @@ namespace MapHive.Repositories
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
             // Use injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["ReviewCount"] == DBNull.Value
                  ? 0
-                 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
+                 : Convert.ToInt32(value: result.Rows[0]["ReviewCount"]);
         }
 
         public async Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
@@ -160,23 +154,23 @@ namespace MapHive.Repositories
                 new("@LocationId", locationId)
             };
             // Use injected _sqlClientSingleton
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             return result.Rows.Count > 0; // Check if any row was returned
         }
 
-        private ReviewGet MapRowToReviewGet(DataRow row)
+        private static ReviewGet MapRowToReviewGet(DataRow row)
         {
             return new ReviewGet
             {
-                Id = Convert.ToInt32(row["Id_Reviews"]),
-                LocationId = Convert.ToInt32(row["LocationId"]),
-                UserId = Convert.ToInt32(row["UserId"]),
-                Rating = Convert.ToInt32(row["Rating"]),
+                Id = Convert.ToInt32(value: row["Id_Reviews"]),
+                LocationId = Convert.ToInt32(value: row["LocationId"]),
+                UserId = Convert.ToInt32(value: row["UserId"]),
+                Rating = Convert.ToInt32(value: row["Rating"]),
                 ReviewText = row["ReviewText"].ToString() ?? string.Empty,
-                IsAnonymous = Convert.ToBoolean(row["IsAnonymous"]),
-                CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"]),
+                IsAnonymous = Convert.ToBoolean(value: row["IsAnonymous"]),
+                CreatedAt = Convert.ToDateTime(value: row["CreatedAt"]),
+                UpdatedAt = Convert.ToDateTime(value: row["UpdatedAt"]),
                 AuthorName = string.Empty // will be set after mapping
             };
         }

@@ -1,33 +1,33 @@
-using AutoMapper;
-using MapHive.Models.RepositoryModels;
-using MapHive.Models.ViewModels;
-
 namespace MapHive.Models.BusinessModels
 {
+    using AutoMapper;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+
     public class MappingProfile : Profile
     {
         public MappingProfile()
         {
             // Repository -> ViewModel
-            _ = this.CreateMap<MapLocationGet, MapLocationViewModel>();
-            _ = this.CreateMap<ReviewGet, ReviewViewModel>();
-            _ = this.CreateMap<DiscussionThreadGet, ThreadDetailsViewModel>();
-            _ = this.CreateMap<ThreadMessageGet, ThreadMessageViewModel>();
+            _ = CreateMap<MapLocationGet, MapLocationViewModel>();
+            _ = CreateMap<ReviewGet, ReviewViewModel>();
+            _ = CreateMap<DiscussionThreadGet, ThreadDetailsViewModel>();
+            _ = CreateMap<ThreadMessageGet, ThreadMessageViewModel>();
 
             // ViewModel -> Repository Create/Update DTOs
-            _ = this.CreateMap<ReviewViewModel, ReviewCreate>();
-            _ = this.CreateMap<ReviewViewModel, ReviewUpdate>();
-            _ = this.CreateMap<DiscussionThreadViewModel, DiscussionThreadCreate>();
-            _ = this.CreateMap<ThreadMessageViewModel, ThreadMessageCreate>();
+            _ = CreateMap<ReviewViewModel, ReviewCreate>();
+            _ = CreateMap<ReviewViewModel, ReviewUpdate>();
+            _ = CreateMap<DiscussionThreadViewModel, DiscussionThreadCreate>();
+            _ = CreateMap<ThreadMessageViewModel, ThreadMessageCreate>();
             // Category mapping
-            _ = this.CreateMap<CategoryGet, CategoryUpdate>();
+            _ = CreateMap<CategoryGet, CategoryUpdate>();
 
-            _ = this.CreateMap<UserGet, UserLogin>();
-            _ = this.CreateMap<UserLogin, UserUpdate>();
-            _ = this.CreateMap<UserGet, UserUpdate>();
-            _ = this.CreateMap<UserGet, UserLogin>();
+            _ = CreateMap<UserGet, UserLogin>();
+            _ = CreateMap<UserLogin, UserUpdate>();
+            _ = CreateMap<UserGet, UserUpdate>();
+            _ = CreateMap<UserGet, UserLogin>();
 
-            _ = this.CreateMap<DataGridGet, DataGridViewModel>();
+            _ = CreateMap<DataGridGet, DataGridViewModel>();
         }
     }
 }

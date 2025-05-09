@@ -1,9 +1,9 @@
-using MapHive.Models.BusinessModels;
-using MapHive.Models.RepositoryModels;
-using System.Data;
-
 namespace MapHive.Repositories
 {
+    using System.Data;
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+
     public interface IDataGridRepository
     {
         Task<DataTable> GetTableSchemaAsync(string tableName);

@@ -1,7 +1,7 @@
-using MapHive.Models.RepositoryModels;
-
 namespace MapHive.Models.ViewModels
 {
+    using MapHive.Models.RepositoryModels;
+
     public class MapLocationViewModel
     {
         public int Id { get; set; }

@@ -1,39 +1,34 @@
-using MapHive.Models.RepositoryModels;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-
 namespace MapHive.Repositories
 {
-    public class ConfigurationRepository : IConfigurationRepository
-    {
-        private readonly ISqlClientSingleton _sqlClientSingleton;
+    using System.Data;
+    using System.Data.SQLite;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Singletons;
 
-        public ConfigurationRepository(ISqlClientSingleton sqlClientSingleton)
-        {
-            this._sqlClientSingleton = sqlClientSingleton;
-        }
+    public class ConfigurationRepository(ISqlClientSingleton sqlClientSingleton) : IConfigurationRepository
+    {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
 
         public async Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
         {
             string query = "SELECT * FROM Configuration WHERE Key = @Key";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
 
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
-            return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(result.Rows[0]) : null;
+            return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(row: result.Rows[0]) : null;
         }
 
         public async Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync()
         {
             string query = "SELECT * FROM Configuration";
 
-            DataTable result = await this._sqlClientSingleton.SelectAsync(query);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query);
             List<ConfigurationItem> items = new();
 
             foreach (DataRow row in result.Rows)
             {
-                items.Add(MapDataRowToConfigurationItem(row));
+                items.Add(item: MapDataRowToConfigurationItem(row: row));
             }
 
             return items;
@@ -52,7 +47,7 @@ namespace MapHive.Repositories
                 new("@Description", item.Description as object ?? DBNull.Value)
             };
 
-            return await this._sqlClientSingleton.InsertAsync(query, parameters);
+            return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
         public async Task<int> UpdateConfigurationItemAsync(ConfigurationItem item)
@@ -70,12 +65,12 @@ namespace MapHive.Repositories
                 new("@Key", item.Key)
             };
 
-            return await this._sqlClientSingleton.UpdateAsync(query, parameters);
+            return await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
         }
 
         public async Task<string?> GetConfigurationValueAsync(string key)
         {
-            ConfigurationItem? configItem = await this.GetConfigurationItemAsync(key);
+            ConfigurationItem? configItem = await GetConfigurationItemAsync(key: key);
             return configItem?.Value;
         }
 
@@ -83,17 +78,17 @@ namespace MapHive.Repositories
         {
             string query = "DELETE FROM Configuration WHERE Key = @Key";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
-            return await this._sqlClientSingleton.DeleteAsync(query, parameters);
+            return await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
         }
 
         private static ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
         {
             return new ConfigurationItem
             {
-                Id = Convert.ToInt32(row["Id_Configuration"]),
+                Id = Convert.ToInt32(value: row["Id_Configuration"]),
                 Key = row["Key"].ToString() ?? string.Empty,
                 Value = row["Value"].ToString() ?? string.Empty,
-                Description = row.Table.Columns.Contains("Description") && row["Description"] != DBNull.Value
+                Description = row.Table.Columns.Contains(name: "Description") && row["Description"] != DBNull.Value
                     ? row["Description"].ToString()
                     : null
             };

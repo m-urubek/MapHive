@@ -1,6 +1,14 @@
 # Remove the line below if you want to inherit .editorconfig settings from higher directories
 root = true
 
+# Global settings
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
 # C# files
 [*.cs]
 
@@ -13,7 +21,7 @@ tab_width = 4
 
 # New line preferences
 end_of_line = crlf
-insert_final_newline = false
+insert_final_newline = true
 
 #### .NET Code Actions ####
 
@@ -25,18 +33,19 @@ dotnet_property_generation_behavior = prefer_throwing_properties
 # Symbol search
 dotnet_search_reference_assemblies = true
 
+# Organize usings
+dotnet_separate_import_directive_groups = true:warning
+dotnet_sort_system_directives_first = true:warning
+
 #### .NET Coding Conventions ####
 
-# Organize usings
-dotnet_separate_import_directive_groups = false
-dotnet_sort_system_directives_first = false
 file_header_template = unset
 
 # this. and Me. preferences
-dotnet_style_qualification_for_event = true:warning
-dotnet_style_qualification_for_field = true
-dotnet_style_qualification_for_method = true:warning
-dotnet_style_qualification_for_property = true:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_property = false:warning
 
 # Language keywords vs BCL types preferences
 dotnet_style_predefined_type_for_locals_parameters_members = true:warning
@@ -56,7 +65,6 @@ dotnet_prefer_system_hash_code = true:warning
 dotnet_style_coalesce_expression = true:warning
 dotnet_style_collection_initializer = true:warning
 dotnet_style_explicit_tuple_names = true:warning
-dotnet_style_namespace_match_folder = true
 dotnet_style_null_propagation = true:warning
 dotnet_style_object_initializer = true:warning
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
@@ -116,7 +124,7 @@ csharp_style_conditional_delegate_call = true:warning
 # Modifier preferences
 csharp_prefer_static_anonymous_function = true:warning
 csharp_prefer_static_local_function = true:warning
-csharp_preferred_modifier_order = public,private,protected,internal,file,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,required,volatile,async
+csharp_preferred_modifier_order = public,protected,internal,private,static,extern,readonly,abstract,virtual,override,sealed,async
 csharp_style_prefer_readonly_struct = true:warning
 csharp_style_prefer_readonly_struct_member = true:suggestion
 
@@ -146,7 +154,7 @@ csharp_style_unused_value_assignment_preference = discard_variable:warning
 csharp_style_unused_value_expression_statement_preference = discard_variable:warning
 
 # 'using' directive preferences
-csharp_using_directive_placement = outside_namespace:warning
+csharp_using_directive_placement = inside_namespace:warning
 
 # New line preferences
 csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:warning
@@ -156,8 +164,72 @@ csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false:w
 csharp_style_allow_embedded_statements_on_same_line_experimental = true:warning
 
 # Diagnostic
-dotnet_diagnostic.RequireNamedArgs.severity = warning
+dotnet_diagnostic.RequireNamedArgs.severity = error
+dotnet_diagnostic.CS8601.severity = error
+dotnet_diagnostic.CS8602.severity = error
+dotnet_diagnostic.CS8603.severity = error
+dotnet_diagnostic.CS8618.severity = error
+dotnet_diagnostic.IDE0059.severity = error
+dotnet_diagnostic.IDE0060.severity = error
+dotnet_diagnostic.IDE0290.severity = error
 
+# Nullability diagnostics
+dotnet_diagnostic.CS8597.severity = error
+dotnet_diagnostic.CS8598.severity = error
+dotnet_diagnostic.CS8600.severity = error
+dotnet_diagnostic.CS8604.severity = error
+dotnet_diagnostic.CS8605.severity = error
+dotnet_diagnostic.CS8607.severity = error
+dotnet_diagnostic.CS8608.severity = error
+dotnet_diagnostic.CS8609.severity = error
+dotnet_diagnostic.CS8610.severity = error
+dotnet_diagnostic.CS8611.severity = error
+dotnet_diagnostic.CS8612.severity = error
+dotnet_diagnostic.CS8613.severity = error
+dotnet_diagnostic.CS8614.severity = error
+dotnet_diagnostic.CS8615.severity = error
+dotnet_diagnostic.CS8616.severity = error
+dotnet_diagnostic.CS8617.severity = error
+dotnet_diagnostic.CS8619.severity = error
+dotnet_diagnostic.CS8620.severity = error
+dotnet_diagnostic.CS8621.severity = error
+dotnet_diagnostic.CS8622.severity = error
+dotnet_diagnostic.CS8623.severity = error
+dotnet_diagnostic.CS8624.severity = error
+dotnet_diagnostic.CS8625.severity = error
+dotnet_diagnostic.CS8628.severity = error
+dotnet_diagnostic.CS8629.severity = error
+dotnet_diagnostic.CS8631.severity = error
+dotnet_diagnostic.CS8632.severity = error
+dotnet_diagnostic.CS8633.severity = error
+dotnet_diagnostic.CS8634.severity = error
+dotnet_diagnostic.CS8636.severity = error
+dotnet_diagnostic.CS8637.severity = error
+dotnet_diagnostic.CS8639.severity = error
+dotnet_diagnostic.CS8643.severity = error
+dotnet_diagnostic.CS8644.severity = error
+dotnet_diagnostic.CS8645.severity = error
+dotnet_diagnostic.CS8655.severity = error
+dotnet_diagnostic.CS8667.severity = error
+dotnet_diagnostic.CS8670.severity = error
+dotnet_diagnostic.CS8714.severity = error
+dotnet_diagnostic.CS8762.severity = error
+dotnet_diagnostic.CS8763.severity = error
+dotnet_diagnostic.CS8764.severity = error
+dotnet_diagnostic.CS8765.severity = error
+dotnet_diagnostic.CS8766.severity = error
+dotnet_diagnostic.CS8767.severity = error
+dotnet_diagnostic.CS8768.severity = error
+dotnet_diagnostic.CS8769.severity = error
+dotnet_diagnostic.CS8770.severity = error
+dotnet_diagnostic.CS8774.severity = error
+dotnet_diagnostic.CS8775.severity = error
+dotnet_diagnostic.CS8776.severity = error
+dotnet_diagnostic.CS8777.severity = error
+dotnet_diagnostic.CS8819.severity = error
+dotnet_diagnostic.CS8824.severity = error
+dotnet_diagnostic.CS8825.severity = error
+dotnet_diagnostic.CS8847.severity = error
 
 #### C# Formatting Rules ####
 
@@ -268,7 +340,7 @@ dotnet_style_prefer_inferred_anonymous_type_member_names = true:warning
 dotnet_style_prefer_compound_assignment = true:warning
 dotnet_style_prefer_simplified_interpolation = true:suggestion
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
-dotnet_style_namespace_match_folder = true:suggestion
+dotnet_style_namespace_match_folder = false
 dotnet_style_readonly_field = true:warning
 dotnet_style_predefined_type_for_member_access = true:warning
 dotnet_style_predefined_type_for_locals_parameters_members = true:warning
@@ -280,7 +352,3 @@ dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:war
 dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_other_operators = never_if_unnecessary:warning
-dotnet_style_qualification_for_field = true:silent
-dotnet_style_qualification_for_method = true:warning
-dotnet_style_qualification_for_property = true:warning
-dotnet_style_qualification_for_event = true:warning

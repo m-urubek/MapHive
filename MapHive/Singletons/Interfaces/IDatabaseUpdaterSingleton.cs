@@ -1,4 +1,4 @@
-﻿namespace MapHive.Singletons
+namespace MapHive.Singletons
 {
     public interface IDatabaseUpdaterSingleton
     {

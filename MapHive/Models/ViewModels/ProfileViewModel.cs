@@ -1,9 +1,9 @@
-using MapHive.Models.Enums;
-using MapHive.Models.RepositoryModels;
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.ViewModels
 {
+    using System.ComponentModel.DataAnnotations;
+    using MapHive.Models.Enums;
+    using MapHive.Models.RepositoryModels;
+
     // Base profile view model with shared properties
     public class BaseProfileViewModel
     {

@@ -1,62 +1,56 @@
-using MapHive.Models.Enums;
-using MapHive.Models.Exceptions;
-using MapHive.Services;
-using MapHive.Singletons;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace MapHive.Middleware
 {
-    public class ErrorHandlingMiddleware
-    {
-        private readonly RequestDelegate _next;
-        private readonly IConfigurationSingleton _configurationSingleton;
+    using MapHive.Models.Enums;
+    using MapHive.Models.Exceptions;
+    using MapHive.Services;
+    using MapHive.Singletons;
+    using Microsoft.Extensions.DependencyInjection;
 
-        public ErrorHandlingMiddleware(RequestDelegate next, IConfigurationSingleton config)
-        {
-            this._next = next;
-            this._configurationSingleton = config;
-        }
+    public class ErrorHandlingMiddleware(RequestDelegate next, IConfigurationSingleton config)
+    {
+        private readonly RequestDelegate _next = next;
+        private readonly IConfigurationSingleton _configurationSingleton = config;
 
         public async Task InvokeAsync(HttpContext context, ILogManagerService logManager)
         {
             // Resolve scoped services from the request
-            var userFriendlyExceptionService = context.RequestServices.GetRequiredService<IUserFriendlyExceptionService>();
-            var requestContextService = context.RequestServices.GetRequiredService<IRequestContextService>();
+            IUserFriendlyExceptionService userFriendlyExceptionService = context.RequestServices.GetRequiredService<IUserFriendlyExceptionService>();
+            IRequestContextService requestContextService = context.RequestServices.GetRequiredService<IRequestContextService>();
             try
             {
-                await this._next(context);
+                await _next(context: context);
             }
             catch (UserFriendlyExceptionBase ex)
             {
                 // For user-friendly exceptions, don't log them as errors but show to the user
-                await this.HandleUserFriendlyExceptionAsync(context, ex, userFriendlyExceptionService, requestContextService);
+                await HandleUserFriendlyExceptionAsync(context: context, exception: ex, userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
 
                 // Don't re-throw the exception since we've handled it by showing a friendly message
             }
             catch (WarningException ex)
             {
                 logManager.Log(
-                    LogSeverity.Warning,
-                    ex.Message,
-                    ex,
-                    nameof(ErrorHandlingMiddleware),
-                    $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                    severity: LogSeverity.Warning,
+                    message: ex.Message,
+                    exception: ex,
+                    source: nameof(ErrorHandlingMiddleware),
+                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
                 );
-                await this.HandleUserFriendlyExceptionAsync(context, new OrangeUserException(ex.Message), userFriendlyExceptionService, requestContextService);
+                await HandleUserFriendlyExceptionAsync(context: context, exception: new OrangeUserException(ex.Message), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
             }
             catch (Exception ex)
             {
                 try
                 {
-                    if (await this._configurationSingleton.GetDevelopmentModeAsync())
+                    if (await _configurationSingleton.GetDevelopmentModeAsync())
                     {
                         //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
-                        await this.HandleUserFriendlyExceptionAsync(context, new RedUserException(ex.ToString()), userFriendlyExceptionService, requestContextService);
+                        await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(ex.ToString()), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
                     }
                     else
                     {
                         // Show a generic error message to the user
-                        await this.HandleUserFriendlyExceptionAsync(context, new RedUserException("Internal Server Error!"), userFriendlyExceptionService, requestContextService);
+                        await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException("Internal Server Error!"), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
                     }
                 }
                 catch { } // Don't let UI message display issues prevent error logging
@@ -71,7 +65,7 @@ namespace MapHive.Middleware
             }
         }
 
-        private async Task HandleUserFriendlyExceptionAsync(HttpContext context, UserFriendlyExceptionBase exception,
+        private static async Task HandleUserFriendlyExceptionAsync(HttpContext context, UserFriendlyExceptionBase exception,
             IUserFriendlyExceptionService userFriendlyExceptionService, IRequestContextService requestContextService)
         {
             // Store the exception message and type in session
@@ -84,12 +78,12 @@ namespace MapHive.Middleware
                 // For AJAX requests, return a JSON response with the message
                 context.Response.StatusCode = 200; // Use 200 instead of error code since this is user-friendly
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync($"{{\"userFriendlyMessage\": \"{exception.Message}\", \"messageType\": \"{userFriendlyExceptionService.Type}\"}}");
+                await context.Response.WriteAsync(text: $"{{\"userFriendlyMessage\": \"{exception.Message}\", \"messageType\": \"{userFriendlyExceptionService.Type}\"}}");
             }
             else
             {
                 // For regular requests, redirect back to the same page (or referrer if available)
-                context.Response.Redirect(requestContextService.Referer ?? context.Request.Path);
+                context.Response.Redirect(location: requestContextService.Referer ?? context.Request.Path);
             }
         }
     }

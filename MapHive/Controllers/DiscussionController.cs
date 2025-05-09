@@ -1,37 +1,31 @@
-using MapHive.Models.ViewModels;
-using MapHive.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace MapHive.Controllers
 {
-    public class DiscussionController : Controller
-    {
-        private readonly IDiscussionService _discussionService;
-        private readonly IUserContextService _userContextService;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
 
-        public DiscussionController(IDiscussionService discussionService, IUserContextService userContextService)
-        {
-            this._discussionService = discussionService;
-            this._userContextService = userContextService;
-        }
+    public class DiscussionController(IDiscussionService discussionService, IUserContextService userContextService) : Controller
+    {
+        private readonly IDiscussionService _discussionService = discussionService;
+        private readonly IUserContextService _userContextService = userContextService;
 
         public async Task<IActionResult> Thread(int id)
         {
             // Retrieve combined thread details and new message model
-            ThreadPageViewModel pageModel = await this._discussionService.GetThreadPageViewModelAsync(id);
+            ThreadPageViewModel pageModel = await _discussionService.GetThreadPageViewModelAsync(threadId: id);
             // Pass the new message form model to ViewBag
-            this.ViewBag.MessageViewModel = pageModel.NewMessage;
+            ViewBag.MessageViewModel = pageModel.NewMessage;
             // Render thread details
-            return this.View(pageModel.ThreadDetails);
+            return View(model: pageModel.ThreadDetails);
         }
 
         // GET: Discussion/Create/5 (5 is the location ID)
         [Authorize]
         public async Task<IActionResult> Create(int id)
         {
-            DiscussionThreadViewModel model = await this._discussionService.GetCreateModelAsync(id);
-            return this.View(model);
+            DiscussionThreadViewModel model = await _discussionService.GetCreateModelAsync(locationId: id);
+            return View(model: model);
         }
 
         // POST: Discussion/Create
@@ -40,15 +34,15 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Create(DiscussionThreadViewModel discussionThreadViewModel)
         {
-            if (this.ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId;
-                Models.RepositoryModels.DiscussionThreadGet created = await this._discussionService.CreateDiscussionThreadAsync(discussionThreadViewModel, userId);
-                return this.RedirectToAction("Thread", new { id = created.Id });
+                int userId = _userContextService.UserId;
+                Models.RepositoryModels.DiscussionThreadGet created = await _discussionService.CreateDiscussionThreadAsync(model: discussionThreadViewModel, userId: userId);
+                return RedirectToAction(actionName: "Thread", routeValues: new { id = created.Id });
             }
 
             // If we got this far, something failed, redisplay form
-            return this.View(discussionThreadViewModel);
+            return View(model: discussionThreadViewModel);
         }
 
         // POST: Discussion/AddMessage
@@ -57,15 +51,15 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> AddMessage(ThreadMessageViewModel threadMessageViewModel)
         {
-            if (this.ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId;
-                _ = await this._discussionService.AddMessageAsync(threadMessageViewModel, userId);
-                return this.RedirectToAction("Thread", new { id = threadMessageViewModel.ThreadId });
+                int userId = _userContextService.UserId;
+                _ = await _discussionService.AddMessageAsync(model: threadMessageViewModel, userId: userId);
+                return RedirectToAction(actionName: "Thread", routeValues: new { id = threadMessageViewModel.ThreadId });
             }
 
             // If we got this far, something failed, redirect back to the thread
-            return this.RedirectToAction("Thread", new { id = threadMessageViewModel.ThreadId });
+            return RedirectToAction(actionName: "Thread", routeValues: new { id = threadMessageViewModel.ThreadId });
         }
 
         // POST: Discussion/DeleteMessage/5
@@ -74,12 +68,12 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteMessage(int id)
         {
-            int userId = this._userContextService.UserId;
-            bool isAdmin = this.User.IsInRole("Admin");
-            await this._discussionService.DeleteMessageAsync(id, userId, isAdmin);
+            int userId = _userContextService.UserId;
+            bool isAdmin = User.IsInRole(role: "Admin");
+            await _discussionService.DeleteMessageAsync(messageId: id, userId: userId, isAdmin: isAdmin);
             // After deletion, threadId is not directly available; service ensures message thread exists before deletion
             // Redirect back to thread (client may need to know threadId separately)
-            return this.RedirectToAction("Thread", new { id });
+            return RedirectToAction(actionName: "Thread", routeValues: new { id });
         }
 
         // POST: Discussion/DeleteThread/5
@@ -88,8 +82,8 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteThread(int id)
         {
-            int locationId = await this._discussionService.DeleteThreadAsync(id);
-            return this.RedirectToAction("Details", "Map", new { id = locationId });
+            int locationId = await _discussionService.DeleteThreadAsync(threadId: id);
+            return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
         }
     }
 }

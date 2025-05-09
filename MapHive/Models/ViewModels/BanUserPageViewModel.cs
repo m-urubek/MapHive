@@ -1,7 +1,7 @@
-using MapHive.Models.Enums;
-
 namespace MapHive.Models.ViewModels
 {
+    using MapHive.Models.Enums;
+
     public class BanUserPageViewModel : BanViewModel
     {
         // User to be banned
