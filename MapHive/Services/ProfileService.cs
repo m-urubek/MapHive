@@ -9,18 +9,18 @@ namespace MapHive.Services
         private readonly IUserRepository _userRepository;
         private readonly IMapLocationRepository _mapRepository;
         private readonly IDiscussionRepository _discussionRepository;
-        private readonly IUserContextService _userContext;
+        private readonly IUserContextService _userContextService;
 
         public ProfileService(
             IUserRepository userRepository,
             IMapLocationRepository mapRepository,
             IDiscussionRepository discussionRepository,
-            IUserContextService userContext)
+            IUserContextService userContextService)
         {
             this._userRepository = userRepository;
             this._mapRepository = mapRepository;
             this._discussionRepository = discussionRepository;
-            this._userContext = userContext;
+            this._userContextService = userContextService;
         }
 
         public async Task<PrivateProfileViewModel?> GetPrivateProfileAsync(int userId)
@@ -59,7 +59,7 @@ namespace MapHive.Services
                 return null;
             }
 
-            int? currentUserId = this._userContext.UserId;
+            int? currentUserId = this._userContextService.UserId;
             _ = currentUserId.HasValue && userGet.Id == currentUserId.Value;
 
             // Check ban status

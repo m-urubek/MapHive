@@ -12,7 +12,7 @@ namespace MapHive.Services
     {
         private readonly IMapLocationRepository _mapLocationRepository;
         private readonly IDataGridService _dataGridService;
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
         private readonly IConfigurationSingleton _configSingleton;
         private readonly IUserRepository _userRepository;
 
@@ -25,7 +25,7 @@ namespace MapHive.Services
         {
             this._mapLocationRepository = mapLocationRepository;
             this._dataGridService = dataGridService;
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClient;
             this._configSingleton = configSingleton;
             this._userRepository = userRepository;
         }
@@ -85,7 +85,7 @@ namespace MapHive.Services
             {
                 if (query.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
                 {
-                    DataTable result = await this._sqlClient.SelectAsync(query);
+                    DataTable result = await this._sqlClientSingleton.SelectAsync(query);
                     model.HasResults = true;
                     model.DataTable = result;
                     model.RowsAffected = result.Rows.Count;
@@ -93,28 +93,28 @@ namespace MapHive.Services
                 }
                 else if (query.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClient.InsertAsync(query);
+                    int result = await this._sqlClientSingleton.InsertAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = 1;
                     model.Message = $"Insert executed successfully. ID of inserted row: {result}";
                 }
                 else if (query.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClient.UpdateAsync(query);
+                    int result = await this._sqlClientSingleton.UpdateAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Update executed successfully. {result} rows affected.";
                 }
                 else if (query.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
                 {
-                    int result = await this._sqlClient.DeleteAsync(query);
+                    int result = await this._sqlClientSingleton.DeleteAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = $"Delete executed successfully. {result} rows affected.";
                 }
                 else
                 {
-                    int result = await this._sqlClient.AlterAsync(query);
+                    int result = await this._sqlClientSingleton.AlterAsync(query);
                     model.HasResults = false;
                     model.RowsAffected = result;
                     model.Message = "Query executed successfully.";

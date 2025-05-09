@@ -7,12 +7,12 @@ namespace MapHive.Repositories
 {
     public class ReviewRepository : IReviewRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
         private readonly IUserRepository _userRepository;
 
-        public ReviewRepository(ISqlClientSingleton sqlClient, IUserRepository userRepository)
+        public ReviewRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
             this._userRepository = userRepository;
         }
 
@@ -26,7 +26,7 @@ namespace MapHive.Repositories
                 ORDER BY r.CreatedAt DESC";
 
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             List<ReviewGet> reviews = new();
             foreach (DataRow row in result.Rows)
@@ -46,7 +46,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id_Log";
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             if (result.Rows.Count == 0)
             {
@@ -77,7 +77,7 @@ namespace MapHive.Repositories
                 new("@UpdatedAt", now)
             };
 
-            int reviewId = await this._sqlClient.InsertAsync(query, parameters);
+            int reviewId = await this._sqlClientSingleton.InsertAsync(query, parameters);
             string username = await this._userRepository.GetUsernameByIdAsync(review.UserId);
 
             return new ReviewGet
@@ -114,7 +114,7 @@ namespace MapHive.Repositories
                 new("@UserId", review.UserId)
             };
 
-            int rowsAffected = await this._sqlClient.UpdateAsync(query, parameters);
+            int rowsAffected = await this._sqlClientSingleton.UpdateAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -123,8 +123,8 @@ namespace MapHive.Repositories
             // Consider adding user ID check if only owners can delete
             string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id_Log";
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
-            // Use injected _sqlClient
-            int rowsAffected = await this._sqlClient.DeleteAsync(query, parameters);
+            // Use injected _sqlClientSingleton
+            int rowsAffected = await this._sqlClientSingleton.DeleteAsync(query, parameters);
             return rowsAffected > 0;
         }
 
@@ -132,8 +132,8 @@ namespace MapHive.Repositories
         {
             string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            // Use injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
                 ? 0.0 // Return double
@@ -144,8 +144,8 @@ namespace MapHive.Repositories
         {
             string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
             SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            // Use injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 || result.Rows[0]["ReviewCount"] == DBNull.Value
                  ? 0
@@ -159,8 +159,8 @@ namespace MapHive.Repositories
                 new("@UserId", userId),
                 new("@LocationId", locationId)
             };
-            // Use injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             return result.Rows.Count > 0; // Check if any row was returned
         }

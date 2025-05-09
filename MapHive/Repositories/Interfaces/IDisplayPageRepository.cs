@@ -1,6 +1,6 @@
 namespace MapHive.Repositories
 {
-    public interface IDisplayRepository
+    public interface IDisplayPageRepository
     {
         /// <summary>
         /// Gets all data for a specific item from the specified table

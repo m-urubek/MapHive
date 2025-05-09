@@ -7,11 +7,11 @@ namespace MapHive.Repositories
 {
     public class ConfigurationRepository : IConfigurationRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
 
-        public ConfigurationRepository(ISqlClientSingleton sqlClient)
+        public ConfigurationRepository(ISqlClientSingleton sqlClientSingleton)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
         }
 
         public async Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
@@ -19,7 +19,7 @@ namespace MapHive.Repositories
             string query = "SELECT * FROM Configuration WHERE Key = @Key";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
 
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(result.Rows[0]) : null;
         }
@@ -28,7 +28,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM Configuration";
 
-            DataTable result = await this._sqlClient.SelectAsync(query);
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query);
             List<ConfigurationItem> items = new();
 
             foreach (DataRow row in result.Rows)
@@ -52,7 +52,7 @@ namespace MapHive.Repositories
                 new("@Description", item.Description as object ?? DBNull.Value)
             };
 
-            return await this._sqlClient.InsertAsync(query, parameters);
+            return await this._sqlClientSingleton.InsertAsync(query, parameters);
         }
 
         public async Task<int> UpdateConfigurationItemAsync(ConfigurationItem item)
@@ -70,7 +70,7 @@ namespace MapHive.Repositories
                 new("@Key", item.Key)
             };
 
-            return await this._sqlClient.UpdateAsync(query, parameters);
+            return await this._sqlClientSingleton.UpdateAsync(query, parameters);
         }
 
         public async Task<string?> GetConfigurationValueAsync(string key)
@@ -83,7 +83,7 @@ namespace MapHive.Repositories
         {
             string query = "DELETE FROM Configuration WHERE Key = @Key";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
-            return await this._sqlClient.DeleteAsync(query, parameters);
+            return await this._sqlClientSingleton.DeleteAsync(query, parameters);
         }
 
         private static ConfigurationItem MapDataRowToConfigurationItem(DataRow row)

@@ -9,12 +9,12 @@ namespace MapHive.Services
     public class DataGridService : IDataGridService
     {
         private readonly IDataGridRepository _dataGridRepository;
-        private readonly IDisplayRepository _displayRepository;
+        private readonly IDisplayPageRepository _displayRepository;
         private readonly IMapper _mapper;
 
         public DataGridService(
             IDataGridRepository dataGridRepository,
-            IDisplayRepository displayRepository,
+            IDisplayPageRepository displayRepository,
             IMapper mapper)
         {
             this._dataGridRepository = dataGridRepository;

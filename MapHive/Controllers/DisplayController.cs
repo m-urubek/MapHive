@@ -8,9 +8,9 @@ namespace MapHive.Controllers
     [Authorize]
     public class DisplayController : Controller
     {
-        private readonly IDisplayService _displayService;
+        private readonly IDisplayPageService _displayService;
 
-        public DisplayController(IDisplayService displayService)
+        public DisplayController(IDisplayPageService displayService)
         {
             this._displayService = displayService;
         }

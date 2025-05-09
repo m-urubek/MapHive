@@ -1,16 +1,14 @@
 using MapHive.Models.Enums;
 
-namespace MapHive.Singletons
+namespace MapHive.Services
 {
-    public interface ILogManagerSingleton
+    public interface ILogManagerService
     {
         public void Log(
             LogSeverity severity,
             string message,
             Exception? exception = null,
             string? source = null,
-            string? additionalData = null,
-            int? userId = null,
-            string? requestPath = null);
+            string? additionalData = null);
     }
 }

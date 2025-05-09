@@ -7,17 +7,17 @@ namespace MapHive.Repositories
 {
     public class MapLocationRepository : IMapLocationRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
 
-        public MapLocationRepository(ISqlClientSingleton sqlClient)
+        public MapLocationRepository(ISqlClientSingleton sqlClientSingleton)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
         }
 
         public async Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync()
         {
             List<MapLocationGet> list = new();
-            DataTable dataTable = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations");
+            DataTable dataTable = await this._sqlClientSingleton.SelectAsync("SELECT * FROM MapLocations");
             foreach (DataRow row in dataTable.Rows)
             {
                 list.Add(this.MapDataRowToGet(row));
@@ -29,7 +29,7 @@ namespace MapHive.Repositories
         public async Task<MapLocationGet?> GetLocationByIdAsync(int id)
         {
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE Id_MapLocation = @Id_Log", parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync("SELECT * FROM MapLocations WHERE Id_MapLocation = @Id_Log", parameters);
             return dt.Rows.Count == 0 ? null : this.MapDataRowToGet(dt.Rows[0]);
         }
 
@@ -51,7 +51,7 @@ namespace MapHive.Repositories
                 new("@IsAnonymous", createDto.IsAnonymous),
                 new("@CategoryId", createDto.CategoryId.HasValue ? (object)createDto.CategoryId.Value : DBNull.Value)
             };
-            int id = await this._sqlClient.InsertAsync(
+            int id = await this._sqlClientSingleton.InsertAsync(
                 @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId)
                   VALUES (@Name, @Description, @Latitude, @Longitude, @Address, @Website, @PhoneNumber, @CreatedAt, @UpdatedAt, @UserId, @IsAnonymous, @CategoryId);",
                 parameters);
@@ -98,7 +98,7 @@ namespace MapHive.Repositories
                 new("@IsAnonymous", updateDto.IsAnonymous),
                 new("@CategoryId", updateDto.CategoryId.HasValue ? (object)updateDto.CategoryId.Value : DBNull.Value)
             };
-            int rows = await this._sqlClient.UpdateAsync(
+            int rows = await this._sqlClientSingleton.UpdateAsync(
                 @"UPDATE MapLocations
                   SET Name=@Name, Description=@Description, Latitude=@Latitude, Longitude=@Longitude,
                       Address=@Address, Website=@Website, PhoneNumber=@PhoneNumber,
@@ -110,7 +110,7 @@ namespace MapHive.Repositories
         public async Task<bool> DeleteLocationAsync(int id)
         {
             SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM MapLocations WHERE Id_MapLocation=@Id_Log", p);
+            int rows = await this._sqlClientSingleton.DeleteAsync("DELETE FROM MapLocations WHERE Id_MapLocation=@Id_Log", p);
             return rows > 0;
         }
 
@@ -118,7 +118,7 @@ namespace MapHive.Repositories
         {
             List<MapLocationGet> list = new();
             SQLiteParameter[] p = new SQLiteParameter[] { new("@UserId", userId) };
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM MapLocations WHERE UserId=@UserId", p);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync("SELECT * FROM MapLocations WHERE UserId=@UserId", p);
             foreach (DataRow row in dt.Rows)
             {
                 list.Add(this.MapDataRowToGet(row));
@@ -142,7 +142,7 @@ namespace MapHive.Repositories
         public async Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
         {
             List<CategoryGet> list = new();
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories");
+            DataTable dt = await this._sqlClientSingleton.SelectAsync("SELECT * FROM Categories");
             foreach (DataRow row in dt.Rows)
             {
                 list.Add(this.MapCategoryRow(row));
@@ -154,7 +154,7 @@ namespace MapHive.Repositories
         public async Task<CategoryGet?> GetCategoryByIdAsync(int id)
         {
             SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
-            DataTable dt = await this._sqlClient.SelectAsync("SELECT * FROM Categories WHERE Id_Category=@Id_Log", p);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync("SELECT * FROM Categories WHERE Id_Category=@Id_Log", p);
             return dt.Rows.Count == 0 ? null : this.MapCategoryRow(dt.Rows[0]);
         }
 
@@ -166,7 +166,7 @@ namespace MapHive.Repositories
                 new("@Description", createDto.Description ?? (object)DBNull.Value),
                 new("@Icon", createDto.Icon ?? (object)DBNull.Value)
             };
-            int id = await this._sqlClient.InsertAsync(
+            int id = await this._sqlClientSingleton.InsertAsync(
                 @"INSERT INTO Categories (Name, Description, Icon) VALUES (@Name, @Description, @Icon);", p);
             return new CategoryGet { Id = id, Name = createDto.Name, Description = createDto.Description, Icon = createDto.Icon };
         }
@@ -180,7 +180,7 @@ namespace MapHive.Repositories
                 new("@Description", updateDto.Description ?? (object)DBNull.Value),
                 new("@Icon", updateDto.Icon ?? (object)DBNull.Value)
             };
-            int rows = await this._sqlClient.UpdateAsync(
+            int rows = await this._sqlClientSingleton.UpdateAsync(
                 @"UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon WHERE Id_Category=@Id_Log", p);
             return rows > 0 ? await this.GetCategoryByIdAsync(updateDto.Id) : null;
         }
@@ -188,7 +188,7 @@ namespace MapHive.Repositories
         public async Task<bool> DeleteCategoryAsync(int id)
         {
             SQLiteParameter[] p = new SQLiteParameter[] { new("@Id_Log", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM Categories WHERE Id_Category=@Id_Log", p);
+            int rows = await this._sqlClientSingleton.DeleteAsync("DELETE FROM Categories WHERE Id_Category=@Id_Log", p);
             return rows > 0;
         }
 

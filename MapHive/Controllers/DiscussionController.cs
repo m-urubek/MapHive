@@ -42,7 +42,7 @@ namespace MapHive.Controllers
         {
             if (this.ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+                int userId = this._userContextService.UserId;
                 Models.RepositoryModels.DiscussionThreadGet created = await this._discussionService.CreateDiscussionThreadAsync(discussionThreadViewModel, userId);
                 return this.RedirectToAction("Thread", new { id = created.Id });
             }
@@ -59,7 +59,7 @@ namespace MapHive.Controllers
         {
             if (this.ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+                int userId = this._userContextService.UserId;
                 _ = await this._discussionService.AddMessageAsync(threadMessageViewModel, userId);
                 return this.RedirectToAction("Thread", new { id = threadMessageViewModel.ThreadId });
             }
@@ -74,7 +74,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteMessage(int id)
         {
-            int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+            int userId = this._userContextService.UserId;
             bool isAdmin = this.User.IsInRole("Admin");
             await this._discussionService.DeleteMessageAsync(id, userId, isAdmin);
             // After deletion, threadId is not directly available; service ensures message thread exists before deletion

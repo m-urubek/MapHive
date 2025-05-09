@@ -31,7 +31,7 @@ namespace MapHive.Controllers
         {
             if (this.ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+                int userId = this._userContextService.UserId;
                 _ = await this._reviewService.CreateReviewAsync(reviewViewModel, userId);
                 return this.RedirectToAction("Details", "Map", new { id = reviewViewModel.LocationId });
             }
@@ -42,7 +42,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+            int userId = this._userContextService.UserId;
             ReviewViewModel model = await this._reviewService.GetEditModelAsync(id, userId);
             return this.View(model);
         }
@@ -55,7 +55,7 @@ namespace MapHive.Controllers
         {
             if (this.ModelState.IsValid)
             {
-                int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+                int userId = this._userContextService.UserId;
                 await this._reviewService.EditReviewAsync(id, reviewViewModel, userId);
                 return this.RedirectToAction("Details", "Map", new { id = reviewViewModel.LocationId });
             }
@@ -68,7 +68,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = this._userContextService.UserId ?? throw new Exception("User not authenticated");
+            int userId = this._userContextService.UserId;
             bool isAdmin = this.User.IsInRole("Admin");
             int locationId = await this._reviewService.DeleteReviewAsync(id, userId, isAdmin);
             return this.RedirectToAction("Details", "Map", new { id = locationId });

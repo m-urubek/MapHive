@@ -8,12 +8,12 @@ namespace MapHive.Services
         /// <summary>
         /// Gets the current authenticated user's ID, or null if not authenticated.
         /// </summary>
-        int? UserId { get; }
+        int UserId { get; }
 
         /// <summary>
         /// Gets the current authenticated user's username, or null if not authenticated.
         /// </summary>
-        string? Username { get; }
+        string Username { get; }
 
         /// <summary>
         /// Gets a value indicating whether the current user is authenticated.

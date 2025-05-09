@@ -4,23 +4,23 @@ using MapHive.Repositories;
 
 namespace MapHive.Services
 {
-    public class DisplayService : IDisplayService
+    public class DisplayPageService : IDisplayPageService
     {
-        private readonly IDisplayRepository _displayRepository;
+        private readonly IDisplayPageRepository _displayPageRepository;
 
-        public DisplayService(IDisplayRepository displayRepository)
+        public DisplayPageService(IDisplayPageRepository displayPageRepository)
         {
-            this._displayRepository = displayRepository;
+            this._displayPageRepository = displayPageRepository;
         }
 
         public Task<bool> TableExistsAsync(string tableName)
         {
-            return this._displayRepository.TableExistsAsync(tableName);
+            return this._displayPageRepository.TableExistsAsync(tableName);
         }
 
         public Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id)
         {
-            return this._displayRepository.GetItemDataAsync(tableName, id);
+            return this._displayPageRepository.GetItemDataAsync(tableName, id);
         }
 
         /// <summary>
@@ -35,14 +35,14 @@ namespace MapHive.Services
             }
 
             // Check if table exists
-            bool exists = await this._displayRepository.TableExistsAsync(tableName);
+            bool exists = await this._displayPageRepository.TableExistsAsync(tableName);
             if (!exists)
             {
                 throw new RedUserException($"Table '{tableName}' does not exist");
             }
 
             // Retrieve the data
-            Dictionary<string, string> data = await this._displayRepository.GetItemDataAsync(tableName, id);
+            Dictionary<string, string> data = await this._displayPageRepository.GetItemDataAsync(tableName, id);
             if (data == null || data.Count == 0)
             {
                 throw new BlueUserException($"Item with ID {id} was not found in table '{tableName}'");

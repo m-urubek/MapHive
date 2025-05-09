@@ -1,25 +1,23 @@
+using MapHive.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapHive.Models.Exceptions.UserFriendlyExceptions
 {
-    public class UserFriendlyMessageViewComponent : ViewComponent
+    public class UserFriendlyExceptionMessageViewComponent : ViewComponent
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUserFriendlyExceptionService _userFriendlyExceptionService;
 
-        public UserFriendlyMessageViewComponent(IHttpContextAccessor httpContextAccessor)
+        public UserFriendlyExceptionMessageViewComponent(IUserFriendlyExceptionService userFriendlyExceptionService)
         {
-            this._httpContextAccessor = httpContextAccessor;
+            this._userFriendlyExceptionService = userFriendlyExceptionService;
         }
 
         public IViewComponentResult Invoke()
         {
-            HttpContext? httpContext = this._httpContextAccessor.HttpContext;
-            string message = httpContext.Session.GetString("UserFriendlyMessage");
-
-            if (!string.IsNullOrEmpty(message))
+            if (!string.IsNullOrEmpty(this._userFriendlyExceptionService.Message))
             {
                 // Get the message type, default to Blue if not specified
-                string messageTypeString = httpContext.Session.GetString("UserFriendlyMessageType") ?? "Blue";
+                string messageTypeString = this._userFriendlyExceptionService.Type ?? "Blue";
 
                 // Try to parse the message type from the string
                 if (!Enum.TryParse(messageTypeString, out UserFriendlyExceptionBase.MessageType messageType))
@@ -28,13 +26,12 @@ namespace MapHive.Models.Exceptions.UserFriendlyExceptions
                 }
 
                 // Clear the messages from session after retrieving them
-                httpContext.Session.Remove("UserFriendlyMessage");
-                httpContext.Session.Remove("UserFriendlyMessageType");
+                this._userFriendlyExceptionService.Clear();
 
                 // Create a ViewModel to pass both the message and type to the view
-                UserFriendlyMessageViewModel viewModel = new()
+                UserFriendlyExceptionMessageViewModel viewModel = new()
                 {
-                    Message = message,
+                    Message = this._userFriendlyExceptionService.Message,
                     MessageType = messageType
                 };
 
@@ -42,11 +39,11 @@ namespace MapHive.Models.Exceptions.UserFriendlyExceptions
             }
 
             // Return empty view if no message
-            return this.View(new UserFriendlyMessageViewModel());
+            return this.View(new UserFriendlyExceptionMessageViewModel());
         }
     }
 
-    public class UserFriendlyMessageViewModel
+    public class UserFriendlyExceptionMessageViewModel
     {
         public string Message { get; set; } = string.Empty;
         public UserFriendlyExceptionBase.MessageType MessageType { get; set; } = UserFriendlyExceptionBase.MessageType.Blue;

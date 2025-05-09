@@ -7,68 +7,68 @@ namespace MapHive.Services
 {
     public class MapService : IMapService
     {
-        private readonly IMapLocationRepository _mapRepo;
-        private readonly IDiscussionRepository _discussionRepo;
-        private readonly IReviewRepository _reviewRepo;
-        private readonly IUserRepository _userRepo;
+        private readonly IMapLocationRepository _mapRepository;
+        private readonly IDiscussionRepository _discussionRepository;
+        private readonly IReviewRepository _reviewRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
 
         public MapService(
-            IMapLocationRepository mapRepo,
-            IDiscussionRepository discussionRepo,
-            IReviewRepository reviewRepo,
-            IUserRepository userRepo,
+            IMapLocationRepository mapRepository,
+            IDiscussionRepository discussionRepository,
+            IReviewRepository reviewRepository,
+            IUserRepository userRepository,
             IMapper mapper)
         {
-            this._mapRepo = mapRepo;
-            this._discussionRepo = discussionRepo;
-            this._reviewRepo = reviewRepo;
-            this._userRepo = userRepo;
+            this._mapRepository = mapRepository;
+            this._discussionRepository = discussionRepository;
+            this._reviewRepository = reviewRepository;
+            this._userRepository = userRepository;
             this._mapper = mapper;
         }
 
         public Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync()
         {
-            return this._mapRepo.GetAllLocationsAsync();
+            return this._mapRepository.GetAllLocationsAsync();
         }
 
         public Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
         {
-            return this._mapRepo.GetAllCategoriesAsync();
+            return this._mapRepository.GetAllCategoriesAsync();
         }
 
         public Task<MapLocationGet?> GetLocationByIdAsync(int id)
         {
-            return this._mapRepo.GetLocationByIdAsync(id);
+            return this._mapRepository.GetLocationByIdAsync(id);
         }
 
         public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto, int userId)
         {
             createDto.UserId = userId;
-            return await this._mapRepo.AddLocationAsync(createDto);
+            return await this._mapRepository.AddLocationAsync(createDto);
         }
 
         public async Task<MapLocationGet?> UpdateLocationAsync(int id, MapLocationUpdate updateDto, int currentUserId, bool isAdmin)
         {
-            MapLocationGet? existing = await this._mapRepo.GetLocationByIdAsync(id);
+            MapLocationGet? existing = await this._mapRepository.GetLocationByIdAsync(id);
             return existing == null
                 ? null
                 : !isAdmin && existing.UserId != currentUserId
                 ? throw new UnauthorizedAccessException("User is not allowed to update this location")
-                : await this._mapRepo.UpdateLocationAsync(updateDto);
+                : await this._mapRepository.UpdateLocationAsync(updateDto);
         }
 
         public async Task<bool> DeleteLocationAsync(int id, int currentUserId, bool isAdmin)
         {
-            MapLocationGet? existing = await this._mapRepo.GetLocationByIdAsync(id);
+            MapLocationGet? existing = await this._mapRepository.GetLocationByIdAsync(id);
             return existing != null && (!isAdmin && existing.UserId != currentUserId
                 ? throw new UnauthorizedAccessException("User is not allowed to delete this location")
-                : await this._mapRepo.DeleteLocationAsync(id));
+                : await this._mapRepository.DeleteLocationAsync(id));
         }
 
         public async Task<MapLocationViewModel> GetLocationDetailsAsync(int id, int? currentUserId)
         {
-            MapLocationGet? location = await this._mapRepo.GetLocationWithCategoryAsync(id);
+            MapLocationGet? location = await this._mapRepository.GetLocationWithCategoryAsync(id);
             if (location == null)
             {
                 throw new KeyNotFoundException($"Location with ID {id} not found");
@@ -78,7 +78,7 @@ namespace MapHive.Services
 
             if (!location.IsAnonymous)
             {
-                UserGet? user = await this._userRepo.GetUserByIdAsync(location.UserId);
+                UserGet? user = await this._userRepository.GetUserByIdAsync(location.UserId);
                 viewModel.AuthorName = user?.Username ?? "Unknown";
             }
             else
@@ -86,12 +86,12 @@ namespace MapHive.Services
                 viewModel.AuthorName = "Anonymous";
             }
 
-            List<ReviewGet> reviews = (await this._reviewRepo.GetReviewsByLocationIdAsync(id)).ToList();
+            List<ReviewGet> reviews = (await this._reviewRepository.GetReviewsByLocationIdAsync(id)).ToList();
             viewModel.Reviews = reviews;
             viewModel.AverageRating = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
             viewModel.ReviewCount = reviews.Count;
 
-            List<DiscussionThreadGet> discussions = (await this._discussionRepo.GetDiscussionThreadsByLocationIdAsync(id))
+            List<DiscussionThreadGet> discussions = (await this._discussionRepository.GetDiscussionThreadsByLocationIdAsync(id))
                                   .Where(d => !d.IsReviewThread)
                                   .ToList();
             viewModel.Discussions = discussions;
@@ -102,12 +102,12 @@ namespace MapHive.Services
 
         public Task<MapLocationGet?> GetLocationWithCategoryAsync(int id)
         {
-            return this._mapRepo.GetLocationWithCategoryAsync(id);
+            return this._mapRepository.GetLocationWithCategoryAsync(id);
         }
 
         public Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
         {
-            return this._reviewRepo.HasUserReviewedLocationAsync(userId, locationId);
+            return this._reviewRepository.HasUserReviewedLocationAsync(userId, locationId);
         }
 
         /// <summary>

@@ -21,7 +21,7 @@ builder.Services.AddSingleton<IConfigurationRepository, ConfigurationRepository>
 builder.Services.AddSingleton<IReviewRepository, ReviewRepository>();
 builder.Services.AddSingleton<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddSingleton<IDataGridRepository, DataGridRepository>();
-builder.Services.AddSingleton<IDisplayRepository, DisplayRepository>();
+builder.Services.AddSingleton<IDisplayPageRepository, DisplayPageRepository>();
 builder.Services.AddSingleton<ILogRepository, LogRepository>();
 
 // Add application services
@@ -36,7 +36,7 @@ builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterService>
 // Add SqlClient as a singleton
 builder.Services.AddSingleton<ISqlClientSingleton, SqlClientSingleton>();
 
-builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
+builder.Services.AddScoped<ILogManagerService, LogManagerService>();
 
 // Add reCAPTCHA service
 builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("RecaptchaSettings"));
@@ -69,16 +69,20 @@ builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>()
 // Register FileLoggerService as Singleton
 builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
 
-// Register IDisplayService
-builder.Services.AddScoped<IDisplayService, DisplayService>();
+
+builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
+
+
+// Register IDisplayPageService
+builder.Services.AddScoped<IDisplayPageService, DisplayPageService>();
 
 // Register application services for MVC controllers
 builder.Services.AddScoped<IMapService, MapService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
-
-// Register ProfileService
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IRequestContextService, RequestContextService>();
+builder.Services.AddScoped<IUserFriendlyExceptionService, UserFriendlyExceptionService>();
 
 // Register DatabaseUpdaterService as Singleton
 

@@ -5,7 +5,6 @@ using MapHive.Models.Enums;
 using MapHive.Models.Exceptions;
 using MapHive.Models.RepositoryModels;
 using MapHive.Repositories;
-using MapHive.Singletons;
 using MapHive.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -18,17 +17,17 @@ namespace MapHive.Services
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _userRepository;
-        private readonly ILogManagerSingleton _logManager;
+        private readonly ILogManagerService _logManagerService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IMapper _mapper;
 
         public AuthService(IUserRepository userRepository,
-            ILogManagerSingleton logManager,
+            ILogManagerService logManager,
             IHttpContextAccessor httpContextAccessor,
             IMapper mapper)
         {
             this._userRepository = userRepository;
-            this._logManager = logManager;
+            this._logManagerService = logManager;
             this._httpContextAccessor = httpContextAccessor;
             this._mapper = mapper;
         }
@@ -48,7 +47,7 @@ namespace MapHive.Services
             if (await this._userRepository.IsIpBannedAsync(hashedIpAddress))
             {
                 // LogGet the attempt but throw a user-friendly (less informative) error
-                this._logManager.Warning($"Registration attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress})");
+                this._logManagerService.Log(LogSeverity.Warning, $"Registration attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress})");
                 throw new OrangeUserException("Registration failed due to security reasons.");
             }
 
@@ -74,7 +73,7 @@ namespace MapHive.Services
             await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
 
             // Log registration, including hashed IP after sign-in so UserId is available
-            this._logManager.Information($"New user registered: {userId}",
+            this._logManagerService.Log(LogSeverity.Information, $"New user registered: {userId}",
                 additionalData: $"Hashed IP: {hashedIpAddress}");
 
             return new AuthResponse
@@ -91,14 +90,14 @@ namespace MapHive.Services
             UserGet? userGet = await this._userRepository.GetUserByUsernameAsync(request.Username);
             if (userGet == null)
             {
-                this._logManager.Warning($"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
+                this._logManagerService.Log(LogSeverity.Warning, $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
             // Check password
             if (!this.VerifyPassword(request.Password, userGet.PasswordHash))
             {
-                this._logManager.Warning($"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
+                this._logManagerService.Log(LogSeverity.Warning, $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
@@ -106,7 +105,7 @@ namespace MapHive.Services
             UserBanGet? activeBan = await this._userRepository.GetActiveBanByUserIdAsync(userGet.Id);
             if (activeBan != null)
             {
-                this._logManager.Warning($"Banned user login attempt: {request.Username} (Ban ID: {activeBan.Id})");
+                this._logManagerService.Log(LogSeverity.Warning, $"Banned user login attempt: {request.Username} (Ban ID: {activeBan.Id})");
                 string banMessage = "Your account is currently banned.";
                 if (activeBan.ExpiresAt.HasValue)
                 {
@@ -123,7 +122,7 @@ namespace MapHive.Services
             string hashedIpAddress = NetworkingUtility.HashIpAddress(ipAddress);
             if (await this._userRepository.IsIpBannedAsync(hashedIpAddress))
             {
-                this._logManager.Warning($"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");
+                this._logManagerService.Log(LogSeverity.Warning, $"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");
                 throw new OrangeUserException("Login failed due to security reasons.");
             }
 
@@ -131,7 +130,7 @@ namespace MapHive.Services
             await this.SignInUserAsync(this._mapper.Map<UserLogin>(userGet));
 
             // Log successful login after sign-in
-            this._logManager.Information($"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
+            this._logManagerService.Log(LogSeverity.Information, $"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
 
             // Update IP history if necessary (consider rate limiting or specific logic)
             if (userGet.IpAddressHistory == null || !userGet.IpAddressHistory.Contains(hashedIpAddress))
@@ -161,7 +160,7 @@ namespace MapHive.Services
             if (this._httpContextAccessor.HttpContext != null)
             {
                 await this._httpContextAccessor.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                this._logManager.Information("UserLogin logged out");
+                this._logManagerService.Log(LogSeverity.Information, "UserLogin logged out");
             }
         }
 
@@ -240,7 +239,7 @@ namespace MapHive.Services
             }
             else
             {
-                this._logManager.Error("HttpContext is null. Cannot sign in user.");
+                this._logManagerService.Log(LogSeverity.Error, "HttpContext is null. Cannot sign in user.");
                 // Handle the error appropriately, maybe throw an exception
                 throw new InvalidOperationException("HttpContext is not available to sign in the user.");
             }

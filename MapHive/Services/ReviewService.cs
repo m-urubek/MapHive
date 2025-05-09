@@ -8,26 +8,26 @@ namespace MapHive.Services
 {
     public class ReviewService : IReviewService
     {
-        private readonly IReviewRepository _reviewRepo;
-        private readonly IMapLocationRepository _mapRepo;
-        private readonly IDiscussionRepository _discussionRepo;
+        private readonly IReviewRepository _reviewRepository;
+        private readonly IMapLocationRepository _mapRepository;
+        private readonly IDiscussionRepository _discussionRepository;
         private readonly IMapper _mapper;
 
         public ReviewService(
-            IReviewRepository reviewRepo,
-            IMapLocationRepository mapRepo,
-            IDiscussionRepository discussionRepo,
+            IReviewRepository reviewRepository,
+            IMapLocationRepository mapRepository,
+            IDiscussionRepository discussionRepository,
             IMapper mapper)
         {
-            this._reviewRepo = reviewRepo;
-            this._mapRepo = mapRepo;
-            this._discussionRepo = discussionRepo;
+            this._reviewRepository = reviewRepository;
+            this._mapRepository = mapRepository;
+            this._discussionRepository = discussionRepository;
             this._mapper = mapper;
         }
 
         public async Task<ReviewViewModel> GetCreateModelAsync(int locationId)
         {
-            MapLocationGet location = await this._mapRepo.GetLocationByIdAsync(locationId)
+            MapLocationGet location = await this._mapRepository.GetLocationByIdAsync(locationId)
                 ?? throw new KeyNotFoundException($"Location {locationId} not found");
             return new ReviewViewModel
             {
@@ -40,14 +40,14 @@ namespace MapHive.Services
 
         public async Task<ReviewGet> CreateReviewAsync(ReviewViewModel model, int userId)
         {
-            if (await this._reviewRepo.HasUserReviewedLocationAsync(userId, model.LocationId))
+            if (await this._reviewRepository.HasUserReviewedLocationAsync(userId, model.LocationId))
             {
                 throw new OrangeUserException("You have already reviewed this location.");
             }
 
             ReviewCreate reviewDto = this._mapper.Map<ReviewCreate>(model);
             reviewDto.UserId = userId;
-            ReviewGet createdReview = await this._reviewRepo.AddReviewAsync(reviewDto);
+            ReviewGet createdReview = await this._reviewRepository.AddReviewAsync(reviewDto);
 
             ReviewThreadCreate threadDto = new()
             {
@@ -57,21 +57,21 @@ namespace MapHive.Services
                 Username = string.Empty,
                 ReviewTitle = model.LocationName
             };
-            _ = await this._discussionRepo.CreateReviewThreadAsync(threadDto);
+            _ = await this._discussionRepository.CreateReviewThreadAsync(threadDto);
 
             return createdReview;
         }
 
         public async Task<ReviewViewModel> GetEditModelAsync(int reviewId, int userId)
         {
-            ReviewGet review = await this._reviewRepo.GetReviewByIdAsync(reviewId)
+            ReviewGet review = await this._reviewRepository.GetReviewByIdAsync(reviewId)
                 ?? throw new KeyNotFoundException($"Review {reviewId} not found");
             if (review.UserId != userId)
             {
                 throw new UnauthorizedAccessException();
             }
             ReviewViewModel model = this._mapper.Map<ReviewViewModel>(review);
-            MapLocationGet location = await this._mapRepo.GetLocationByIdAsync(review.LocationId)
+            MapLocationGet location = await this._mapRepository.GetLocationByIdAsync(review.LocationId)
                 ?? throw new KeyNotFoundException($"Location {review.LocationId} not found");
             model.LocationName = location.Name;
             return model;
@@ -79,7 +79,7 @@ namespace MapHive.Services
 
         public async Task EditReviewAsync(int id, ReviewViewModel model, int userId)
         {
-            ReviewGet review = await this._reviewRepo.GetReviewByIdAsync(id)
+            ReviewGet review = await this._reviewRepository.GetReviewByIdAsync(id)
                 ?? throw new KeyNotFoundException($"Review {id} not found");
             if (review.UserId != userId)
             {
@@ -91,7 +91,7 @@ namespace MapHive.Services
             updateDto.UserId = userId;
             updateDto.LocationId = review.LocationId;
 
-            if (!await this._reviewRepo.UpdateReviewAsync(updateDto))
+            if (!await this._reviewRepository.UpdateReviewAsync(updateDto))
             {
                 throw new Exception("Failed to update review.");
             }
@@ -99,7 +99,7 @@ namespace MapHive.Services
 
         public async Task<int> DeleteReviewAsync(int id, int userId, bool isAdmin)
         {
-            ReviewGet review = await this._reviewRepo.GetReviewByIdAsync(id)
+            ReviewGet review = await this._reviewRepository.GetReviewByIdAsync(id)
                 ?? throw new KeyNotFoundException($"Review {id} not found");
             if (!isAdmin && review.UserId != userId)
             {
@@ -109,14 +109,14 @@ namespace MapHive.Services
             string reviewText = review.ReviewText;
             int locationId = review.LocationId;
 
-            _ = await this._reviewRepo.DeleteReviewAsync(id);
-            DiscussionThreadGet? thread = await this._discussionRepo.GetThreadByIdAsync(review.Id);
+            _ = await this._reviewRepository.DeleteReviewAsync(id);
+            DiscussionThreadGet? thread = await this._discussionRepository.GetThreadByIdAsync(review.Id);
             if (thread != null && thread.IsReviewThread && thread.ReviewId == review.Id)
             {
-                IEnumerable<ThreadMessageGet> messages = await this._discussionRepo.GetMessagesByThreadIdAsync(thread.Id);
+                IEnumerable<ThreadMessageGet> messages = await this._discussionRepository.GetMessagesByThreadIdAsync(thread.Id);
                 if (messages.Any())
                 {
-                    _ = await this._discussionRepo.ConvertReviewThreadToDiscussionAsync(thread.Id, reviewText);
+                    _ = await this._discussionRepository.ConvertReviewThreadToDiscussionAsync(thread.Id, reviewText);
                 }
             }
             return locationId;

@@ -7,12 +7,12 @@ namespace MapHive.Repositories
 {
     public class DiscussionRepository : IDiscussionRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
         private readonly IUserRepository _userRepository;
 
-        public DiscussionRepository(ISqlClientSingleton sqlClient, IUserRepository userRepository)
+        public DiscussionRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
             this._userRepository = userRepository;
         }
 
@@ -21,7 +21,7 @@ namespace MapHive.Repositories
             List<DiscussionThreadGet> list = new();
             string query = @"SELECT * FROM DiscussionThreads WHERE LocationId = @LocationId AND IsReviewThread = 0 ORDER BY CreatedAt DESC";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@LocationId", locationId) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = this.MapRowToThreadGet(row);
@@ -38,7 +38,7 @@ namespace MapHive.Repositories
             List<DiscussionThreadGet> list = new();
             string query = @"SELECT * FROM DiscussionThreads WHERE LocationId = @LocationId ORDER BY CreatedAt DESC";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@LocationId", locationId) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = this.MapRowToThreadGet(row);
@@ -54,7 +54,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id_Log";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             if (dt.Rows.Count == 0)
             {
                 return null;
@@ -80,7 +80,7 @@ namespace MapHive.Repositories
                 new("@ReviewId", dto.ReviewId.HasValue ? (object)dto.ReviewId.Value : DBNull.Value),
                 new("@CreatedAt", now)
             };
-            int threadId = await this._sqlClient.InsertAsync(threadQuery, threadParams);
+            int threadId = await this._sqlClientSingleton.InsertAsync(threadQuery, threadParams);
             string msgQuery = @"INSERT INTO ThreadMessages (ThreadId, UserId, MessageText, IsInitialMessage, IsDeleted, CreatedAt) VALUES (@ThreadId, @UserId, @MessageText, @IsInitialMessage, @IsDeleted, @CreatedAt);";
             SQLiteParameter[] msgParams = new SQLiteParameter[]
             {
@@ -91,7 +91,7 @@ namespace MapHive.Repositories
                 new("@IsDeleted", false),
                 new("@CreatedAt", now)
             };
-            _ = await this._sqlClient.InsertAsync(msgQuery, msgParams);
+            _ = await this._sqlClientSingleton.InsertAsync(msgQuery, msgParams);
             DiscussionThreadGet? thread = await this.GetThreadByIdAsync(threadId);
             return thread!;
         }
@@ -112,7 +112,7 @@ namespace MapHive.Repositories
         public async Task<bool> DeleteThreadAsync(int id)
         {
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
-            int rows = await this._sqlClient.DeleteAsync("DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id_Log", parameters);
+            int rows = await this._sqlClientSingleton.DeleteAsync("DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id_Log", parameters);
             return rows > 0;
         }
 
@@ -121,7 +121,7 @@ namespace MapHive.Repositories
             List<DiscussionThreadGet> list = new();
             string query = @"SELECT DISTINCT dt.* FROM DiscussionThreads dt LEFT JOIN ThreadMessages tm ON dt.Id_DiscussionThreads = tm.ThreadId WHERE dt.UserId = @UserId OR tm.UserId = @UserId ORDER BY dt.CreatedAt DESC";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = this.MapRowToThreadGet(row);
@@ -137,7 +137,7 @@ namespace MapHive.Repositories
             List<ThreadMessageGet> list = new();
             string query = "SELECT * FROM ThreadMessages WHERE ThreadId = @ThreadId ORDER BY CreatedAt";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@ThreadId", threadId) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             foreach (DataRow row in dt.Rows)
             {
                 list.Add(this.MapRowToMessageGet(row));
@@ -150,7 +150,7 @@ namespace MapHive.Repositories
         {
             string query = "SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id_Log";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
-            DataTable dt = await this._sqlClient.SelectAsync(query, parameters);
+            DataTable dt = await this._sqlClientSingleton.SelectAsync(query, parameters);
             return dt.Rows.Count == 0 ? null : this.MapRowToMessageGet(dt.Rows[0]);
         }
 
@@ -167,14 +167,14 @@ namespace MapHive.Repositories
                 new("@IsDeleted", false),
                 new("@CreatedAt", now)
             };
-            int msgId = await this._sqlClient.InsertAsync(query, parameters);
-            ThreadMessageGet message = this.MapRowToMessageGet((await this._sqlClient.SelectAsync("SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id_Log", new SQLiteParameter[] { new("@Id_Log", msgId) })).Rows[0]);
+            int msgId = await this._sqlClientSingleton.InsertAsync(query, parameters);
+            ThreadMessageGet message = this.MapRowToMessageGet((await this._sqlClientSingleton.SelectAsync("SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id_Log", new SQLiteParameter[] { new("@Id_Log", msgId) })).Rows[0]);
             return message;
         }
 
         public async Task<bool> DeleteMessageAsync(int id, int deletedByUserId)
         {
-            int rows = await this._sqlClient.UpdateAsync("UPDATE ThreadMessages SET IsDeleted=1, DeletedByUserId=@Del, DeletedAt=@DeletedAt WHERE Id_ThreadMessages=@Id_Log",
+            int rows = await this._sqlClientSingleton.UpdateAsync("UPDATE ThreadMessages SET IsDeleted=1, DeletedByUserId=@Del, DeletedAt=@DeletedAt WHERE Id_ThreadMessages=@Id_Log",
                 new SQLiteParameter[] { new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), new("@Id_Log", id) });
             return rows > 0;
         }
@@ -182,7 +182,7 @@ namespace MapHive.Repositories
         public async Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage)
         {
             string query = "UPDATE DiscussionThreads SET IsReviewThread=0 WHERE Id_DiscussionThreads=@Id_Log";
-            _ = await this._sqlClient.UpdateAsync(query, new SQLiteParameter[] { new("@Id_Log", threadId) });
+            _ = await this._sqlClientSingleton.UpdateAsync(query, new SQLiteParameter[] { new("@Id_Log", threadId) });
             return true;
         }
 

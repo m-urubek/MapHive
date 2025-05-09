@@ -9,11 +9,11 @@ namespace MapHive.Repositories
 {
     public class DataGridRepository : IDataGridRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
 
-        public DataGridRepository(ISqlClientSingleton sqlClient)
+        public DataGridRepository(ISqlClientSingleton sqlClientSingleton)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
         }
 
         // Get schema information for a table
@@ -26,7 +26,7 @@ namespace MapHive.Repositories
             }
 
             string query = $"PRAGMA table_info({tableName})";
-            return await this._sqlClient.SelectAsync(query);
+            return await this._sqlClientSingleton.SelectAsync(query);
         }
 
         // Get schema information about foreign keys for a table
@@ -39,7 +39,7 @@ namespace MapHive.Repositories
             }
 
             string query = $"PRAGMA foreign_key_list({tableName})";
-            return await this._sqlClient.SelectAsync(query);
+            return await this._sqlClientSingleton.SelectAsync(query);
         }
 
         // Get columns for a table
@@ -158,7 +158,7 @@ namespace MapHive.Repositories
             );
 
             // Execute query to get data
-            DataTable dataTable = await this._sqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable dataTable = await this._sqlClientSingleton.SelectAsync(query, parameters.ToArray());
 
             // Convert data to grid rows
             viewModel.Items = ConvertDataTableToGridRows(dataTable, viewModel.Columns);
@@ -222,7 +222,7 @@ namespace MapHive.Repositories
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
             // Execute query
-            DataTable resultTable = await this._sqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable resultTable = await this._sqlClientSingleton.SelectAsync(query, parameters.ToArray());
 
             return resultTable.Rows.Count > 0 && resultTable.Rows[0][0] != DBNull.Value ? Convert.ToInt32(resultTable.Rows[0][0]) : 0;
         }

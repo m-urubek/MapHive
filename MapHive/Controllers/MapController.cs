@@ -32,7 +32,7 @@ namespace MapHive.Controllers
         public async Task<IActionResult> Add()
         {
             // Prepare Add page data
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             AddLocationPageViewModel vm = await this._mapService.GetAddLocationPageViewModelAsync(userId);
             return this.View(vm);
         }
@@ -46,7 +46,7 @@ namespace MapHive.Controllers
             if (!this.ModelState.IsValid)
             {
                 // Re-populate categories on validation failure
-                int userId = this._userContextService.UserId ?? 0;
+                int userId = this._userContextService.UserId;
                 AddLocationPageViewModel fallback = await this._mapService.GetAddLocationPageViewModelAsync(userId);
                 fallback.CreateModel = addLocationPageViewModel.CreateModel;
                 return this.View(fallback);
@@ -59,7 +59,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             bool isAdmin = this.User.IsInRole("Admin");
             try
             {
@@ -85,13 +85,13 @@ namespace MapHive.Controllers
             if (!this.ModelState.IsValid)
             {
                 // Re-populate categories on validation failure
-                int userId = this._userContextService.UserId ?? 0;
+                int userId = this._userContextService.UserId;
                 bool isAdmin = this.User.IsInRole("Admin");
                 EditLocationPageViewModel fallback = await this._mapService.GetEditLocationPageViewModelAsync(editLocationPageViewModel.UpdateModel.Id, userId, isAdmin);
                 fallback.UpdateModel = editLocationPageViewModel.UpdateModel;
                 return this.View(fallback);
             }
-            _ = await this._mapService.UpdateLocationAsync(editLocationPageViewModel.UpdateModel.Id, editLocationPageViewModel.UpdateModel, this._userContextService.UserId ?? 0, this.User.IsInRole("Admin"));
+            _ = await this._mapService.UpdateLocationAsync(editLocationPageViewModel.UpdateModel.Id, editLocationPageViewModel.UpdateModel, this._userContextService.UserId, this.User.IsInRole("Admin"));
             return this.RedirectToAction(nameof(Index));
         }
 
@@ -99,7 +99,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             bool isAdmin = this.User.IsInRole("Admin");
             try
             {
@@ -122,7 +122,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             bool isAdmin = this.User.IsInRole("Admin");
             try
             {
@@ -148,10 +148,7 @@ namespace MapHive.Controllers
                 MapLocationViewModel viewModel = await this._mapService.GetLocationDetailsAsync(id, this._userContextService.UserId);
                 // Determine if current user has already reviewed
                 bool hasReviewed = false;
-                if (this._userContextService.UserId.HasValue)
-                {
-                    hasReviewed = await this._mapService.HasUserReviewedLocationAsync(this._userContextService.UserId.Value, id);
-                }
+                hasReviewed = await this._mapService.HasUserReviewedLocationAsync(this._userContextService.UserId, id);
                 this.ViewBag.HasReviewed = hasReviewed;
                 this.ViewBag.AuthorUsername = viewModel.AuthorName;
                 this.ViewBag.AverageRating = viewModel.AverageRating;

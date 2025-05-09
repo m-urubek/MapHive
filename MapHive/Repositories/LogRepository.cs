@@ -9,11 +9,11 @@ namespace MapHive.Repositories
 {
     public class LogRepository : ILogRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
 
-        public LogRepository(ISqlClientSingleton sqlClient)
+        public LogRepository(ISqlClientSingleton sqlClientSingleton)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
         }
 
         public async Task<IEnumerable<LogGet>> GetLogsAsync(
@@ -56,8 +56,8 @@ namespace MapHive.Repositories
             parameters.Add(new SQLiteParameter("@PageSize", pageSize));
             parameters.Add(new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
-            // Execute query using injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            // Execute query using injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
 
             // Map results to LogGet objects
             List<LogGet> logs = new();
@@ -87,8 +87,8 @@ namespace MapHive.Repositories
                 parameters.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
             }
 
-            // Execute query using injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
+            // Execute query using injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(queryBuilder.ToString(), parameters.ToArray());
 
             // Return count
             return result.Rows.Count > 0 && result.Rows[0][0] != DBNull.Value ? Convert.ToInt32(result.Rows[0][0]) : 0;
@@ -104,8 +104,8 @@ namespace MapHive.Repositories
 
             SQLiteParameter[] parameters = { new("@Id_Log", id) };
 
-            // Use injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Use injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             return result.Rows.Count == 0 ? null : MapDataRowToLog(result.Rows[0]);
         }
@@ -125,7 +125,7 @@ namespace MapHive.Repositories
                         new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
                         new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
             };
-            return await this._sqlClient.InsertAsync(query, parameters);
+            return await this._sqlClientSingleton.InsertAsync(query, parameters);
         }
 
         private static LogGet MapDataRowToLog(DataRow row) //TODO make dynamic

@@ -20,19 +20,17 @@ namespace MapHive.Controllers
         private readonly IAccountService _accountService;
         private readonly IAdminService _adminService;
         private readonly IProfileService _profileService;
-        private readonly ILogManagerSingleton _logManager;
+        private readonly ILogManagerService _logManagerService;
         private readonly IRecaptchaService _recaptchaService;
         private readonly RecaptchaSettings _recaptchaSettings;
         private readonly IConfigurationSingleton _configSingleton;
         private readonly IUserContextService _userContextService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IMapper _mapper;
 
         public AccountController(
             IAccountService accountService,
             IAdminService adminService,
             IProfileService profileService,
-            ILogManagerSingleton logManager,
+            ILogManagerService logManager,
             IRecaptchaService recaptchaService,
             IConfigurationSingleton configSingleton,
             IUserContextService userContextService,
@@ -43,13 +41,11 @@ namespace MapHive.Controllers
             this._accountService = accountService;
             this._adminService = adminService;
             this._profileService = profileService;
-            this._logManager = logManager;
+            this._logManagerService = logManager;
             this._recaptchaService = recaptchaService;
             this._recaptchaSettings = recaptchaOptions.Value;
             this._configSingleton = configSingleton;
             this._userContextService = userContextService;
-            this._httpContextAccessor = httpContextAccessor;
-            this._mapper = mapper;
         }
 
         [HttpGet]
@@ -79,7 +75,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error($"Unexpected error during login for {loginRequest.Username}.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, $"Unexpected error during login for {loginRequest.Username}.", exception: ex);
                 this.ModelState.AddModelError("", "An unexpected error occurred during login. Please try again later.");
                 return this.View(loginRequest);
             }
@@ -120,14 +116,14 @@ namespace MapHive.Controllers
 
                 if (validationResponse == null || !validationResponse.success)
                 {
-                    this._logManager.Warning("reCAPTCHA validation failed for user registration attempt.");
+                    this._logManagerService.Log(LogSeverity.Warning, "reCAPTCHA validation failed for user registration attempt.");
                     this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
                     return this.View(registerRequest);
                 }
             }
             else if (!string.IsNullOrEmpty(registerRequest.RecaptchaResponse))
             {
-                this._logManager.Information("Accepting reCAPTCHA test response during registration.");
+                this._logManagerService.Log(LogSeverity.Information, "Accepting reCAPTCHA test response during registration.");
             }
             else
             {
@@ -147,7 +143,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error($"Unexpected error during registration for {registerRequest.Username}.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, $"Unexpected error during registration for {registerRequest.Username}.", exception: ex);
                 this.ModelState.AddModelError("", "An unexpected error occurred during registration. Please try again later.");
                 return this.View(registerRequest);
             }
@@ -173,7 +169,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
         {
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             PrivateProfileViewModel? viewModel = await this._profileService.GetPrivateProfileAsync(userId);
             return viewModel == null ? this.RedirectToAction("Login") : this.View(viewModel);
         }
@@ -189,7 +185,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> BanUser(string username)
         {
-            int adminId = this._userContextService.UserId ?? 0;
+            int adminId = this._userContextService.UserId;
             if (adminId == 0)
             {
                 return this.Forbid();
@@ -215,7 +211,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ProcessBan(int userId, string username, BanViewModel banViewModel)
         {
-            int adminId = this._userContextService.UserId ?? 0;
+            int adminId = this._userContextService.UserId;
             if (adminId == 0)
             {
                 return this.Forbid();
@@ -246,7 +242,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error("Unexpected error during ban process.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, "Unexpected error during ban process.", exception: ex);
                 this.TempData["ErrorMessage"] = "An unexpected error occurred. Please try again later.";
                 return this.RedirectToAction("PublicProfile", new { username });
             }
@@ -257,7 +253,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> UnbanUser(int banId, string username)
         {
-            int adminId = this._userContextService.UserId ?? 0;
+            int adminId = this._userContextService.UserId;
             if (adminId == 0)
             {
                 return this.Forbid();
@@ -282,7 +278,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error("Unexpected error during unban process.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, "Unexpected error during unban process.", exception: ex);
                 this.TempData["ErrorMessage"] = "An unexpected error occurred. Please try again later.";
                 return this.RedirectToAction("PublicProfile", new { username });
             }
@@ -295,13 +291,13 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                int currentUserId = this._userContextService.UserId ?? 0;
+                int currentUserId = this._userContextService.UserId;
                 PrivateProfileViewModel? profileVm = await this._profileService.GetPrivateProfileAsync(currentUserId);
                 profileVm.ChangeUsernameViewModel = changeUsernameViewModel;
                 return this.View("PrivateProfile", profileVm);
             }
 
-            int userId = this._userContextService.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             if (userId == 0)
             {
                 return this.RedirectToAction("Login");
@@ -343,7 +339,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error("Unexpected error during username change.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, "Unexpected error during username change.", exception: ex);
                 this.ModelState.AddModelError("", "An unexpected error occurred. Please try again later.");
                 PrivateProfileViewModel? profileOnError = await this._profileService.GetPrivateProfileAsync(userId);
                 profileOnError.ChangeUsernameViewModel = changeUsernameViewModel;
@@ -358,13 +354,13 @@ namespace MapHive.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                int currentUserId = this._userContextService.UserId ?? 0;
+                int currentUserId = this._userContextService.UserId;
                 PrivateProfileViewModel? profileVm = await this._profileService.GetPrivateProfileAsync(currentUserId);
                 profileVm.ChangePasswordViewModel = changePasswordViewModel;
                 return this.View("PrivateProfile", profileVm);
             }
 
-            int userId = this._userContextService?.UserId ?? 0;
+            int userId = this._userContextService.UserId;
             if (userId == 0)
             {
                 return this.RedirectToAction("Login");
@@ -385,7 +381,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                this._logManager.Error("Unexpected error during password change.", exception: ex);
+                this._logManagerService.Log(LogSeverity.Error, "Unexpected error during password change.", exception: ex);
                 this.ModelState.AddModelError("", "An unexpected error occurred. Please try again later.");
                 return this.View("PrivateProfile", await this._profileService.GetPrivateProfileAsync(userId));
             }

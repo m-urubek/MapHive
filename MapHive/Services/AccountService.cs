@@ -1,33 +1,33 @@
 using AutoMapper;
 using MapHive.Models;
 using MapHive.Models.BusinessModels;
+using MapHive.Models.Enums;
 using MapHive.Models.Exceptions;
 using MapHive.Models.RepositoryModels;
 using MapHive.Repositories;
-using MapHive.Singletons;
 
 namespace MapHive.Services
 {
     public class AccountService : IAccountService
     {
         private readonly IAuthService _authService;
-        private readonly ILogManagerSingleton _logManager;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogManagerService _logManagerService;
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
+        private readonly IRequestContextService _requestContextService;
 
         public AccountService(
             IAuthService authService,
-            ILogManagerSingleton logManager,
-            IHttpContextAccessor httpContextAccessor,
+            ILogManagerService logManager,
             IUserRepository userRepository,
-            IMapper mapper)
+            IMapper mapper,
+            IRequestContextService requestContextService)
         {
             this._authService = authService;
-            this._logManager = logManager;
-            this._httpContextAccessor = httpContextAccessor;
+            this._logManagerService = logManager;
             this._userRepository = userRepository;
             this._mapper = mapper;
+            this._requestContextService = requestContextService;
         }
 
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -37,15 +37,14 @@ namespace MapHive.Services
                 throw new ArgumentNullException(nameof(request));
             }
 
-            string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ipAddress))
+            if (string.IsNullOrEmpty(_requestContextService.IpAddress))
             {
-                this._logManager.Warning("Login failed: Unable to retrieve client IP address.");
+                this._logManagerService.Log(LogSeverity.Warning, "Login failed: Unable to retrieve client IP address.");
                 throw new OrangeUserException("Login failed due to a network issue. Please try again.");
             }
 
-            AuthResponse response = await this._authService.LoginAsync(request, ipAddress);
-            this._logManager.Information($"User {request.Username} successfully logged in.");
+            AuthResponse response = await this._authService.LoginAsync(request, _requestContextService.IpAddress);
+            this._logManagerService.Log(LogSeverity.Information, $"User {request.Username} successfully logged in.");
             return response;
         }
 
@@ -56,21 +55,20 @@ namespace MapHive.Services
                 throw new ArgumentNullException(nameof(request));
             }
 
-            string? ipAddress = this._httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ipAddress))
+            if (string.IsNullOrEmpty(_requestContextService.IpAddress))
             {
-                this._logManager.Error("Registration failed: Unable to retrieve client IP address.");
+                this._logManagerService.Log(LogSeverity.Error, "Registration failed: Unable to retrieve client IP address.");
                 throw new RedUserException("Unable to retrieve your IP address. Registration cannot proceed.");
             }
 
-            AuthResponse response = await this._authService.RegisterAsync(request, ipAddress);
-            this._logManager.Information($"User {request.Username} successfully registered and logged in.");
+            AuthResponse response = await this._authService.RegisterAsync(request, _requestContextService.IpAddress);
+            this._logManagerService.Log(LogSeverity.Information, $"User {request.Username} successfully registered and logged in.");
             return response;
         }
 
         public Task LogoutAsync()
         {
-            this._logManager.Information("User logged out.");
+            this._logManagerService.Log(LogSeverity.Information, "User logged out.");
             return this._authService.LogoutAsync();
         }
 

@@ -5,13 +5,13 @@ using System.Text.RegularExpressions;
 
 namespace MapHive.Repositories
 {
-    public class DisplayRepository : IDisplayRepository
+    public class DisplayPageRepository : IDisplayPageRepository
     {
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly ISqlClientSingleton _sqlClientSingleton;
 
-        public DisplayRepository(ISqlClientSingleton sqlClient)
+        public DisplayPageRepository(ISqlClientSingleton sqlClientSingleton)
         {
-            this._sqlClient = sqlClient;
+            this._sqlClientSingleton = sqlClientSingleton;
         }
 
         public async Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id)
@@ -29,8 +29,8 @@ namespace MapHive.Repositories
             string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id_Log";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
 
-            // Execute query using injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Execute query using injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             // If no item found with the specified ID, return empty dictionary
             if (result.Rows.Count == 0)
@@ -54,8 +54,8 @@ namespace MapHive.Repositories
             string query = "SELECT name FROM sqlite_master WHERE type='table' AND name=@TableName";
             SQLiteParameter[] parameters = new SQLiteParameter[] { new("@TableName", tableName) };
 
-            // Execute query using injected _sqlClient
-            DataTable result = await this._sqlClient.SelectAsync(query, parameters);
+            // Execute query using injected _sqlClientSingleton
+            DataTable result = await this._sqlClientSingleton.SelectAsync(query, parameters);
 
             // Return true if table exists
             return result.Rows.Count > 0;
@@ -68,9 +68,9 @@ namespace MapHive.Repositories
             {
                 throw new ArgumentException("Invalid table name for schema lookup");
             }
-            // Get table schema using injected _sqlClient
+            // Get table schema using injected _sqlClientSingleton
             string query = $"PRAGMA table_info(\"{tableName}\")";
-            DataTable schemaTable = await this._sqlClient.SelectAsync(query);
+            DataTable schemaTable = await this._sqlClientSingleton.SelectAsync(query);
 
             // Check for Id_{tableName} column
             string expectedIdColumn = $"Id_{tableName}";

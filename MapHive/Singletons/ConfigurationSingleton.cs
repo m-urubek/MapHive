@@ -5,38 +5,36 @@ namespace MapHive.Singletons
 {
     public class ConfigurationSingleton : IConfigurationSingleton
     {
-        private readonly IConfigurationRepository _configRepository;
-        private readonly ISqlClientSingleton _sqlClient;
+        private readonly IConfigurationRepository _configurationRepository;
 
-        public ConfigurationSingleton(IConfigurationRepository configRepository, ISqlClientSingleton sqlClient)
+        public ConfigurationSingleton(IConfigurationRepository configRepository)
         {
-            this._configRepository = configRepository;
-            this._sqlClient = sqlClient;
+            this._configurationRepository = configRepository;
         }
 
         public async Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
         {
-            return await Task.Run(() => this._configRepository.GetConfigurationItemAsync(key));
+            return await Task.Run(() => this._configurationRepository.GetConfigurationItemAsync(key));
         }
 
         public async Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync()
         {
-            return await Task.Run(this._configRepository.GetAllConfigurationItemsAsync);
+            return await Task.Run(this._configurationRepository.GetAllConfigurationItemsAsync);
         }
 
         public async Task<int> AddConfigurationItemAsync(ConfigurationItem item)
         {
-            return await Task.Run(() => this._configRepository.AddConfigurationItemAsync(item));
+            return await Task.Run(() => this._configurationRepository.AddConfigurationItemAsync(item));
         }
 
         public async Task<int> UpdateConfigurationItemAsync(ConfigurationItem item)
         {
-            return await Task.Run(() => this._configRepository.UpdateConfigurationItemAsync(item));
+            return await Task.Run(() => this._configurationRepository.UpdateConfigurationItemAsync(item));
         }
 
         public async Task<int> DeleteConfigurationItemAsync(string key)
         {
-            return await this._configRepository.DeleteConfigurationItemAsync(key);
+            return await this._configurationRepository.DeleteConfigurationItemAsync(key);
         }
 
         // Added methods from ConfigService
@@ -86,7 +84,7 @@ namespace MapHive.Singletons
 
         public async Task<string?> GetConfigurationValueAsync(string key)
         {
-            return await this._configRepository.GetConfigurationValueAsync(key);
+            return await this._configurationRepository.GetConfigurationValueAsync(key);
         }
     }
 }
