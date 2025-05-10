@@ -5,12 +5,13 @@ namespace MapHive.Repositories
     using System.Text;
     using MapHive.Models.Enums;
     using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
     public class LogRepository(ISqlClientSingleton sqlClientSingleton) : ILogRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
-
         public async Task<IEnumerable<LogGet>> GetLogsAsync(
             int page = 1,
             int pageSize = 20,
@@ -107,7 +108,7 @@ namespace MapHive.Repositories
 
         public async Task<int> CreateLogRowAsync(LogCreate logCreate)
         {
-            const string query = @"INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserId, RequestPath, AdditionalData)"
+            const string query = "INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserId, RequestPath, AdditionalData)"
                                              + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserId, @RequestPath, @AdditionalData);";
             SQLiteParameter[] parameters = new SQLiteParameter[]
             {
@@ -123,35 +124,19 @@ namespace MapHive.Repositories
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
-        private static LogGet MapDataRowToLog(DataRow row) //TODO make dynamic
+        private LogGet MapDataRowToLog(DataRow row)
         {
-            // Simplified mapping
             return new LogGet
             {
-                Id_Log = Convert.ToInt32(value: row["Id_Log"]),
-                Timestamp = Convert.ToDateTime(value: row["Timestamp"]),
-                SeverityId = Convert.ToInt32(value: row["SeverityId"]),
-                Message = row["Message"].ToString() ?? string.Empty,
-                Source = row["Source"]?.ToString(), // Nullable
-                Exception = row["Exception"]?.ToString(), // Nullable
-                UserId = row["UserId"] != DBNull.Value ? (int?)Convert.ToInt32(value: row["UserId"]) : null,
-                UserName = row["UserName"]?.ToString(), // Nullable
-                RequestPath = row["RequestPath"]?.ToString(), // Nullable
-                AdditionalData = row["AdditionalData"]?.ToString(), // Nullable
-                Severity = (LogSeverity)Convert.ToInt32(value: row["SeverityId"])
-            };
-        }
-
-        // Keep this helper or replace with fetching from DB if severities change
-        private static string GetSeverityName(int severityId)
-        {
-            return severityId switch
-            {
-                1 => "Information",
-                2 => "Warning",
-                3 => "Error",
-                4 => "Critical",
-                _ => "Unknown"
+                Id_Log = row.Field<int?>("Id_Log") ?? throw new NoNullAllowedException("Id_Log"),
+                Timestamp = row.Field<DateTime?>("Timestamp") ?? throw new NoNullAllowedException("Timestamp"),
+                Message = row.Field<string?>("Message") ?? throw new NoNullAllowedException("Message"),
+                Source = row.Field<string?>("Source"),
+                Exception = row.Field<string?>("Exception"),
+                UserId = row.Field<int?>("UserId"),
+                RequestPath = row.Field<string?>("RequestPath"),
+                AdditionalData = row.Field<string?>("AdditionalData"),
+                Severity = row.Field<LogSeverity?>("SeverityId") ?? throw new NoNullAllowedException("SeverityId")
             };
         }
 

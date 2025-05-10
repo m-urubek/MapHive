@@ -21,9 +21,8 @@ namespace MapHive.Services
             int? userId = null,
             string? requestPath = null)
         {
-            new Thread(async () =>
+            _ = Task.Run(async () =>
             {
-                Thread.CurrentThread.IsBackground = true;
                 try
                 {
                     LogCreate logCreate = new()
@@ -75,7 +74,7 @@ namespace MapHive.Services
                     catch { /*ignore*/ }
                     Console.WriteLine(value: $"Failed to log: {ex.ToString()}");
                 }
-            }).Start();
+            });
         }
 
         private static string? TryFormatAdditionalData(string? data)

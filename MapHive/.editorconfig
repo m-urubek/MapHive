@@ -129,7 +129,7 @@ csharp_style_prefer_readonly_struct = true:warning
 csharp_style_prefer_readonly_struct_member = true:suggestion
 
 # Code-block preferences
-csharp_prefer_braces = true:warning
+csharp_prefer_braces = when_multiline:warning
 csharp_prefer_simple_using_statement = true:warning
 csharp_prefer_system_threading_lock = true:suggestion
 csharp_style_namespace_declarations = block_scoped:warning
@@ -172,6 +172,16 @@ dotnet_diagnostic.CS8618.severity = error
 dotnet_diagnostic.IDE0059.severity = error
 dotnet_diagnostic.IDE0060.severity = error
 dotnet_diagnostic.IDE0290.severity = error
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0028.severity = none
+dotnet_diagnostic.IDE0305.severity = warning
+dotnet_diagnostic.IDE0300.severity = warning
+dotnet_diagnostic.RCS1118.severity = none
+dotnet_diagnostic.RCS1205.severity = warning
+dotnet_diagnostic.RCS1192.severity = warning
+dotnet_diagnostic.RCS1037.severity = warning
+dotnet_diagnostic.RCS1214.severity = warning
+
 
 # Nullability diagnostics
 dotnet_diagnostic.CS8597.severity = error
@@ -352,3 +362,10 @@ dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:war
 dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_other_operators = never_if_unnecessary:warning
+dotnet_diagnostic.CA2000.severity = error
+dotnet_diagnostic.CA1001.severity = error
+dotnet_diagnostic.CA1063.severity = error
+dotnet_diagnostic.CA1816.severity = error
+dotnet_diagnostic.CA2213.severity = error
+dotnet_diagnostic.CA2215.severity = error
+dotnet_diagnostic.CA2216.severity = error

@@ -3,11 +3,14 @@ namespace MapHive.Repositories
     using System.Data;
     using System.Data.SQLite;
     using System.Text.RegularExpressions;
+    using MapHive.Services;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
-    public partial class DisplayPageRepository(ISqlClientSingleton sqlClientSingleton) : IDisplayPageRepository
+    public partial class DisplayPageRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IDisplayPageRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
 
         public async Task<Dictionary<string, string>> GetItemDataAsync(string tableName, int id)
         {
@@ -22,7 +25,7 @@ namespace MapHive.Repositories
 
             // Build query to get all data for the specified item
             string query = $"SELECT * FROM \"{tableName}\" WHERE \"{idColumn}\" = @Id_Log";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
+            SQLiteParameter[] parameters = [new("@Id_Log", id)];
 
             // Execute query using injected _sqlClientSingleton
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
@@ -34,7 +37,7 @@ namespace MapHive.Repositories
             }
 
             // Convert DataRow to Dictionary
-            return ConvertDataRowToDictionary(row: result.Rows[0], columns: result.Columns);
+            return ConvertDataRowToDictionary(row: result.Rows[0], columns: result.Columns, tableName: tableName);
         }
 
         public async Task<bool> TableExistsAsync(string tableName)
@@ -47,7 +50,7 @@ namespace MapHive.Repositories
 
             // Query to check if table exists
             string query = "SELECT name FROM sqlite_master WHERE type='table' AND name=@TableName";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@TableName", tableName) };
+            SQLiteParameter[] parameters = [new("@TableName", tableName)];
 
             // Execute query using injected _sqlClientSingleton
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
@@ -93,14 +96,14 @@ namespace MapHive.Repositories
             return "Id_Log";
         }
 
-        private static Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns)
+        private Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns, string tableName)
         {
             Dictionary<string, string> result = new();
 
             foreach (DataColumn column in columns)
             {
                 string columnName = column.ColumnName;
-                string value = row[columnName]?.ToString() ?? string.Empty;
+                string value = row.GetValueOrDefault(_logManagerService, tableName, columnName, v => v.ToString()!, string.Empty);
 
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
                 string displayName = FormatColumnNameForDisplay(columnName: columnName);

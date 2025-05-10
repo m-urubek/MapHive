@@ -6,11 +6,14 @@ namespace MapHive.Repositories
     using MapHive.Models.Enums;
     using MapHive.Models.Exceptions;
     using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
-    public partial class UserRepository(ISqlClientSingleton sqlClientSingleton) : IUserRepository
+    public partial class UserRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IUserRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
 
         // Create a new user using DTO
         public async Task<int> CreateUserAsync(UserCreate createDto)
@@ -19,14 +22,14 @@ namespace MapHive.Repositories
                 INSERT INTO Users (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
                 VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory);";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Username", createDto.Username),
                 new("@PasswordHash", createDto.PasswordHash),
                 new("@RegistrationDate", createDto.RegistrationDate.ToString(format: "yyyy-MM-dd HH:mm:ss")),
                 new("@Tier", (int)createDto.Tier),
                 new("@IpAddressHistory", createDto.IpAddressHistory)
-            };
+            ];
 
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
@@ -35,7 +38,7 @@ namespace MapHive.Repositories
         public async Task<UserGet?> GetUserByIdAsync(int id)
         {
             string query = "SELECT * FROM Users WHERE Id_User = @Id_Log";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", id) };
+            SQLiteParameter[] parameters = [new("@Id_Log", id)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 ? MapDataRowToUserGet(row: result.Rows[0]) : null;
         }
@@ -43,7 +46,7 @@ namespace MapHive.Repositories
         public async Task<UserGet?> GetUserByUsernameAsync(string username)
         {
             string query = "SELECT * FROM Users WHERE Username = @Username";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
+            SQLiteParameter[] parameters = [new("@Username", username)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
             if (result.Rows.Count == 0)
@@ -59,7 +62,7 @@ namespace MapHive.Repositories
         public async Task<bool> CheckUsernameExistsAsync(string username)
         {
             string query = "SELECT 1 FROM Users WHERE Username = @Username LIMIT 1";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Username", username) };
+            SQLiteParameter[] parameters = [new("@Username", username)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0;
         }
@@ -71,11 +74,11 @@ namespace MapHive.Repositories
                 WHERE HashedIpAddress = @HashedIpAddress
                   AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
                 LIMIT 1";
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@HashedIpAddress", hashedIpAddress),
                 new("@Now", DateTime.UtcNow)
-            };
+            ];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0;
         }
@@ -92,14 +95,14 @@ namespace MapHive.Repositories
             string query = @"
                 INSERT INTO IpBans (HashedIpAddress, Reason, BannedAt, ExpiresAt, BannedByUserId)
                 VALUES (@HashedIpAddress, @Reason, @BannedAt, @ExpiresAt, @BannedByUserId);";
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@HashedIpAddress", ipBan.IpAddress),
                 new("@Reason", ipBan.Reason),
                 new("@BannedAt", ipBan.BannedAt.ToString(format: "yyyy-MM-dd HH:mm:ss")),
                 new("@ExpiresAt", ipBan.ExpiresAt.HasValue ? ipBan.ExpiresAt.Value.ToString(format: "yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
                 new("@BannedByUserId", ipBan.BannedByUserId)
-            };
+            ];
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
@@ -113,21 +116,21 @@ namespace MapHive.Repositories
                     IpAddressHistory = @IpAddressHistory
                 WHERE Id_User = @Id_Log";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Id_Log", updateDto.Id),
                 new("@Username", updateDto.Username),
                 new("@PasswordHash", updateDto.PasswordHash as object ?? DBNull.Value),
                 new("@Tier", (int)updateDto.Tier),
                 new("@IpAddressHistory", updateDto.IpAddressHistory)
-            };
+            ];
             return await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
         }
 
         public async Task<string> GetUsernameByIdAsync(int userId)
         {
             string query = "SELECT Username FROM Users WHERE Id_User = @Id_Log";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Id_Log", userId) };
+            SQLiteParameter[] parameters = [new("@Id_Log", userId)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 && result.Rows[0]["Username"] != DBNull.Value
                  ? result.Rows[0]["Username"].ToString()!
@@ -140,8 +143,8 @@ namespace MapHive.Repositories
             string query = @"
                 INSERT INTO UserBans (UserId, HashedIpAddress, BanType, BannedAt, ExpiresAt, Reason, BannedByUserId)
                 VALUES (@UserId, @HashedIpAddress, @BanType, @BannedAt, @ExpiresAt, @Reason, @BannedByUserId);";
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@UserId", banDto.UserId as object ?? DBNull.Value),
                 new("@HashedIpAddress", banDto.HashedIpAddress as object ?? DBNull.Value),
                 new("@BanType", (int)banDto.BanType),
@@ -149,18 +152,18 @@ namespace MapHive.Repositories
                 new("@ExpiresAt", banDto.ExpiresAt as object ?? DBNull.Value),
                 new("@Reason", banDto.Reason),
                 new("@BannedByUserId", banDto.BannedByUserId)
-            };
+            ];
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
         public async Task<bool> UnbanUserAsync(int banId)
         {
             string query = "UPDATE UserBans SET ExpiresAt = @ExpiresAt WHERE Id_UserBan = @Id_UserBan";
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@ExpiresAt", DateTime.UtcNow),
                 new("@Id_UserBan", banId)
-            };
+            ];
             int rows = await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
             return rows > 0;
         }
@@ -171,7 +174,7 @@ namespace MapHive.Repositories
                 SELECT * FROM UserBans
                 WHERE UserId = @UserId AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
                 ORDER BY BannedAt DESC LIMIT 1";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId), new("@Now", DateTime.UtcNow) };
+            SQLiteParameter[] parameters = [new("@UserId", userId), new("@Now", DateTime.UtcNow)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 ? MapDataRowToUserBanGetGet(row: result.Rows[0]) : null;
         }
@@ -182,7 +185,7 @@ namespace MapHive.Repositories
                 SELECT * FROM UserBans
                 WHERE HashedIpAddress = @HashedIpAddress AND (ExpiresAt IS NULL OR ExpiresAt > @Now)
                 ORDER BY BannedAt DESC LIMIT 1";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@HashedIpAddress", hashedIpAddress), new("@Now", DateTime.UtcNow) };
+            SQLiteParameter[] parameters = [new("@HashedIpAddress", hashedIpAddress), new("@Now", DateTime.UtcNow)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 ? MapDataRowToUserBanGetGet(row: result.Rows[0]) : null;
         }
@@ -190,7 +193,7 @@ namespace MapHive.Repositories
         public async Task<IEnumerable<UserBanGet>> GetBanHistoryByUserIdAsync(int userId)
         {
             string query = "SELECT * FROM UserBans WHERE UserId = @UserId ORDER BY BannedAt DESC";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@UserId", userId) };
+            SQLiteParameter[] parameters = [new("@UserId", userId)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             List<UserBanGet> list = new();
             foreach (DataRow row in result.Rows)
@@ -204,7 +207,7 @@ namespace MapHive.Repositories
         public async Task<IEnumerable<UserBanGet>> GetAllActiveBansAsync()
         {
             string query = "SELECT * FROM UserBans WHERE ExpiresAt IS NULL OR ExpiresAt > @Now ORDER BY BannedAt DESC";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Now", DateTime.UtcNow) };
+            SQLiteParameter[] parameters = [new("@Now", DateTime.UtcNow)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             List<UserBanGet> list = new();
             foreach (DataRow row in result.Rows)
@@ -242,7 +245,7 @@ namespace MapHive.Repositories
             parametersList.Add(item: new SQLiteParameter("@PageSize", pageSize));
             parametersList.Add(item: new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
-            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parametersList.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parametersList]);
             List<UserBanGet> list = new();
             foreach (DataRow row in result.Rows)
             {
@@ -279,7 +282,7 @@ namespace MapHive.Repositories
             parametersList.Add(item: new SQLiteParameter("@PageSize", pageSize));
             parametersList.Add(item: new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
-            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parametersList.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parametersList]);
             List<UserGet> list = new();
             foreach (DataRow row in result.Rows)
             {
@@ -296,7 +299,7 @@ namespace MapHive.Repositories
                 : "SELECT COUNT(*) FROM Users WHERE Username LIKE @SearchTerm";
             SQLiteParameter[] parameters = string.IsNullOrWhiteSpace(value: searchTerm)
                 ? Array.Empty<SQLiteParameter>()
-                : new SQLiteParameter[] { new("@SearchTerm", $"%{searchTerm}%") };
+                : [new("@SearchTerm", $"%{searchTerm}%")];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return Convert.ToInt32(value: result.Rows[0][0]);
         }
@@ -304,39 +307,41 @@ namespace MapHive.Repositories
         public async Task<bool> UpdateUserTierAsync(UserTierUpdate tierDto)
         {
             string query = "UPDATE Users SET Tier = @Tier WHERE Id_User = @UserId";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Tier", (int)tierDto.Tier), new("@UserId", tierDto.UserId) };
+            SQLiteParameter[] parameters = [new("@Tier", (int)tierDto.Tier), new("@UserId", tierDto.UserId)];
             int rows = await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
             return rows > 0;
         }
 
-        private static UserGet MapDataRowToUserGet(DataRow row)
+        private UserGet MapDataRowToUserGet(DataRow row)
         {
+            const string table = "Users";
             return new UserGet
             {
-                Id = Convert.ToInt32(value: row["Id_User"]),
-                Username = row["Username"].ToString() ?? string.Empty,
-                PasswordHash = row["PasswordHash"].ToString() ?? string.Empty,
-                Tier = row["Tier"] != DBNull.Value ? (UserTier)Convert.ToInt32(value: row["Tier"]) : default,
-                RegistrationDate = DateTime.Parse(s: row["RegistrationDate"].ToString() ?? DateTime.MinValue.ToString()),
-                IpAddressHistory = row.Table.Columns.Contains(name: "IpAddressHistory") && row["IpAddressHistory"] != DBNull.Value
-                    ? row["IpAddressHistory"].ToString()!
+                Id = row.GetValueOrDefault(_logManagerService, table, "Id_User", Convert.ToInt32),
+                Username = row.GetValueOrDefault(_logManagerService, table, "Username", v => v.ToString()!, string.Empty),
+                PasswordHash = row.GetValueOrDefault(_logManagerService, table, "PasswordHash", v => v.ToString()!, string.Empty),
+                Tier = row.GetValueOrDefault(_logManagerService, table, "Tier", v => (UserTier)Convert.ToInt32(v)),
+                RegistrationDate = row.GetValueOrDefault(_logManagerService, table, "RegistrationDate", v => DateTime.Parse(v.ToString()!)),
+                IpAddressHistory = row.Table.Columns.Contains("IpAddressHistory")
+                    ? row.GetValueOrDefault(_logManagerService, table, "IpAddressHistory", v => v.ToString()!, string.Empty)
                     : string.Empty
             };
         }
 
-        private static UserBanGet MapDataRowToUserBanGetGet(DataRow row)
+        private UserBanGet MapDataRowToUserBanGetGet(DataRow row)
         {
+            const string table = "UserBans";
             return new UserBanGet
             {
-                Id = Convert.ToInt32(value: row["Id_UserBan"]),
-                UserId = row.Table.Columns.Contains(name: "UserId") && row["UserId"] != DBNull.Value ? Convert.ToInt32(value: row["UserId"]) : (int?)null,
-                HashedIpAddress = row.Table.Columns.Contains(name: "HashedIpAddress") && row["HashedIpAddress"] != DBNull.Value ? row["HashedIpAddress"].ToString() : null,
-                BannedByUserId = Convert.ToInt32(value: row["BannedByUserId"]),
-                Reason = row["Reason"].ToString() ?? string.Empty,
-                BanType = (BanType)Convert.ToInt32(value: row["BanType"]),
-                BannedAt = Convert.ToDateTime(value: row["BannedAt"]),
-                ExpiresAt = row.Table.Columns.Contains(name: "ExpiresAt") && row["ExpiresAt"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(value: row["ExpiresAt"]) : null,
-                IsActive = row.Table.Columns.Contains(name: "ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || Convert.ToDateTime(value: row["ExpiresAt"]) > DateTime.UtcNow),
+                Id = row.GetValueOrDefault(_logManagerService, table, "Id_UserBan", Convert.ToInt32),
+                UserId = row.Table.Columns.Contains("UserId") && row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : (int?)null,
+                HashedIpAddress = row.Table.Columns.Contains("HashedIpAddress") && row["HashedIpAddress"] != DBNull.Value ? row["HashedIpAddress"].ToString() : null,
+                BannedByUserId = row.GetValueOrDefault(_logManagerService, table, "BannedByUserId", Convert.ToInt32),
+                Reason = row.GetValueOrDefault(_logManagerService, table, "Reason", v => v.ToString()!, string.Empty),
+                BanType = row.GetValueOrDefault(_logManagerService, table, "BanType", v => (BanType)Convert.ToInt32(v)),
+                BannedAt = row.GetValueOrDefault(_logManagerService, table, "BannedAt", Convert.ToDateTime),
+                ExpiresAt = row.Table.Columns.Contains("ExpiresAt") && row["ExpiresAt"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ExpiresAt"]) : null,
+                IsActive = row.Table.Columns.Contains("ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || Convert.ToDateTime(row["ExpiresAt"]) > DateTime.UtcNow),
                 Properties = new Dictionary<string, string>()
             };
         }

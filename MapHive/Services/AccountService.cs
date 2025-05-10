@@ -70,11 +70,7 @@ namespace MapHive.Services
         public async Task ChangeUsernameAsync(int userId, string newUsername)
         {
             // Retrieve user
-            UserGet? userGet = await _userRepository.GetUserByIdAsync(id: userId);
-            if (userGet == null)
-            {
-                throw new RedUserException("User not found");
-            }
+            UserGet? userGet = await _userRepository.GetUserByIdAsync(id: userId) ?? throw new RedUserException("User not found");
 
             // Check username availability
             if (await _userRepository.CheckUsernameExistsAsync(username: newUsername)
@@ -92,11 +88,7 @@ namespace MapHive.Services
         public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword)
         {
             // Retrieve user
-            UserGet? userGet = await _userRepository.GetUserByIdAsync(id: userId);
-            if (userGet == null)
-            {
-                throw new RedUserException("User not found");
-            }
+            UserGet? userGet = await _userRepository.GetUserByIdAsync(id: userId) ?? throw new RedUserException("User not found");
 
             // Verify current password
             if (!VerifyPassword(password: currentPassword, storedHash: userGet.PasswordHash))

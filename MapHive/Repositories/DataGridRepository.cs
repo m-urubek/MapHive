@@ -5,11 +5,14 @@ namespace MapHive.Repositories
     using System.Text.RegularExpressions;
     using MapHive.Models.BusinessModels;
     using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
-    public partial class DataGridRepository(ISqlClientSingleton sqlClientSingleton) : IDataGridRepository
+    public partial class DataGridRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IDataGridRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
 
         // Get schema information for a table
         public async Task<DataTable> GetTableSchemaAsync(string tableName)
@@ -153,10 +156,10 @@ sortDirection: viewModel.SortDirection
             );
 
             // Execute query to get data
-            DataTable dataTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters.ToArray());
+            DataTable dataTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parameters]);
 
             // Convert data to grid rows
-            viewModel.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: viewModel.Columns);
+            viewModel.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: viewModel.Columns, tableName: tableName);
 
             // Get total count for pagination
             viewModel.TotalCount = await GetTotalRowsCountAsync(tableName: tableName, searchTerm: searchTerm, columns: viewModel.Columns);
@@ -165,7 +168,7 @@ sortDirection: viewModel.SortDirection
         }
 
         // Helper method to convert DataTable to grid rows
-        private static List<DataGridRowGet> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumnGet> columns)
+        private List<DataGridRowGet> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumnGet> columns, string tableName)
         {
             List<DataGridRowGet> rows = new();
             string? idColumnName = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName;
@@ -174,13 +177,14 @@ sortDirection: viewModel.SortDirection
             {
                 DataGridRowGet gridRow = new();
 
-                // Assign RowId if an ID column exists and has a value
-                if (!string.IsNullOrEmpty(value: idColumnName) && dataTable.Columns.Contains(name: idColumnName) && dataRow[idColumnName] != DBNull.Value)
+                // Assign RowId using mapping extension
+                if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(name: idColumnName))
                 {
-                    if (int.TryParse(s: dataRow[idColumnName].ToString(), result: out int idValue))
+                    gridRow.RowId = dataRow.GetValueOrDefault(_logManagerService, tableName, idColumnName, v =>
                     {
-                        gridRow.RowId = idValue;
-                    }
+                        _ = int.TryParse(v.ToString(), out int idValue);
+                        return idValue;
+                    }, 0);
                 }
 
                 foreach (DataGridColumnGet column in columns)
@@ -188,7 +192,7 @@ sortDirection: viewModel.SortDirection
                     string columnName = column.InternalName;
                     if (dataTable.Columns.Contains(name: columnName))
                     {
-                        string cellContent = dataRow[columnName]?.ToString() ?? string.Empty;
+                        string cellContent = dataRow.GetValueOrDefault(_logManagerService, tableName, columnName, v => v.ToString()!, string.Empty);
                         gridRow.CellsByColumnNames[columnName] = new DataGridCellGet { Content = cellContent };
                     }
                     else
@@ -217,7 +221,7 @@ sortDirection: viewModel.SortDirection
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
             // Execute query
-            DataTable resultTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters.ToArray());
+            DataTable resultTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parameters]);
 
             return resultTable.Rows.Count > 0 && resultTable.Rows[0][0] != DBNull.Value ? Convert.ToInt32(value: resultTable.Rows[0][0]) : 0;
         }
@@ -254,7 +258,7 @@ sortDirection: viewModel.SortDirection
 
             // Build LIMIT/OFFSET clause for pagination
             int offset = (page - 1) * pageSize;
-            string limitClause = $"LIMIT @PageSize OFFSET @Offset";
+            string limitClause = "LIMIT @PageSize OFFSET @Offset";
             parameters.Add(item: new SQLiteParameter("@PageSize", pageSize));
             parameters.Add(item: new SQLiteParameter("@Offset", offset));
 
@@ -303,7 +307,7 @@ sortDirection: viewModel.SortDirection
 
             if (conditions.Count != 0)
             {
-                return ($"WHERE " + string.Join(separator: " OR ", values: conditions), parameters);
+                return ("WHERE " + string.Join(separator: " OR ", values: conditions), parameters);
             }
             else
             {

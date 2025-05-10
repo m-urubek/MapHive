@@ -21,7 +21,7 @@ namespace MapHive.Controllers
         IProfileService profileService,
         ILogManagerService logManager,
         IRecaptchaService recaptchaService,
-        IConfigurationSingleton configSingleton,
+        IConfigurationService configSingleton,
         IUserContextService userContextService,
         IOptions<RecaptchaSettings> recaptchaOptions) : Controller
     {
@@ -31,7 +31,7 @@ namespace MapHive.Controllers
         private readonly ILogManagerService _logManagerService = logManager;
         private readonly IRecaptchaService _recaptchaService = recaptchaService;
         private readonly RecaptchaSettings _recaptchaSettings = recaptchaOptions.Value;
-        private readonly IConfigurationSingleton _configSingleton = configSingleton;
+        private readonly IConfigurationService _configSingleton = configSingleton;
         private readonly IUserContextService _userContextService = userContextService;
 
         [HttpGet]

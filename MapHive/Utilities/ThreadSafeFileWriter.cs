@@ -5,24 +5,28 @@ namespace MapHive.Utilities
     public static class ThreadSafeFileWriter
     {
         private static readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queue = new();
+        private static readonly object _writeLock = new();
 
         private static void writeFromQueue()
         {
-            try
+            lock (_writeLock)
             {
-                foreach (KeyValuePair<string, ConcurrentQueue<string>> fileEntries in _queue)
+                try
                 {
-                    if (!fileEntries.Value.IsEmpty)
+                    foreach (KeyValuePair<string, ConcurrentQueue<string>> fileEntries in _queue)
                     {
-                        using StreamWriter writer = File.AppendText(path: fileEntries.Key);
-                        while (fileEntries.Value.TryDequeue(result: out string? entry))
+                        if (!fileEntries.Value.IsEmpty)
                         {
-                            writer.Write(value: entry);
+                            using StreamWriter writer = File.AppendText(path: fileEntries.Key);
+                            while (fileEntries.Value.TryDequeue(result: out string? entry))
+                            {
+                                writer.Write(value: entry);
+                            }
                         }
                     }
                 }
+                catch { }
             }
-            catch { }
         }
 
         public static void Write(string fileName, string text)

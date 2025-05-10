@@ -3,16 +3,19 @@ namespace MapHive.Repositories
     using System.Data;
     using System.Data.SQLite;
     using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
-    public class ConfigurationRepository(ISqlClientSingleton sqlClientSingleton) : IConfigurationRepository
+    public class ConfigurationRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IConfigurationRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
 
         public async Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
         {
             string query = "SELECT * FROM Configuration WHERE Key = @Key";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
+            SQLiteParameter[] parameters = [new("@Key", key)];
 
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
@@ -40,12 +43,12 @@ namespace MapHive.Repositories
                 INSERT INTO Configuration (Key, Value, Description)
                 VALUES (@Key, @Value, @Description)";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Key", item.Key),
                 new("@Value", item.Value),
                 new("@Description", item.Description as object ?? DBNull.Value)
-            };
+            ];
 
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
@@ -58,12 +61,12 @@ namespace MapHive.Repositories
                     Description = @Description
                 WHERE Key = @Key";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Value", item.Value),
                 new("@Description", item.Description as object ?? DBNull.Value),
                 new("@Key", item.Key)
-            };
+            ];
 
             return await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
         }
@@ -77,19 +80,20 @@ namespace MapHive.Repositories
         public async Task<int> DeleteConfigurationItemAsync(string key)
         {
             string query = "DELETE FROM Configuration WHERE Key = @Key";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
+            SQLiteParameter[] parameters = [new("@Key", key)];
             return await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
         }
 
-        private static ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
+        private ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
         {
+            const string table = "Configuration";
             return new ConfigurationItem
             {
-                Id = Convert.ToInt32(value: row["Id_Configuration"]),
-                Key = row["Key"].ToString() ?? string.Empty,
-                Value = row["Value"].ToString() ?? string.Empty,
-                Description = row.Table.Columns.Contains(name: "Description") && row["Description"] != DBNull.Value
-                    ? row["Description"].ToString()
+                Id = row.GetValueOrDefault(_logManagerService, table, "Id_Configuration", Convert.ToInt32),
+                Key = row.GetValueOrDefault(_logManagerService, table, "Key", v => v.ToString()!, string.Empty),
+                Value = row.GetValueOrDefault(_logManagerService, table, "Value", v => v.ToString()!, string.Empty),
+                Description = row.Table.Columns.Contains("Description")
+                    ? row.GetValueOrDefault(_logManagerService, table, "Description", v => v.ToString()!, default)
                     : null
             };
         }

@@ -6,19 +6,16 @@ namespace MapHive.Middleware
     using MapHive.Singletons;
     using Microsoft.Extensions.DependencyInjection;
 
-    public class ErrorHandlingMiddleware(RequestDelegate next, IConfigurationSingleton config)
+    public class ErrorHandlingMiddleware(RequestDelegate next)
     {
-        private readonly RequestDelegate _next = next;
-        private readonly IConfigurationSingleton _configurationSingleton = config;
-
-        public async Task InvokeAsync(HttpContext context, ILogManagerService logManager)
+        public async Task InvokeAsync(HttpContext context, ILogManagerService logManager, IConfigurationService configurationService)
         {
             // Resolve scoped services from the request
             IUserFriendlyExceptionService userFriendlyExceptionService = context.RequestServices.GetRequiredService<IUserFriendlyExceptionService>();
             IRequestContextService requestContextService = context.RequestServices.GetRequiredService<IRequestContextService>();
             try
             {
-                await _next(context: context);
+                await next(context: context);
             }
             catch (UserFriendlyExceptionBase ex)
             {
@@ -42,7 +39,7 @@ namespace MapHive.Middleware
             {
                 try
                 {
-                    if (await _configurationSingleton.GetDevelopmentModeAsync())
+                    if (await configurationService.GetDevelopmentModeAsync())
                     {
                         //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
                         await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(ex.ToString()), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
@@ -58,8 +55,8 @@ namespace MapHive.Middleware
                 logManager.Log(
                     severity: LogSeverity.Critical,
                     message: ex.Message,
-                    source: nameof(ErrorHandlingMiddleware),
                     exception: ex,
+                    source: nameof(ErrorHandlingMiddleware),
                     additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
                 );
             }

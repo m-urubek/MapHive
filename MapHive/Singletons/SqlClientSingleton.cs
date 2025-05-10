@@ -18,7 +18,7 @@ namespace MapHive.Singletons
 
         // Queue to track pending operations - useful for debugging and monitoring
         private static readonly ConcurrentQueue<string> _operationsQueue = new();
-        private static readonly char[] separator = new[] { ';' };
+        private static readonly char[] separator = [';'];
 
         public SqlClientSingleton(IFileLoggerSingleton fileLogger)
         {
@@ -324,11 +324,10 @@ namespace MapHive.Singletons
                 await connection.OpenAsync();
 
                 // Split the script into individual statements
-                string[] statements = sqlScript
+                string[] statements = [.. sqlScript
                     .Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries)
                     .Where(predicate: s => !string.IsNullOrWhiteSpace(value: s))
-                    .Select(selector: s => s.Trim())
-                    .ToArray();
+                    .Select(selector: s => s.Trim())];
 
                 int executedStatements = 0;
 
@@ -385,7 +384,7 @@ namespace MapHive.Singletons
 
                 // Add initial admin user
                 await InsertInitialAdminUserAsync();
-                LogBeforeDbCreated(logMessage: $"Initial admin user 'admin' created.");
+                LogBeforeDbCreated(logMessage: "Initial admin user 'admin' created.");
 
             }
             catch (Exception ex)
@@ -408,14 +407,14 @@ namespace MapHive.Singletons
                 INSERT INTO Users (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
                 VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory);
             ";
-            SQLiteParameter[] adminParams = new[]
-            {
+            SQLiteParameter[] adminParams =
+            [
                 new SQLiteParameter("@Username", adminUsername),
                 new SQLiteParameter("@PasswordHash", hashedPassword),
                 new SQLiteParameter("@RegistrationDate", registrationDate),
                 new SQLiteParameter("@Tier", adminTier),
                 new SQLiteParameter("@IpAddressHistory", "INITIAL_SETUP")
-            };
+            ];
             _ = await InsertAsync(query: insertAdminQuery, parameters: adminParams);
         }
 

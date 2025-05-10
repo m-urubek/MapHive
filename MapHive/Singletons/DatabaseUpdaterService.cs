@@ -32,10 +32,9 @@ namespace MapHive.Singletons
                     ? 0
                     : int.Parse(s: versionRawData.Rows[0]["Value"].ToString()!);
 
-                MethodInfo[] versionMethods = typeof(DatabaseUpdaterService).GetMethods(bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance)
+                MethodInfo[] versionMethods = [.. typeof(DatabaseUpdaterService).GetMethods(bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance)
                                                   .Where(predicate: m => m.Name.StartsWith(value: "V") && m.Name.Length > 1 && int.TryParse(s: m.Name[1..], result: out _))
-                                                  .OrderBy(keySelector: m => int.Parse(s: m.Name[1..]))
-                                                  .ToArray();
+                                                  .OrderBy(keySelector: m => int.Parse(s: m.Name[1..]))];
 
                 int lastUpdateNumber = dbVersion;
                 bool updatesApplied = false;
@@ -64,11 +63,11 @@ namespace MapHive.Singletons
                 if (updatesApplied)
                 {
                     string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id_Log";
-                    SQLiteParameter[] parameters = new SQLiteParameter[]
-                    {
+                    SQLiteParameter[] parameters =
+                    [
                         new("@Value", lastUpdateNumber),
                         new("@Id_Log", versionRawData.Rows[0]["Id_VersionNumber"])
-                    };
+                    ];
                     if (await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters) != 1)
                     {
                         throw new Exception($"Database Updater: Failed to update database version number to {lastUpdateNumber}.");

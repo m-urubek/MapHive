@@ -14,6 +14,7 @@ namespace MapHive.Singletons
         private const int MaxLogFileAgeDays = 30;
         private readonly string _logDirectory;
         private readonly Timer _cleanupTimer;
+        private bool _disposed;
 
         public FileLoggerSingleton()
         {
@@ -157,8 +158,21 @@ namespace MapHive.Singletons
 
         public void Dispose()
         {
-            _cleanupTimer?.Dispose();
-            GC.SuppressFinalize(obj: this);
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        ~FileLoggerSingleton()
+        {
+            Dispose(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            if (disposing)
+                _cleanupTimer?.Dispose();
+            _disposed = true;
         }
     }
 }

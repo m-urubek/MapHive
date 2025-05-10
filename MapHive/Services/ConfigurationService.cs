@@ -1,9 +1,9 @@
-namespace MapHive.Singletons
+namespace MapHive.Services
 {
     using MapHive.Models.RepositoryModels;
     using MapHive.Repositories;
 
-    public class ConfigurationSingleton(IConfigurationRepository configRepository) : IConfigurationSingleton
+    public class ConfigurationService(IConfigurationRepository configRepository) : IConfigurationService
     {
         private readonly IConfigurationRepository _configurationRepository = configRepository;
 

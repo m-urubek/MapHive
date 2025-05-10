@@ -15,14 +15,14 @@ builder.Services.AddAutoMapper(assemblies: typeof(MapHive.Models.BusinessModels.
 builder.Services.AddHttpContextAccessor();
 
 // Add repository services
-builder.Services.AddSingleton<IMapLocationRepository, MapLocationRepository>();
-builder.Services.AddSingleton<IUserRepository, UserRepository>();
-builder.Services.AddSingleton<IConfigurationRepository, ConfigurationRepository>();
-builder.Services.AddSingleton<IReviewRepository, ReviewRepository>();
-builder.Services.AddSingleton<IDiscussionRepository, DiscussionRepository>();
-builder.Services.AddSingleton<IDataGridRepository, DataGridRepository>();
-builder.Services.AddSingleton<IDisplayPageRepository, DisplayPageRepository>();
-builder.Services.AddSingleton<ILogRepository, LogRepository>();
+builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
+builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
+builder.Services.AddScoped<IDisplayPageRepository, DisplayPageRepository>();
+builder.Services.AddSingleton<ILogRepository, LogRepository>(); //LogRepository cannot be scoped because it cannot log to avoid circular reference
 
 // Add application services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -64,7 +64,7 @@ builder.Services.AddSession(configure: options =>
 });
 
 // Register ConfigService as Singleton (responsible for loading/caching DB settings)
-builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>();
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 
 // Register FileLoggerService as Singleton
 builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
@@ -108,11 +108,15 @@ IDatabaseUpdaterSingleton dbUpdaterService = app.Services.GetService<IDatabaseUp
 await dbUpdaterService.RunAsync();
 
 // Use the injected ConfigService to check DevelopmentMode
-if (!await (app.Services.GetService<IConfigurationSingleton>() ?? throw new Exception($"{nameof(IConfigurationSingleton)} not found!")).GetDevelopmentModeAsync())
+using (var scope = app.Services.CreateScope())
 {
-    _ = app.UseExceptionHandler(errorHandlingPath: "/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    _ = app.UseHsts();
+    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+    if (!await configService.GetDevelopmentModeAsync())
+    {
+        _ = app.UseExceptionHandler(errorHandlingPath: "/Home/Error");
+        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+        _ = app.UseHsts();
+    }
 }
 
 app.Run();

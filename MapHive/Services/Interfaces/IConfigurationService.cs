@@ -1,8 +1,8 @@
-namespace MapHive.Singletons
+namespace MapHive.Services
 {
     using MapHive.Models.RepositoryModels;
 
-    public interface IConfigurationSingleton
+    public interface IConfigurationService
     {
         Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync();
         Task<ConfigurationItem?> GetConfigurationItemAsync(string key);

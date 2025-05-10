@@ -12,15 +12,15 @@ namespace MapHive.Services
         IMapLocationRepository mapLocationRepository,
         IDataGridService dataGridService,
         ISqlClientSingleton sqlClient,
-        IConfigurationSingleton configSingleton,
+        IConfigurationService configSingleton,
         IUserRepository userRepository) : IAdminService
     {
         private readonly IMapLocationRepository _mapLocationRepository = mapLocationRepository;
         private readonly IDataGridService _dataGridService = dataGridService;
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClient;
-        private readonly IConfigurationSingleton _configSingleton = configSingleton;
+        private readonly IConfigurationService _configSingleton = configSingleton;
         private readonly IUserRepository _userRepository = userRepository;
-        private static readonly char[] separator = new[] { '\n', '\r' };
+        private static readonly char[] separator = ['\n', '\r'];
 
         // Category management
         public Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()

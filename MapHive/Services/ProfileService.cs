@@ -14,7 +14,7 @@ namespace MapHive.Services
         private readonly IMapLocationRepository _mapRepository = mapRepository;
         private readonly IDiscussionRepository _discussionRepository = discussionRepository;
         private readonly IUserContextService _userContextService = userContextService;
-        private static readonly char[] separator = new[] { '\n', '\r' };
+        private static readonly char[] separator = ['\n', '\r'];
 
         public async Task<PrivateProfileViewModel> GetPrivateProfileAsync(int userId)
         {

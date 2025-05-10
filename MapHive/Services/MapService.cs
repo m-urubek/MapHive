@@ -59,12 +59,7 @@ namespace MapHive.Services
 
         public async Task<MapLocationViewModel> GetLocationDetailsAsync(int id, int? currentUserId)
         {
-            MapLocationGet? location = await _mapRepository.GetLocationWithCategoryAsync(id: id);
-            if (location == null)
-            {
-                throw new KeyNotFoundException($"Location with ID {id} not found");
-            }
-
+            MapLocationGet? location = await _mapRepository.GetLocationWithCategoryAsync(id: id) ?? throw new KeyNotFoundException($"Location with ID {id} not found");
             MapLocationViewModel viewModel = _mapper.Map<MapLocationViewModel>(source: location);
 
             if (!location.IsAnonymous)
@@ -77,14 +72,12 @@ namespace MapHive.Services
                 viewModel.AuthorName = "Anonymous";
             }
 
-            List<ReviewGet> reviews = (await _reviewRepository.GetReviewsByLocationIdAsync(locationId: id)).ToList();
+            List<ReviewGet> reviews = [.. await _reviewRepository.GetReviewsByLocationIdAsync(locationId: id)];
             viewModel.Reviews = reviews;
             viewModel.AverageRating = reviews.Count != 0 ? reviews.Average(selector: r => r.Rating) : 0;
             viewModel.ReviewCount = reviews.Count;
 
-            List<DiscussionThreadGet> discussions = (await _discussionRepository.GetDiscussionThreadsByLocationIdAsync(locationId: id))
-                                  .Where(predicate: d => !d.IsReviewThread)
-                                  .ToList();
+            List<DiscussionThreadGet> discussions = [.. (await _discussionRepository.GetDiscussionThreadsByLocationIdAsync(locationId: id)).Where(predicate: d => !d.IsReviewThread)];
             viewModel.Discussions = discussions;
             viewModel.RegularDiscussionCount = discussions.Count;
 
@@ -137,12 +130,7 @@ namespace MapHive.Services
         /// </summary>
         public async Task<EditLocationPageViewModel> GetEditLocationPageViewModelAsync(int id, int currentUserId, bool isAdmin)
         {
-            MapLocationGet? existing = await GetLocationByIdAsync(id: id);
-            if (existing == null)
-            {
-                throw new KeyNotFoundException($"Location {id} not found");
-            }
-
+            MapLocationGet? existing = await GetLocationByIdAsync(id: id) ?? throw new KeyNotFoundException($"Location {id} not found");
             if (!isAdmin && existing.UserId != currentUserId)
             {
                 throw new UnauthorizedAccessException("User is not allowed to edit this location");
