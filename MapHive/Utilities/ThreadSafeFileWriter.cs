@@ -7,7 +7,7 @@ namespace MapHive.Utilities
         private static readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queue = new();
         private static readonly object _writeLock = new();
 
-        private static void writeFromQueue()
+        private static void WriteFromQueue()
         {
             lock (_writeLock)
             {
@@ -33,7 +33,7 @@ namespace MapHive.Utilities
         {
             ConcurrentQueue<string> entries = _queue.GetOrAdd(key: fileName, value: new ConcurrentQueue<string>());
             entries.Enqueue(item: text);
-            writeFromQueue();
+            WriteFromQueue();
         }
     }
 }

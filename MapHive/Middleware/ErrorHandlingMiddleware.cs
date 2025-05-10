@@ -3,7 +3,6 @@ namespace MapHive.Middleware
     using MapHive.Models.Enums;
     using MapHive.Models.Exceptions;
     using MapHive.Services;
-    using MapHive.Singletons;
     using Microsoft.Extensions.DependencyInjection;
 
     public class ErrorHandlingMiddleware(RequestDelegate next)

@@ -181,7 +181,7 @@ dotnet_diagnostic.RCS1205.severity = warning
 dotnet_diagnostic.RCS1192.severity = warning
 dotnet_diagnostic.RCS1037.severity = warning
 dotnet_diagnostic.RCS1214.severity = warning
-
+dotnet_diagnostic.IDE1006.severity = warning
 
 # Nullability diagnostics
 dotnet_diagnostic.CS8597.severity = error

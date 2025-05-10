@@ -5,9 +5,7 @@ namespace MapHive.Repositories
     using System.Text;
     using MapHive.Models.Enums;
     using MapHive.Models.RepositoryModels;
-    using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
 
     public class LogRepository(ISqlClientSingleton sqlClientSingleton) : ILogRepository
     {
@@ -53,7 +51,7 @@ namespace MapHive.Repositories
             parameters.Add(item: new SQLiteParameter("@Offset", (page - 1) * pageSize));
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: parameters.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: [.. parameters]);
 
             // Map results to LogGet objects
             List<LogGet> logs = new();
@@ -84,7 +82,7 @@ namespace MapHive.Repositories
             }
 
             // Execute query using injected _sqlClientSingleton
-            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: parameters.ToArray());
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: queryBuilder.ToString(), parameters: [.. parameters]);
 
             // Return count
             return result.Rows.Count > 0 && result.Rows[0][0] != DBNull.Value ? Convert.ToInt32(value: result.Rows[0][0]) : 0;
@@ -98,7 +96,7 @@ namespace MapHive.Repositories
                 LEFT JOIN LogSeverity s ON l.SeverityId = s.Id_LogSeverity
                 WHERE l.Id_Log = @Id_Log";
 
-            SQLiteParameter[] parameters = { new("@Id_Log", id) };
+            SQLiteParameter[] parameters = [new("@Id_Log", id)];
 
             // Use injected _sqlClientSingleton
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
@@ -110,8 +108,8 @@ namespace MapHive.Repositories
         {
             const string query = "INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserId, RequestPath, AdditionalData)"
                                              + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserId, @RequestPath, @AdditionalData);";
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                         new("@Timestamp", logCreate.Timestamp.ToString(format: "o")),
                         new("@SeverityId", (int)logCreate.Severity),
                         new("@Message", logCreate.Message),
@@ -120,7 +118,7 @@ namespace MapHive.Repositories
                         new("@UserId", logCreate.UserId as object ?? DBNull.Value),
                         new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
                         new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
-            };
+            ];
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 

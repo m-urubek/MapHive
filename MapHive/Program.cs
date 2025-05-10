@@ -108,9 +108,9 @@ IDatabaseUpdaterSingleton dbUpdaterService = app.Services.GetService<IDatabaseUp
 await dbUpdaterService.RunAsync();
 
 // Use the injected ConfigService to check DevelopmentMode
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+    IConfigurationService configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
     if (!await configService.GetDevelopmentModeAsync())
     {
         _ = app.UseExceptionHandler(errorHandlingPath: "/Home/Error");

@@ -6,7 +6,6 @@ namespace MapHive.Controllers
     using MapHive.Models.Exceptions;
     using MapHive.Models.ViewModels;
     using MapHive.Services;
-    using MapHive.Singletons;
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.Cookies;
     using Microsoft.AspNetCore.Authorization;
