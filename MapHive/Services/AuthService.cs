@@ -1,8 +1,6 @@
 namespace MapHive.Services
 {
     using System.Security.Claims;
-    using System.Security.Cryptography;
-    using System.Text;
     using AutoMapper;
     using MapHive.Models;
     using MapHive.Models.BusinessModels;
@@ -27,7 +25,7 @@ namespace MapHive.Services
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request, string ipAddress)
         {
             // Hash IP for checking ban and storing
-            string hashedIpAddress = NetworkingUtility.HashIpAddress(ipAddress: ipAddress);
+            string hashedIpAddress = HashingUtility.HashIpAddress(ipAddress: ipAddress);
 
             // Check if username already exists
             if (await _userRepository.CheckUsernameExistsAsync(username: request.Username))
@@ -107,7 +105,7 @@ namespace MapHive.Services
             }
 
             // Hash the current IP and check if it's banned
-            string hashedIpAddress = NetworkingUtility.HashIpAddress(ipAddress: ipAddress);
+            string hashedIpAddress = HashingUtility.HashIpAddress(ipAddress: ipAddress);
             if (await _userRepository.IsIpBannedAsync(hashedIpAddress: hashedIpAddress))
             {
                 _logManagerService.Log(severity: LogSeverity.Warning, message: $"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");

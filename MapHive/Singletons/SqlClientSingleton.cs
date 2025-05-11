@@ -3,8 +3,6 @@ namespace MapHive.Singletons
     using System.Collections.Concurrent;
     using System.Data;
     using System.Data.SQLite;
-    using System.Security.Cryptography;
-    using System.Text;
     using MapHive.Models.Enums;
 
     public class SqlClientSingleton : ISqlClientSingleton
@@ -40,7 +38,7 @@ namespace MapHive.Singletons
 
             if (string.IsNullOrEmpty(value: databaseFilePath))
             {
-                throw new ArgumentException(message: "Database file path cannot be null or empty.", paramName: nameof(databaseFilePath));
+                throw new Exception(message: "Database file path cannot be null or empty.");
             }
             _connectionString = $"Data Source={databaseFilePath};Version=3;";
             if (!File.Exists(path: databaseFilePath))

@@ -1,7 +1,6 @@
 namespace MapHive.Singletons
 {
     using System.Collections.Concurrent;
-    using MapHive.Utilities;
 
     /// <summary>
     /// Service for logging messages to files with rotation and cleanup.

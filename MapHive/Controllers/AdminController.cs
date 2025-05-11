@@ -1,7 +1,6 @@
 namespace MapHive.Controllers
 {
     using AutoMapper;
-    using MapHive.Models;
     using MapHive.Models.Enums;
     using MapHive.Models.RepositoryModels;
     using MapHive.Models.ViewModels;
@@ -91,7 +90,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Users()
         {
-            var viewModel = new DataGridViewModel
+            DataGridViewModel viewModel = new()
             {
                 Title = "Manage Users",
                 TableName = "Users",
@@ -201,64 +200,13 @@ namespace MapHive.Controllers
 
         #endregion
 
-        #region Ban Management
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Bans()
-        {
-            var viewModel = new DataGridViewModel
-            {
-                Title = "Manage Bans",
-                TableName = "Bans",
-                ColumnNames = new List<string> { "BanType", "BannedAt", "ExpiresAt", "Status", "UserId", "BannedByUserId" },
-                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Bans")
-            };
-            return View("_DataGrid", viewModel);
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> BanDetails(int id)
-        {
-            try
-            {
-                BanDetailViewModel viewModel = await _adminService.GetBanDetailsAsync(id: id);
-                return View(model: viewModel);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> RemoveBan(int id)
-        {
-            bool success = await _adminService.RemoveBanAsync(id: id);
-            if (success)
-            {
-                TempData["SuccessMessage"] = "Ban has been removed successfully.";
-            }
-            else
-            {
-                TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
-            }
-
-            return RedirectToAction(actionName: "Bans");
-        }
-
-        #endregion
-
         #region Logs Management
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Logs()
         {
-            var viewModel = new DataGridViewModel
+            DataGridViewModel viewModel = new()
             {
                 Title = "System Logs",
                 TableName = "Logs",

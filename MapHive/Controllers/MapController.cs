@@ -1,6 +1,5 @@
 namespace MapHive.Controllers
 {
-    using AutoMapper;
     using MapHive.Models.RepositoryModels;
     using MapHive.Models.ViewModels;
     using MapHive.Services;

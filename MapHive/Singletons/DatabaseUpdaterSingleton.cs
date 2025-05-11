@@ -33,7 +33,7 @@ namespace MapHive.Singletons
                     : int.Parse(s: versionRawData.Rows[0]["Value"].ToString()!);
 
                 MethodInfo[] versionMethods = [.. typeof(DatabaseUpdaterSingleton).GetMethods(bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance)
-                                                  .Where(predicate: m => m.Name.StartsWith(value: "V") && m.Name.Length > 1 && int.TryParse(s: m.Name[1..], result: out _))
+                                                  .Where(predicate: m => m.Name.StartsWith(value: 'V') && m.Name.Length > 1 && int.TryParse(s: m.Name[1..], result: out _))
                                                   .OrderBy(keySelector: m => int.Parse(s: m.Name[1..]))];
 
                 int lastUpdateNumber = dbVersion;

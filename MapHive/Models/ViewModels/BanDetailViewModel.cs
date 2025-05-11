@@ -1,6 +1,5 @@
 namespace MapHive.Models.ViewModels
 {
-    using System.Collections.Generic;
     using MapHive.Models.RepositoryModels;
 
     public class BanDetailViewModel

@@ -22,6 +22,8 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 builder.Services.AddScoped<IDisplayPageRepository, DisplayPageRepository>();
+builder.Services.AddScoped<IIpBansRepository, IpBansRepository>();
+builder.Services.AddScoped<IUserBansRepository, UserBansRepository>();
 builder.Services.AddSingleton<ILogRepository, LogRepository>(); //LogRepository cannot be scoped because it cannot log to avoid circular reference
 
 // Add application services
@@ -30,6 +32,8 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IDataGridService, DataGridService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IIpBansService, IpBansService>();
+builder.Services.AddScoped<IUserBansService, UserBansService>();
 
 builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterSingleton>();
 

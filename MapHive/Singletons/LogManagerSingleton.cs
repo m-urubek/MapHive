@@ -43,8 +43,8 @@ namespace MapHive.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(value: $"Failed to log to file {ex.ToString()}");
-                        Console.WriteLine(value: logCreate.ToString());
+                        Console.WriteLine(value: $"Failed to log to file {ex}");
+                        Console.WriteLine(value: logCreate);
                     }
                     try
                     {
@@ -61,7 +61,7 @@ namespace MapHive.Services
                     {
                         _ = await _logRepository.CreateLogRowAsync(logCreate: new LogCreate()
                         {
-                            Message = "Failed to log: " + ex.ToString(),
+                            Message = "Failed to log: " + ex,
                             Severity = LogSeverity.Critical,
                             Timestamp = DateTime.Now
                         });
@@ -69,10 +69,10 @@ namespace MapHive.Services
                     catch { /*ignore*/ }
                     try
                     {
-                        _fileLogger.LogToFile(message: "Failed to log: " + ex.ToString());
+                        _fileLogger.LogToFile(message: "Failed to log: " + ex);
                     }
                     catch { /*ignore*/ }
-                    Console.WriteLine(value: $"Failed to log: {ex.ToString()}");
+                    Console.WriteLine(value: $"Failed to log: {ex}");
                 }
             });
         }
@@ -86,7 +86,7 @@ namespace MapHive.Services
 
             try
             {
-                return data.TrimStart().StartsWith(value: "{") || data.TrimStart().StartsWith(value: "[")
+                return data.TrimStart().StartsWith(value: '{') || data.TrimStart().StartsWith(value: '[')
                     ? data
                     : JsonConvert.SerializeObject(value: new { data });
             }

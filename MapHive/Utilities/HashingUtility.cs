@@ -44,4 +44,4 @@ namespace MapHive.Utilities
             return builder.ToString();
         }
     }
-} 
+}

@@ -1,7 +1,6 @@
 namespace MapHive.Services
 {
     using System.Data;
-    using MapHive.Models;
     using MapHive.Models.Enums;
     using MapHive.Models.RepositoryModels;
     using MapHive.Models.ViewModels;

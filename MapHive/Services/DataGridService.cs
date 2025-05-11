@@ -1,9 +1,7 @@
 namespace MapHive.Services
 {
-    using AutoMapper;
     using MapHive.Models.BusinessModels;
     using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
     using MapHive.Repositories;
 
     public class DataGridService(
