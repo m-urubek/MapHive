@@ -85,7 +85,7 @@ namespace MapHive.Controllers
                 StringValues recaptchaResponse = Request.Form["g-recaptcha-response"];
                 if (recaptchaResponse.Count == 0 || string.IsNullOrWhiteSpace(recaptchaResponse.ToString()))
                 {
-                    throw new WarningException(message: "Unable to retreive reCAPTCHA response!");
+                    throw new PublicWarningException(message: "Unable to retreive reCAPTCHA response!");
                 }
 
                 registerRequest.RecaptchaResponse = recaptchaResponse.ToString();
@@ -105,7 +105,7 @@ namespace MapHive.Controllers
                     validationResponse = await _recaptchaService.Validate(responseCode: registerRequest.RecaptchaResponse);
                 }
 
-                if (validationResponse == null || !validationResponse.success)
+                if (validationResponse?.success != true)
                 {
                     _logManagerService.Log(severity: LogSeverity.Warning, message: "reCAPTCHA validation failed for user registration attempt.");
                     ModelState.AddModelError(key: "RecaptchaResponse", errorMessage: "reCAPTCHA verification failed. Please try again.");
@@ -145,6 +145,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Logout()
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
             await _accountService.LogoutAsync();
             return RedirectToAction(actionName: "Index", controllerName: "Home");
         }
@@ -153,13 +155,17 @@ namespace MapHive.Controllers
         [Authorize]
         public IActionResult Profile()
         {
-            return RedirectToAction(actionName: "PrivateProfile");
+            return !_userContextService.IsAuthenticated
+                ? throw new PublicErrorException(message: "User is not authenticated.")
+                : (IActionResult)RedirectToAction(actionName: "PrivateProfile");
         }
 
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
             int userId = _userContextService.UserId;
             PrivateProfileViewModel? viewModel = await _profileService.GetPrivateProfileAsync(userId: userId);
             return viewModel == null ? RedirectToAction(actionName: "Login") : View(model: viewModel);
@@ -176,6 +182,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> BanUser(string username)
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
             int adminId = _userContextService.UserId;
             if (adminId == 0)
             {
@@ -202,6 +210,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ProcessBan(string username, BanViewModel banViewModel)
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
             int adminId = _userContextService.UserId;
             if (adminId == 0)
             {
@@ -244,6 +254,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> UnbanUser(int banId, string username)
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
             int adminId = _userContextService.UserId;
             if (adminId == 0)
             {
@@ -280,6 +292,9 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ChangeUsername(ChangeUsernameViewModel changeUsernameViewModel)
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+
             if (!ModelState.IsValid)
             {
                 int currentUserId = _userContextService.UserId;
@@ -303,9 +318,9 @@ namespace MapHive.Controllers
                 string tierValue = User.FindFirst(type: "UserTier")?.Value ?? "0";
                 List<Claim> claims = new()
                 {
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim(ClaimTypes.Name, changeUsernameViewModel.NewUsername),
-                    new Claim("UserTier", tierValue)
+                    new Claim(type: ClaimTypes.NameIdentifier, value: userId.ToString()),
+                    new Claim(type: ClaimTypes.Name, value: changeUsernameViewModel.NewUsername),
+                    new Claim(type: "UserTier", value: tierValue)
                 };
                 AddAdminRoleClaim(claims: claims, tier: (UserTier)int.Parse(s: tierValue));
 
@@ -343,6 +358,9 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel changePasswordViewModel)
         {
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+
             if (!ModelState.IsValid)
             {
                 int currentUserId = _userContextService.UserId;
@@ -388,7 +406,7 @@ namespace MapHive.Controllers
         {
             if (tier == UserTier.Admin)
             {
-                claims.Add(item: new Claim(ClaimTypes.Role, "Admin"));
+                claims.Add(item: new Claim(type: ClaimTypes.Role, value: "Admin"));
             }
         }
     }

@@ -57,8 +57,9 @@ namespace MapHive.Repositories
                 {
                     DisplayName = columnName, //translate later
                     InternalName = columnName,
-                    Flex = "1 1 auto",
-                    Index = i
+                    Flex = "1",      // Use shorthand flex:1 (equivalent to 1 1 0) for consistent zero-basis flex
+                    Index = i,
+                    IsLastColumn = false
                 };
 
                 // Check if this column is a foreign key
@@ -112,8 +113,9 @@ namespace MapHive.Repositories
             string tableName,
             int page = 1,
             int pageSize = 20,
+            string searchColumnName = "",
             string searchTerm = "",
-            string sortField = "",
+            string sortColumnName = "",
             string sortDirection = "asc")
         {
             // Validate parameters
@@ -122,7 +124,7 @@ namespace MapHive.Repositories
                 throw new ArgumentException("Invalid table name");
             }
 
-            if (!string.IsNullOrEmpty(value: sortField) && !IsValidColumnName(columnName: sortField))
+            if (!string.IsNullOrEmpty(value: sortColumnName) && !IsValidColumnName(columnName: sortColumnName))
             {
                 throw new ArgumentException("Invalid sort field");
             }
@@ -132,82 +134,92 @@ namespace MapHive.Repositories
             pageSize = Math.Clamp(value: pageSize, min: 1, max: 100); // Example clamp
 
             // Initialize view model
-            DataGridGet viewModel = new()
+            DataGridGet dataGridGet = new()
             {
                 TableName = tableName,
                 CurrentPage = page,
                 PageSize = pageSize,
                 SearchTerm = searchTerm,
-                SortField = sortField,
+                SortField = sortColumnName,
                 SortDirection = sortDirection.Equals("desc", StringComparison.InvariantCultureIgnoreCase) ? "desc" : "asc", // Sanitize direction
                 // Get table columns
-                Columns = await GetColumnsForTableAsync(tableName: tableName)
+                Columns = await GetColumnsForTableAsync(tableName: tableName),
+                Items = new List<DataGridRowGet>(),
+                TotalCount = 0
             };
 
             // Build query
             (string query, List<SQLiteParameter> parameters) = await BuildQueryAsync(
-tableName: tableName,
-columns: viewModel.Columns, // Pass columns to avoid re-fetching
-page: page,
-pageSize: pageSize,
-searchTerm: searchTerm,
-sortField: sortField,
-sortDirection: viewModel.SortDirection
+                tableName: tableName,
+                columns: dataGridGet.Columns, // Pass columns to avoid re-fetching
+                page: page,
+                pageSize: pageSize,
+                searchColumnName: searchColumnName,
+                searchTerm: searchTerm,
+                sortColumnName: sortColumnName,
+                sortDirection: dataGridGet.SortDirection
             );
 
             // Execute query to get data
             DataTable dataTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parameters]);
 
             // Convert data to grid rows
-            viewModel.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: viewModel.Columns, tableName: tableName);
+            dataGridGet.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: dataGridGet.Columns, tableName: tableName);
 
             // Get total count for pagination
-            viewModel.TotalCount = await GetTotalRowsCountAsync(tableName: tableName, searchTerm: searchTerm, columns: viewModel.Columns);
+            dataGridGet.TotalCount = await GetTotalRowsCountAsync(tableName: tableName, searchColumnName: sortColumnName, searchTerm: searchTerm);
 
-            return viewModel;
+            return dataGridGet;
         }
 
         // Helper method to convert DataTable to grid rows
         private List<DataGridRowGet> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumnGet> columns, string tableName)
         {
             List<DataGridRowGet> rows = new();
-            string? idColumnName = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName;
+            string idColumnName = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName ?? throw new Exception($"{nameof(ConvertDataTableToGridRows)}: idColumnName is null!");
 
             foreach (DataRow dataRow in dataTable.Rows)
             {
-                DataGridRowGet gridRow = new();
-
                 // Assign RowId using mapping extension
-                if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(name: idColumnName))
+                //if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(name: idColumnName))
+                int rowId = dataRow.GetValueOrDefault(
+                    _logManagerService,
+                     tableName: tableName,
+                      columnName: idColumnName,
+                       isRequired: true,
+                        converter: v =>
                 {
-                    gridRow.RowId = dataRow.GetValueOrDefault(_logManagerService, tableName, idColumnName, v =>
-                    {
-                        _ = int.TryParse(v.ToString(), out int idValue);
-                        return idValue;
-                    }, 0);
-                }
+                    _ = int.TryParse(v.ToString(), out int idValue);
+                    return idValue;
+                }, defaultValue: 0);
 
+                Dictionary<string, DataGridCellGet> cellsByColumnNames = new();
                 foreach (DataGridColumnGet column in columns)
                 {
                     string columnName = column.InternalName;
                     if (dataTable.Columns.Contains(name: columnName))
                     {
-                        string cellContent = dataRow.GetValueOrDefault(_logManagerService, tableName, columnName, v => v.ToString()!, string.Empty);
-                        gridRow.CellsByColumnNames[columnName] = new DataGridCellGet { Content = cellContent };
+                        string cellContent = dataRow.GetValueOrDefault(_logManagerService, tableName: tableName, columnName: columnName, isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty);
+                        cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = cellContent });
                     }
                     else
                     {
                         // Handle cases where a column might be expected but not in the result (e.g., calculated columns)
-                        gridRow.CellsByColumnNames[columnName] = new DataGridCellGet { Content = string.Empty }; // Or handle differently
+                        cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = string.Empty }); // Or handle differently
+                        _logManagerService.Log(Models.Enums.LogSeverity.Error, $"Column \"{columnName}\" not found in the result set for table \"{tableName}\".");
                     }
                 }
-                rows.Add(item: gridRow);
+                rows.Add(item: new()
+                {
+                    RowId = rowId,
+                    CellsByColumnNames = cellsByColumnNames
+                });
             }
             return rows;
         }
 
         // Get total count of rows matching the search criteria
-        public async Task<int> GetTotalRowsCountAsync(string tableName, string searchTerm, List<DataGridColumnGet> columns)
+        public async Task<int> GetTotalRowsCountAsync(string tableName, string searchColumnName, string searchTerm)
         {
             // Validate
             if (!IsValidTableName(tableName: tableName))
@@ -216,7 +228,7 @@ sortDirection: viewModel.SortDirection
             }
 
             // Build WHERE clause for counting
-            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchTerm: searchTerm, columns: columns);
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchColumnName: searchColumnName, searchTerm: searchTerm);
 
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
@@ -232,19 +244,20 @@ sortDirection: viewModel.SortDirection
             List<DataGridColumnGet> columns,
             int page,
             int pageSize,
+            string searchColumnName,
             string searchTerm,
-            string sortField,
+            string sortColumnName,
             string sortDirection)
         {
             // Build WHERE clause
-            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchTerm: searchTerm, columns: columns);
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchColumnName: searchColumnName, searchTerm: searchTerm);
 
             // Build ORDER BY clause
             string orderByClause = string.Empty;
-            if (!string.IsNullOrEmpty(value: sortField) && IsValidColumnName(columnName: sortField) && columns.Any(predicate: c => c.InternalName == sortField))
+            if (!string.IsNullOrEmpty(value: sortColumnName) && IsValidColumnName(columnName: sortColumnName) && columns.Any(predicate: c => c.InternalName == sortColumnName))
             {
                 string direction = sortDirection.Equals(value: "desc", comparisonType: StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-                orderByClause = $"ORDER BY \"{sortField}\" {direction}"; // Quote column name
+                orderByClause = $"ORDER BY \"{sortColumnName}\" {direction}"; // Quote column name
             }
             else
             {
@@ -284,8 +297,8 @@ sortDirection: viewModel.SortDirection
 
         // Build the WHERE clause based on the search term
         private static (string whereClause, List<SQLiteParameter> parameters) BuildWhereClause(
-            string searchTerm,
-            List<DataGridColumnGet> columns)
+            string searchColumnName,
+            string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(value: searchTerm))
             {
@@ -296,14 +309,10 @@ sortDirection: viewModel.SortDirection
             List<SQLiteParameter> parameters = new();
             int paramIndex = 0;
 
-            // Use only the columns provided for searching
-            foreach (DataGridColumnGet column in columns)
-            {
-                // Maybe add type checking here later to avoid searching non-text fields?
-                string paramName = $"@SearchParam{paramIndex++}";
-                conditions.Add(item: $"CAST(\"{column.InternalName}\" AS TEXT) LIKE {paramName}"); // Quote column name
-                parameters.Add(item: new SQLiteParameter(paramName, $"%{searchTerm}%"));
-            }
+            // Maybe add type checking here later to avoid searching non-text fields?
+            string paramName = $"@SearchParam{paramIndex++}";
+            conditions.Add(item: $"CAST(\"{searchColumnName}\" AS TEXT) LIKE {paramName}"); // Quote column name
+            parameters.Add(item: new SQLiteParameter(paramName, $"%{searchTerm}%"));
 
             if (conditions.Count != 0)
             {

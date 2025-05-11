@@ -10,10 +10,11 @@ namespace MapHive.Controllers
     using Microsoft.AspNetCore.Mvc;
 
     [Authorize]
-    public class AdminController(IAdminService adminService, IMapper mapper) : Controller
+    public class AdminController(IAdminService adminService, IMapper mapper, IDataGridService dataGridService) : Controller
     {
         private readonly IAdminService _adminService = adminService;
         private readonly IMapper _mapper = mapper;
+        private readonly IDataGridService _dataGridService = dataGridService;
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
@@ -88,10 +89,16 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Users(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        public async Task<IActionResult> Users()
         {
-            DataGridViewModel viewModel = await _adminService.GetUsersGridViewModelAsync(searchTerm: searchTerm, page: page, pageSize: pageSize, sortField: sortField, sortDirection: sortDirection);
-            return View(model: viewModel);
+            var viewModel = new DataGridViewModel
+            {
+                Title = "Manage Users",
+                TableName = "Users",
+                ColumnNames = new List<string>(),
+                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Users")
+            };
+            return View("_DataGrid", viewModel);
         }
 
         [HttpPost]
@@ -198,12 +205,16 @@ namespace MapHive.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Bans(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        public async Task<IActionResult> Bans()
         {
-            DataGridViewModel viewModel = await _adminService.GetBansGridViewModelAsync(searchTerm: searchTerm, page: page, pageSize: pageSize, sortField: sortField, sortDirection: sortDirection);
-            ViewData["SortField"] = sortField;
-            ViewData["SortDirection"] = sortDirection;
-            return View(model: viewModel);
+            var viewModel = new DataGridViewModel
+            {
+                Title = "Manage Bans",
+                TableName = "Bans",
+                ColumnNames = new List<string> { "BanType", "BannedAt", "ExpiresAt", "Status", "UserId", "BannedByUserId" },
+                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Bans")
+            };
+            return View("_DataGrid", viewModel);
         }
 
         [HttpGet]
@@ -237,6 +248,24 @@ namespace MapHive.Controllers
             }
 
             return RedirectToAction(actionName: "Bans");
+        }
+
+        #endregion
+
+        #region Logs Management
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> Logs()
+        {
+            var viewModel = new DataGridViewModel
+            {
+                Title = "System Logs",
+                TableName = "Logs",
+                ColumnNames = new List<string> { "Id_Log", "Timestamp", "SeverityId", "Message", "UserId", "RequestPath", "Source", "AdditionalData" },
+                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Logs")
+            };
+            return View("_DataGrid", viewModel);
         }
 
         #endregion

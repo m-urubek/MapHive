@@ -29,25 +29,13 @@ namespace MapHive.Controllers
         public async Task<IActionResult> GetGridData(
             string tableName,
             int page = 1,
+            string searchColumn = "",
             string searchTerm = "",
-            string sortField = "",
+            string sortColumnName = "",
             string sortDirection = "asc")
         {
-            Models.ViewModels.DataGridViewModel vm = await _dataGridService.GetGridDataAsync(tableName: tableName, page: page, searchTerm: searchTerm, sortField: sortField, sortDirection: sortDirection);
-            return Json(data: new
-            {
-                success = true,
-                totalPages = vm.TotalPages,
-                currentPage = vm.CurrentPage,
-                totalCount = vm.TotalCount,
-                items = vm.Items,
-                columns = vm.Columns,
-                tableName = vm.TableName,
-                sortField = vm.SortField,
-                sortDirection = vm.SortDirection,
-                searchTerm = vm.SearchTerm,
-                searchColumn = vm.SearchColumn
-            }, serializerSettings: _jsonOptions);
+            DataGridGet dataGridGet = await _dataGridService.GetGridDataAsync(tableName: tableName, page: page, searchColumn: searchColumn, searchTerm: searchTerm, sortColumnName: sortColumnName, sortDirection: sortDirection);
+            return Json(data: dataGridGet, serializerSettings: _jsonOptions);
         }
 
         /// <summary>

@@ -31,7 +31,7 @@ namespace MapHive.Singletons
             InitializeCurrentLogFile();
 
             // Set up a timer to check for old log files once per day
-            _cleanupTimer = new Timer(CleanupOldLogFiles, null, TimeSpan.FromDays(value: 1), TimeSpan.FromDays(value: 1)); // Start after 1 day, repeat daily
+            _cleanupTimer = new Timer(CleanupOldLogFiles, null, dueTime: TimeSpan.FromDays(value: 1), period: TimeSpan.FromDays(value: 1)); // Start after 1 day, repeat daily
         }
 
         /// <summary>

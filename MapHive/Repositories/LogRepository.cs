@@ -14,7 +14,7 @@ namespace MapHive.Repositories
             int page = 1,
             int pageSize = 20,
             string searchTerm = "",
-            string sortField = "Timestamp",
+            string sortColumnName = "Timestamp",
             string sortDirection = "desc")
         {
             // Validate parameters
@@ -23,7 +23,7 @@ namespace MapHive.Repositories
             sortDirection = sortDirection.Equals("desc", StringComparison.InvariantCultureIgnoreCase) ? "DESC" : "ASC";
 
             // Sanitize sort field to prevent SQL injection
-            string sanitizedSortField = IsValidColumnName(columnName: sortField) ? QuoteIdentifier(identifier: sortField) : QuoteIdentifier(identifier: "Timestamp");
+            string sanitizedSortField = IsValidColumnName(columnName: sortColumnName) ? QuoteIdentifier(identifier: sortColumnName) : QuoteIdentifier(identifier: "Timestamp");
 
             // Build query
             StringBuilder queryBuilder = new();

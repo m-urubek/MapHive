@@ -10,13 +10,15 @@ namespace MapHive.Services
         IDiscussionRepository discussionRepository,
         IReviewRepository reviewRepository,
         IUserRepository userRepository,
-        IMapper mapper) : IMapService
+        IMapper mapper,
+        IUserContextService userContextService) : IMapService
     {
         private readonly IMapLocationRepository _mapRepository = mapRepository;
         private readonly IDiscussionRepository _discussionRepository = discussionRepository;
         private readonly IReviewRepository _reviewRepository = reviewRepository;
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IMapper _mapper = mapper;
+        private readonly IUserContextService _userContextService = userContextService;
 
         public Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync()
         {
@@ -33,9 +35,9 @@ namespace MapHive.Services
             return _mapRepository.GetLocationByIdAsync(id: id);
         }
 
-        public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto, int userId)
+        public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto)
         {
-            createDto.UserId = userId;
+            createDto.UserId = _userContextService.UserId;
             return await _mapRepository.AddLocationAsync(location: createDto);
         }
 
@@ -108,19 +110,6 @@ namespace MapHive.Services
             IEnumerable<CategoryGet> categories = await GetAllCategoriesAsync();
             return new AddLocationPageViewModel
             {
-                CreateModel = new MapLocationCreate
-                {
-                    Name = string.Empty,
-                    Description = string.Empty,
-                    Latitude = 0,
-                    Longitude = 0,
-                    Address = string.Empty,
-                    Website = string.Empty,
-                    PhoneNumber = string.Empty,
-                    UserId = currentUserId,
-                    IsAnonymous = false,
-                    CategoryId = null
-                },
                 Categories = categories
             };
         }

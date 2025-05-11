@@ -167,14 +167,14 @@ namespace MapHive.Repositories
             const string table = "Reviews";
             return new ReviewGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_Reviews", Convert.ToInt32),
-                LocationId = row.GetValueOrDefault(_logManagerService, table, "LocationId", Convert.ToInt32),
-                UserId = row.GetValueOrDefault(_logManagerService, table, "UserId", Convert.ToInt32),
-                Rating = row.GetValueOrDefault(_logManagerService, table, "Rating", Convert.ToInt32),
-                ReviewText = row.GetValueOrDefault(_logManagerService, table, "ReviewText", v => v.ToString()!, string.Empty),
-                IsAnonymous = row.GetValueOrDefault(_logManagerService, table, "IsAnonymous", Convert.ToBoolean),
-                CreatedAt = row.GetValueOrDefault(_logManagerService, table, "CreatedAt", Convert.ToDateTime),
-                UpdatedAt = row.GetValueOrDefault(_logManagerService, table, "UpdatedAt", Convert.ToDateTime),
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Reviews", isRequired: true, converter: Convert.ToInt32),
+                LocationId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "LocationId", isRequired: true, converter: Convert.ToInt32),
+                UserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UserId", isRequired: true, converter: Convert.ToInt32),
+                Rating = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Rating", isRequired: true, converter: Convert.ToInt32),
+                ReviewText = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "ReviewText", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                IsAnonymous = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsAnonymous", isRequired: true, converter: Convert.ToBoolean),
+                CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
+                UpdatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UpdatedAt", isRequired: true, converter: Convert.ToDateTime),
                 AuthorName = string.Empty // will be set after mapping
             };
         }

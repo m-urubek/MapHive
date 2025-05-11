@@ -34,6 +34,6 @@ namespace MapHive.Models.RepositoryModels
 
         public required bool IsAnonymous { get; set; } = false;
 
-        public required int? CategoryId { get; set; }
+        public required int CategoryId { get; set; }
     }
 }

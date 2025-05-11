@@ -99,6 +99,14 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Add custom route for /Logs to AdminController.Logs
+app.MapControllerRoute(
+    name: "logs_short",
+    pattern: "Logs",
+    defaults: new { controller = "Admin", action = "Logs" }
+);
+
+// Default conventional route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

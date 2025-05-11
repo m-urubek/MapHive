@@ -18,11 +18,11 @@ namespace MapHive.Models.RepositoryModels
 
         [Required(ErrorMessage = "Latitude is required")]
         [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double Latitude { get; set; }
+        public required double Latitude { get; set; }
 
         [Required(ErrorMessage = "Longitude is required")]
         [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double Longitude { get; set; }
+        public required double Longitude { get; set; }
 
         [StringLength(200, ErrorMessage = "Address cannot be longer than 200 characters")]
         public required string Address { get; set; }
@@ -34,17 +34,17 @@ namespace MapHive.Models.RepositoryModels
         [StringLength(50, ErrorMessage = "Phone number cannot be longer than 50 characters")]
         public required string PhoneNumber { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
 
-        public DateTime UpdatedAt { get; set; }
+        public required DateTime UpdatedAt { get; set; }
 
-        public int UserId { get; set; }
+        public required int UserId { get; set; }
 
-        public bool IsAnonymous { get; set; } = false;
+        public required bool IsAnonymous { get; set; } = false;
 
-        public int? CategoryId { get; set; }
+        public required int CategoryId { get; set; }
 
         [JsonIgnore]
-        public CategoryGet? Category { get; set; }
+        public CategoryGet? Category { get; set; } //todo use join properly
     }
 }

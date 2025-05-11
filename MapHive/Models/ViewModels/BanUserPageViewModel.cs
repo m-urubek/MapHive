@@ -4,7 +4,6 @@ namespace MapHive.Models.ViewModels
 
     public class BanUserPageViewModel : BanViewModel
     {
-        // User to be banned
         public string Username { get; set; } = string.Empty;
 
         public int UserId { get; set; }

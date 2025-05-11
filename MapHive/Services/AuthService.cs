@@ -185,10 +185,10 @@ namespace MapHive.Services
         {
             List<Claim> claims = new()
             {
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Name, user.Username),
-                new(ClaimTypes.Role, user.Tier.ToString()), // Add tier number as role
-                new(ClaimTypes.Role, ((UserTier)user.Tier).ToString()) // Add tier name as role
+                new(type: ClaimTypes.NameIdentifier, value: user.Id.ToString()),
+                new(type: ClaimTypes.Name, value: user.Username),
+                new(type: ClaimTypes.Role, value: user.Tier.ToString()), // Add tier number as role
+                new(type: ClaimTypes.Role, value: user.Tier.ToString()) // Add tier name as role
             };
 
             ClaimsIdentity claimsIdentity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);

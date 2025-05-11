@@ -1,12 +1,13 @@
-namespace MapHive.Models
+namespace MapHive.Models.ViewModels
 {
+    using System.Collections.Generic;
     using MapHive.Models.RepositoryModels;
 
     public class BanDetailViewModel
     {
-        public UserBanGet Ban { get; set; } = new UserBanGet();
-        public string BannedUsername { get; set; } = string.Empty;
-        public string BannedByUsername { get; set; } = string.Empty;
+        public required UserBanGet Ban { get; set; }
+        public required string BannedUsername { get; set; }
+        public required string BannedByUsername { get; set; }
 
         public string BanStatus => Ban.IsActive ? "Active" : "Expired";
         public string BanTypeDisplay => Ban.BanType.ToString();

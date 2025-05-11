@@ -1,4 +1,4 @@
-namespace MapHive.Models
+namespace MapHive.Models.ViewModels
 {
     using System.ComponentModel.DataAnnotations;
     using System.Data;

@@ -4,15 +4,15 @@ namespace MapHive.Models.RepositoryModels
 
     public class UserBanGet
     {
-        public int Id { get; set; }
+        public required int Id { get; set; }
         public int? UserId { get; set; }
-        public string? HashedIpAddress { get; set; }
-        public int BannedByUserId { get; set; }
-        public string Reason { get; set; } = string.Empty;
-        public BanType BanType { get; set; }
-        public DateTime BannedAt { get; set; }
+        public string? HashedIpAddress { get; set; } //todo ip address shouldnt be in user ban table
+        public required int BannedByUserId { get; set; }
+        public required string Reason { get; set; } = string.Empty;
+        public required BanType BanType { get; set; }
+        public required DateTime BannedAt { get; set; }
         public DateTime? ExpiresAt { get; set; }
-        public bool IsActive { get; set; }
-        public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
+        public required bool IsActive { get; set; }
+        public required Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
     }
 }

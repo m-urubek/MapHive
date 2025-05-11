@@ -6,11 +6,12 @@ namespace MapHive.Services
 
     public interface IDataGridService
     {
-        Task<DataGridViewModel> GetGridDataAsync(
+        Task<DataGridGet> GetGridDataAsync(
             string tableName,
             int page = 1,
+            string searchColumn = "",
             string searchTerm = "",
-            string sortField = "",
+            string sortColumnName = "",
             string sortDirection = "asc");
 
         Task<ColumnInfo> GetColumnInfoAsync(string tableName, string columnName);

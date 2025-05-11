@@ -4,7 +4,7 @@ namespace MapHive.Models.RepositoryModels
 
     public class UserTierGet
     {
-        public int UserId { get; set; }
-        public UserTier Tier { get; set; }
+        public required int UserId { get; set; }
+        public required UserTier Tier { get; set; }
     }
 }

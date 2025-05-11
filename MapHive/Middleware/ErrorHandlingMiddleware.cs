@@ -7,7 +7,7 @@ namespace MapHive.Middleware
 
     public class ErrorHandlingMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, ILogManagerService logManager, IConfigurationService configurationService)
+        public async Task InvokeAsync(HttpContext context, ILogManagerService logManagerService, IConfigurationService configurationService)
         {
             // Resolve scoped services from the request
             IUserFriendlyExceptionService userFriendlyExceptionService = context.RequestServices.GetRequiredService<IUserFriendlyExceptionService>();
@@ -23,9 +23,9 @@ namespace MapHive.Middleware
 
                 // Don't re-throw the exception since we've handled it by showing a friendly message
             }
-            catch (WarningException ex)
+            catch (PublicWarningException ex)
             {
-                logManager.Log(
+                logManagerService.Log(
                     severity: LogSeverity.Warning,
                     message: ex.Message,
                     exception: ex,
@@ -33,6 +33,17 @@ namespace MapHive.Middleware
                     additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
                 );
                 await HandleUserFriendlyExceptionAsync(context: context, exception: new OrangeUserException(ex.Message), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
+            }
+            catch (PublicErrorException ex)
+            {
+                logManagerService.Log(
+                    severity: LogSeverity.Error,
+                    message: ex.Message,
+                    exception: ex,
+                    source: nameof(ErrorHandlingMiddleware),
+                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                );
+                await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(ex.Message), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
             }
             catch (Exception ex)
             {
@@ -51,7 +62,7 @@ namespace MapHive.Middleware
                 }
                 catch { } // Don't let UI message display issues prevent error logging
 
-                logManager.Log(
+                logManagerService.Log(
                     severity: LogSeverity.Critical,
                     message: ex.Message,
                     exception: ex,

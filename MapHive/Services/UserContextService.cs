@@ -16,7 +16,7 @@ namespace MapHive.Services
         {
             if (!IsAuthenticated)
             {
-                throw new WarningException("Not authenticated");
+                throw new PublicWarningException("Not authenticated");
             }
         }
 

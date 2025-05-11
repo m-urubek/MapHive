@@ -14,7 +14,7 @@ namespace MapHive.Singletons
         private readonly string _connectionString;
 
         // This semaphore ensures only one operation executes at a time
-        private static readonly SemaphoreSlim _semaphore = new(1, 1);
+        private static readonly SemaphoreSlim _semaphore = new(initialCount: 1, maxCount: 1);
 
         // Queue to track pending operations - useful for debugging and monitoring
         private static readonly ConcurrentQueue<string> _operationsQueue = new();
@@ -40,7 +40,7 @@ namespace MapHive.Singletons
 
             if (string.IsNullOrEmpty(value: databaseFilePath))
             {
-                throw new ArgumentException("Database file path cannot be null or empty.", nameof(databaseFilePath));
+                throw new ArgumentException(message: "Database file path cannot be null or empty.", paramName: nameof(databaseFilePath));
             }
             _connectionString = $"Data Source={databaseFilePath};Version=3;";
             if (!File.Exists(path: databaseFilePath))
@@ -60,7 +60,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -101,7 +101,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -137,7 +137,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -176,7 +176,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -212,7 +212,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -258,7 +258,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: query))
             {
-                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+                throw new ArgumentException(message: "Query cannot be null or empty.", paramName: nameof(query));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -311,7 +311,7 @@ namespace MapHive.Singletons
         {
             if (string.IsNullOrEmpty(value: sqlScript))
             {
-                throw new ArgumentException("SQL script cannot be null or empty.", nameof(sqlScript));
+                throw new ArgumentException(message: "SQL script cannot be null or empty.", paramName: nameof(sqlScript));
             }
 
             string operationId = Guid.NewGuid().ToString();
@@ -363,7 +363,7 @@ namespace MapHive.Singletons
             if (!File.Exists(path: sqlSchemaPath))
             {
                 LogBeforeDbCreated(logMessage: $"Database schema file not found at {sqlSchemaPath}. Cannot initialize database.");
-                throw new FileNotFoundException("Database schema file not found.", sqlSchemaPath);
+                throw new FileNotFoundException(message: "Database schema file not found.", fileName: sqlSchemaPath);
             }
 
             try

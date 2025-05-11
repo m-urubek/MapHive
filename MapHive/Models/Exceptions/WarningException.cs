@@ -1,18 +1,18 @@
 namespace MapHive.Models.Exceptions
 {
-    public class WarningException : Exception
+    public class PublicWarningException : Exception
     {
-        public WarningException(string message)
+        public PublicWarningException(string message)
             : base(message)
         {
         }
 
-        public WarningException(string message, Exception innerException)
+        public PublicWarningException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
 
-        public WarningException() : base()
+        public PublicWarningException() : base()
         {
         }
     }

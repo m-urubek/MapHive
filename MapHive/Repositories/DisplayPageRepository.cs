@@ -103,7 +103,7 @@ namespace MapHive.Repositories
             foreach (DataColumn column in columns)
             {
                 string columnName = column.ColumnName;
-                string value = row.GetValueOrDefault(_logManagerService, tableName, columnName, v => v.ToString()!, string.Empty);
+                string value = row.GetValueOrDefault(_logManagerService, tableName: tableName, columnName: columnName, isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty);
 
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
                 string displayName = FormatColumnNameForDisplay(columnName: columnName);

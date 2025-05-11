@@ -37,8 +37,8 @@ namespace MapHive.Repositories
         // Basic user lookup
         public async Task<UserGet?> GetUserByIdAsync(int id)
         {
-            string query = "SELECT * FROM Users WHERE Id_User = @Id_Log";
-            SQLiteParameter[] parameters = [new("@Id_Log", id)];
+            string query = "SELECT * FROM Users WHERE Id_User = @Id_User";
+            SQLiteParameter[] parameters = [new("@Id_User", id)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 ? MapDataRowToUserGet(row: result.Rows[0]) : null;
         }
@@ -100,7 +100,7 @@ namespace MapHive.Repositories
                 new("@HashedIpAddress", ipBan.IpAddress),
                 new("@Reason", ipBan.Reason),
                 new("@BannedAt", ipBan.BannedAt.ToString(format: "yyyy-MM-dd HH:mm:ss")),
-                new("@ExpiresAt", ipBan.ExpiresAt.HasValue ? ipBan.ExpiresAt.Value.ToString(format: "yyyy-MM-dd HH:mm:ss") : (object)DBNull.Value),
+                new("@ExpiresAt", ipBan.ExpiresAt.HasValue ? ipBan.ExpiresAt.Value.ToString(format: "yyyy-MM-dd HH:mm:ss") : DBNull.Value),
                 new("@BannedByUserId", ipBan.BannedByUserId)
             ];
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
@@ -114,11 +114,11 @@ namespace MapHive.Repositories
                     PasswordHash = @PasswordHash,
                     Tier = @Tier,
                     IpAddressHistory = @IpAddressHistory
-                WHERE Id_User = @Id_Log";
+                WHERE Id_User = @Id_User";
 
             SQLiteParameter[] parameters =
             [
-                new("@Id_Log", updateDto.Id),
+                new("@Id_User", updateDto.Id),
                 new("@Username", updateDto.Username),
                 new("@PasswordHash", updateDto.PasswordHash as object ?? DBNull.Value),
                 new("@Tier", (int)updateDto.Tier),
@@ -129,8 +129,8 @@ namespace MapHive.Repositories
 
         public async Task<string> GetUsernameByIdAsync(int userId)
         {
-            string query = "SELECT Username FROM Users WHERE Id_User = @Id_Log";
-            SQLiteParameter[] parameters = [new("@Id_Log", userId)];
+            string query = "SELECT Username FROM Users WHERE Id_User = @Id_User";
+            SQLiteParameter[] parameters = [new("@Id_User", userId)];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return result.Rows.Count > 0 && result.Rows[0]["Username"] != DBNull.Value
                  ? result.Rows[0]["Username"].ToString()!
@@ -218,12 +218,12 @@ namespace MapHive.Repositories
             return list;
         }
 
-        public async Task<IEnumerable<UserBanGet>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortField = "", string sortDirection = "asc")
+        public async Task<IEnumerable<UserBanGet>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortColumnName = "", string sortDirection = "asc")
         {
             // Validate and sanitize sort field/direction
             HashSet<string> validSortFields = new()
             { "BannedAt", "ExpiresAt", "Reason" };
-            string orderBy = validSortFields.Contains(item: sortField) ? sortField : "BannedAt";
+            string orderBy = validSortFields.Contains(item: sortColumnName) ? sortColumnName : "BannedAt";
             string direction = sortDirection.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? "DESC" : "ASC";
 
             string whereClause = string.IsNullOrWhiteSpace(value: searchTerm)
@@ -255,12 +255,12 @@ namespace MapHive.Repositories
             return list;
         }
 
-        public async Task<IEnumerable<UserGet>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortField = "", string sortDirection = "asc")
+        public async Task<IEnumerable<UserGet>> GetUsersAsync(string searchTerm, int page, int pageSize, string sortColumnName = "", string sortDirection = "asc")
         {
             // Validate and sanitize sort field/direction
             HashSet<string> validSortFields = new()
             { "Username", "RegistrationDate", "Tier" };
-            string orderBy = validSortFields.Contains(item: sortField) ? sortField : "Username";
+            string orderBy = validSortFields.Contains(item: sortColumnName) ? sortColumnName : "Username";
             string direction = sortDirection.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? "DESC" : "ASC";
 
             string whereClause = string.IsNullOrWhiteSpace(value: searchTerm)
@@ -298,7 +298,7 @@ namespace MapHive.Repositories
                 ? "SELECT COUNT(*) FROM Users"
                 : "SELECT COUNT(*) FROM Users WHERE Username LIKE @SearchTerm";
             SQLiteParameter[] parameters = string.IsNullOrWhiteSpace(value: searchTerm)
-                ? Array.Empty<SQLiteParameter>()
+                ? []
                 : [new("@SearchTerm", $"%{searchTerm}%")];
             DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
             return Convert.ToInt32(value: result.Rows[0][0]);
@@ -317,13 +317,13 @@ namespace MapHive.Repositories
             const string table = "Users";
             return new UserGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_User", Convert.ToInt32),
-                Username = row.GetValueOrDefault(_logManagerService, table, "Username", v => v.ToString()!, string.Empty),
-                PasswordHash = row.GetValueOrDefault(_logManagerService, table, "PasswordHash", v => v.ToString()!, string.Empty),
-                Tier = row.GetValueOrDefault(_logManagerService, table, "Tier", v => (UserTier)Convert.ToInt32(v)),
-                RegistrationDate = row.GetValueOrDefault(_logManagerService, table, "RegistrationDate", v => DateTime.Parse(v.ToString()!)),
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_User", isRequired: true, converter: Convert.ToInt32),
+                Username = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Username", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                PasswordHash = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "PasswordHash", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Tier = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Tier", isRequired: true, converter: v => (UserTier)Convert.ToInt32(v)),
+                RegistrationDate = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "RegistrationDate", isRequired: true, converter: v => DateTime.Parse(v.ToString()!)),
                 IpAddressHistory = row.Table.Columns.Contains("IpAddressHistory")
-                    ? row.GetValueOrDefault(_logManagerService, table, "IpAddressHistory", v => v.ToString()!, string.Empty)
+                    ? row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IpAddressHistory", isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty)
                     : string.Empty
             };
         }
@@ -333,15 +333,15 @@ namespace MapHive.Repositories
             const string table = "UserBans";
             return new UserBanGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_UserBan", Convert.ToInt32),
-                UserId = row.Table.Columns.Contains("UserId") && row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : (int?)null,
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_UserBan", isRequired: true, converter: Convert.ToInt32),
+                UserId = row.Table.Columns.Contains("UserId") && row["UserId"] != DBNull.Value ? Convert.ToInt32(row["UserId"]) : null,
                 HashedIpAddress = row.Table.Columns.Contains("HashedIpAddress") && row["HashedIpAddress"] != DBNull.Value ? row["HashedIpAddress"].ToString() : null,
-                BannedByUserId = row.GetValueOrDefault(_logManagerService, table, "BannedByUserId", Convert.ToInt32),
-                Reason = row.GetValueOrDefault(_logManagerService, table, "Reason", v => v.ToString()!, string.Empty),
-                BanType = row.GetValueOrDefault(_logManagerService, table, "BanType", v => (BanType)Convert.ToInt32(v)),
-                BannedAt = row.GetValueOrDefault(_logManagerService, table, "BannedAt", Convert.ToDateTime),
-                ExpiresAt = row.Table.Columns.Contains("ExpiresAt") && row["ExpiresAt"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ExpiresAt"]) : null,
-                IsActive = row.Table.Columns.Contains("ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || Convert.ToDateTime(row["ExpiresAt"]) > DateTime.UtcNow),
+                BannedByUserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "BannedByUserId", isRequired: true, converter: Convert.ToInt32),
+                Reason = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Reason", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                BanType = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "BanType", isRequired: true, converter: v => (BanType)Convert.ToInt32(v)),
+                BannedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "BannedAt", isRequired: true, converter: Convert.ToDateTime),
+                ExpiresAt = row.Table.Columns.Contains("ExpiresAt") && row["ExpiresAt"] != DBNull.Value && DateTime.TryParse(row["ExpiresAt"].ToString(), out DateTime parsedDateTime) ? parsedDateTime : null,
+                IsActive = row.Table.Columns.Contains("ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || (DateTime.TryParse(row["ExpiresAt"].ToString(), out DateTime parsedDateTime2) && parsedDateTime2 > DateTime.UtcNow)),
                 Properties = new Dictionary<string, string>()
             };
         }

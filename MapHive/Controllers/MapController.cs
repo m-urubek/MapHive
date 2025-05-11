@@ -7,11 +7,10 @@ namespace MapHive.Controllers
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
-    public class MapController(IMapService mapService, IUserContextService userContextService, IMapper mapper) : Controller
+    public class MapController(IMapService mapService, IUserContextService userContextService) : Controller
     {
         private readonly IMapService _mapService = mapService;
         private readonly IUserContextService _userContextService = userContextService;
-        private readonly IMapper _mapper = mapper;
 
         // GET: Map
         public async Task<IActionResult> Index()
@@ -34,17 +33,16 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize]
-        public async Task<IActionResult> Add(AddLocationPageViewModel addLocationPageViewModel)
+        public async Task<IActionResult> Add(MapLocationCreate mapLocationCreate)
         {
             if (!ModelState.IsValid)
             {
                 // Re-populate categories on validation failure
                 int userId = _userContextService.UserId;
                 AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync(currentUserId: userId);
-                fallback.CreateModel = addLocationPageViewModel.CreateModel;
                 return View(model: fallback);
             }
-            _ = await _mapService.AddLocationAsync(createDto: addLocationPageViewModel.CreateModel, userId: addLocationPageViewModel.CreateModel.UserId);
+            _ = await _mapService.AddLocationAsync(mapLocationCreate: mapLocationCreate);
             return RedirectToAction(actionName: nameof(Index));
         }
 
@@ -140,9 +138,7 @@ namespace MapHive.Controllers
                 // Retrieve all details via service
                 MapLocationViewModel viewModel = await _mapService.GetLocationDetailsAsync(id: id, currentUserId: _userContextService.UserId);
                 // Determine if current user has already reviewed
-                bool hasReviewed = false;
-                hasReviewed = await _mapService.HasUserReviewedLocationAsync(userId: _userContextService.UserId, locationId: id);
-                ViewBag.HasReviewed = hasReviewed;
+                ViewBag.HasReviewed = await _mapService.HasUserReviewedLocationAsync(userId: _userContextService.UserId, locationId: id);
                 ViewBag.AuthorUsername = viewModel.AuthorName;
                 ViewBag.AverageRating = viewModel.AverageRating;
                 ViewBag.ReviewCount = viewModel.ReviewCount;

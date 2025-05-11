@@ -10,13 +10,11 @@ namespace MapHive.Services
 
     public class AdminService(
         IMapLocationRepository mapLocationRepository,
-        IDataGridService dataGridService,
         ISqlClientSingleton sqlClient,
         IConfigurationService configSingleton,
         IUserRepository userRepository) : IAdminService
     {
         private readonly IMapLocationRepository _mapLocationRepository = mapLocationRepository;
-        private readonly IDataGridService _dataGridService = dataGridService;
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClient;
         private readonly IConfigurationService _configSingleton = configSingleton;
         private readonly IUserRepository _userRepository = userRepository;
@@ -46,22 +44,6 @@ namespace MapHive.Services
         public Task DeleteCategoryAsync(int id)
         {
             return Task.Run(function: () => _mapLocationRepository.DeleteCategoryAsync(id: id));
-        }
-
-        // User management grid
-        public async Task<DataGridViewModel> GetUsersGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection)
-        {
-            List<DataGridColumnGet> columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Users");
-            return new DataGridViewModel
-            {
-                TableName = "Users",
-                Columns = columns,
-                SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
-                CurrentPage = page,
-                PageSize = pageSize
-            };
         }
 
         public Task UpdateUserTierAsync(int userId, UserTier tier)
@@ -145,22 +127,6 @@ namespace MapHive.Services
         public Task DeleteConfigurationItemAsync(string key)
         {
             return _configSingleton.DeleteConfigurationItemAsync(key: key);
-        }
-
-        // Ban management grid
-        public async Task<DataGridViewModel> GetBansGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection)
-        {
-            List<DataGridColumnGet> columns = await _dataGridService.GetColumnsForTableAsync(tableName: "UserBans");
-            return new DataGridViewModel
-            {
-                TableName = "UserBans",
-                Columns = columns,
-                SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
-                CurrentPage = page,
-                PageSize = pageSize
-            };
         }
 
         public async Task<BanDetailViewModel> GetBanDetailsAsync(int id)

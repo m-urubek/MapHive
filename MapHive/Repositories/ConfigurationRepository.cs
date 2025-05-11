@@ -89,12 +89,10 @@ namespace MapHive.Repositories
             const string table = "Configuration";
             return new ConfigurationItem
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_Configuration", Convert.ToInt32),
-                Key = row.GetValueOrDefault(_logManagerService, table, "Key", v => v.ToString()!, string.Empty),
-                Value = row.GetValueOrDefault(_logManagerService, table, "Value", v => v.ToString()!, string.Empty),
-                Description = row.Table.Columns.Contains("Description")
-                    ? row.GetValueOrDefault(_logManagerService, table, "Description", v => v.ToString()!, default)
-                    : null
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Configuration", isRequired: true, converter: Convert.ToInt32),
+                Key = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Key", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Value = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Value", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Description = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Description", isRequired: false, converter: v => v.ToString()!, defaultValue: default)
             };
         }
     }

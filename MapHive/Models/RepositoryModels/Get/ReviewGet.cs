@@ -5,28 +5,28 @@ namespace MapHive.Models.RepositoryModels
     public class ReviewGet
     {
         [Key]
-        public int Id { get; set; }
+        public required int Id { get; set; }
 
         [Required]
-        public int LocationId { get; set; }
+        public required int LocationId { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public required int UserId { get; set; }
 
         [Required]
         [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
-        public int Rating { get; set; }
+        public required int Rating { get; set; }
 
         [Required]
         [StringLength(500, ErrorMessage = "Review text cannot be longer than 500 characters")]
         public required string ReviewText { get; set; }
 
-        public bool IsAnonymous { get; set; }
+        public required bool IsAnonymous { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
 
-        public DateTime UpdatedAt { get; set; }
+        public required DateTime UpdatedAt { get; set; }
 
-        public string AuthorName { get; set; } = string.Empty;
+        public required string AuthorName { get; set; } = string.Empty;
     }
 }

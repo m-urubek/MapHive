@@ -2,6 +2,7 @@ namespace MapHive.Repositories
 {
     using System.Data;
     using System.Data.SQLite;
+    using MapHive.Models.Exceptions;
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
     using MapHive.Singletons;
@@ -47,7 +48,7 @@ namespace MapHive.Repositories
                 new("@UpdatedAt", now),
                 new("@UserId", createDto.UserId),
                 new("@IsAnonymous", createDto.IsAnonymous),
-                new("@CategoryId", createDto.CategoryId.HasValue ? (object)createDto.CategoryId.Value : DBNull.Value)
+                new("@CategoryId", createDto.CategoryId)
             ];
             int id = await _sqlClientSingleton.InsertAsync(
 query: @"INSERT INTO MapLocations (Name, Description, Latitude, Longitude, Address, Website, PhoneNumber, CreatedAt, UpdatedAt, UserId, IsAnonymous, CategoryId)
@@ -89,12 +90,12 @@ parameters: parameters);
                 new("@Description", updateDto.Description),
                 new("@Latitude", updateDto.Latitude),
                 new("@Longitude", updateDto.Longitude),
-                new("@Address", updateDto.Address ?? (object)DBNull.Value),
-                new("@Website", updateDto.Website ?? (object)DBNull.Value),
-                new("@PhoneNumber", updateDto.PhoneNumber ?? (object)DBNull.Value),
+                new("@Address", updateDto.Address),
+                new("@Website", updateDto.Website),
+                new("@PhoneNumber", updateDto.PhoneNumber),
                 new("@UpdatedAt", now),
                 new("@IsAnonymous", updateDto.IsAnonymous),
-                new("@CategoryId", updateDto.CategoryId.HasValue ? (object)updateDto.CategoryId.Value : DBNull.Value)
+                new("@CategoryId", updateDto.CategoryId)
             ];
             int rows = await _sqlClientSingleton.UpdateAsync(
 query: @"UPDATE MapLocations
@@ -128,11 +129,7 @@ query: @"UPDATE MapLocations
         public async Task<MapLocationGet?> GetLocationWithCategoryAsync(int id)
         {
             MapLocationGet? loc = await GetLocationByIdAsync(id: id);
-            if (loc?.CategoryId != null)
-            {
-                loc.Category = await GetCategoryByIdAsync(id: loc.CategoryId.Value);
-            }
-
+            (loc ?? throw new PublicErrorException($"Location \"{id}\" not found in database!")).Category = await GetCategoryByIdAsync(id: loc.CategoryId);
             return loc;
         }
 
@@ -195,19 +192,19 @@ query: "UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon W
             const string table = "MapLocations";
             return new MapLocationGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_MapLocation", Convert.ToInt32),
-                Name = row.GetValueOrDefault(_logManagerService, table, "Name", v => v.ToString()!, string.Empty),
-                Description = row.GetValueOrDefault(_logManagerService, table, "Description", v => v.ToString()!, string.Empty),
-                Latitude = row.GetValueOrDefault(_logManagerService, table, "Latitude", Convert.ToDouble),
-                Longitude = row.GetValueOrDefault(_logManagerService, table, "Longitude", Convert.ToDouble),
-                Address = row.GetValueOrDefault(_logManagerService, table, "Address", v => v.ToString()!, string.Empty),
-                Website = row.GetValueOrDefault(_logManagerService, table, "Website", v => v.ToString()!, string.Empty),
-                PhoneNumber = row.GetValueOrDefault(_logManagerService, table, "PhoneNumber", v => v.ToString()!, string.Empty),
-                CreatedAt = row.GetValueOrDefault(_logManagerService, table, "CreatedAt", Convert.ToDateTime),
-                UpdatedAt = row.GetValueOrDefault(_logManagerService, table, "UpdatedAt", Convert.ToDateTime),
-                UserId = row.GetValueOrDefault(_logManagerService, table, "UserId", Convert.ToInt32),
-                IsAnonymous = row.GetValueOrDefault(_logManagerService, table, "IsAnonymous", Convert.ToBoolean),
-                CategoryId = row["CategoryId"] != DBNull.Value ? Convert.ToInt32(row["CategoryId"]) : (int?)null,
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_MapLocation", isRequired: true, converter: Convert.ToInt32),
+                Name = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Name", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Description = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Description", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Latitude = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Latitude", isRequired: true, converter: Convert.ToDouble),
+                Longitude = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Longitude", isRequired: true, converter: Convert.ToDouble),
+                Address = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Address", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Website = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Website", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                PhoneNumber = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "PhoneNumber", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
+                UpdatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UpdatedAt", isRequired: true, converter: Convert.ToDateTime),
+                UserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UserId", isRequired: true, converter: Convert.ToInt32),
+                IsAnonymous = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsAnonymous", isRequired: true, converter: Convert.ToBoolean),
+                CategoryId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CategoryId", isRequired: true, converter: Convert.ToInt32),
                 Category = null // populated by calling method
             };
         }
@@ -217,10 +214,10 @@ query: "UPDATE Categories SET Name=@Name, Description=@Description, Icon=@Icon W
             const string table = "Category";
             return new CategoryGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_Category", Convert.ToInt32),
-                Name = row.GetValueOrDefault(_logManagerService, table, "Name", v => v.ToString()!, string.Empty),
-                Description = row.GetValueOrDefault(_logManagerService, table, "Description", v => v.ToString()!, string.Empty),
-                Icon = row.GetValueOrDefault(_logManagerService, table, "Icon", v => v.ToString()!, string.Empty)
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Category", isRequired: true, converter: Convert.ToInt32),
+                Name = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Name", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Description = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Description", isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Icon = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Icon", isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty)
             };
         }
     }

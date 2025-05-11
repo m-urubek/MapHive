@@ -8,7 +8,7 @@ namespace MapHive.Services
         Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync();
         Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync();
         Task<MapLocationGet?> GetLocationByIdAsync(int id);
-        Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto, int userId);
+        Task<MapLocationGet> AddLocationAsync(MapLocationCreate mapLocationCreate);
         Task<MapLocationGet?> UpdateLocationAsync(int id, MapLocationUpdate updateDto, int currentUserId, bool isAdmin);
         Task<bool> DeleteLocationAsync(int id, int currentUserId, bool isAdmin);
         Task<MapLocationViewModel> GetLocationDetailsAsync(int id, int? currentUserId);

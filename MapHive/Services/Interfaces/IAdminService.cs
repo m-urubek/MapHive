@@ -13,9 +13,6 @@ namespace MapHive.Services
         Task<CategoryGet?> GetCategoryByIdAsync(int id);
         Task UpdateCategoryAsync(CategoryUpdate updateDto);
         Task DeleteCategoryAsync(int id);
-
-        // User management grid
-        Task<DataGridViewModel> GetUsersGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection);
         Task UpdateUserTierAsync(int userId, UserTier tier);
 
         // SQL execution
@@ -27,9 +24,6 @@ namespace MapHive.Services
         Task<ConfigurationItem?> GetConfigurationItemAsync(string key);
         Task UpdateConfigurationItemAsync(ConfigurationItem item);
         Task DeleteConfigurationItemAsync(string key);
-
-        // Ban management grid
-        Task<DataGridViewModel> GetBansGridViewModelAsync(string searchTerm, int page, int pageSize, string sortField, string sortDirection);
         Task<BanDetailViewModel> GetBanDetailsAsync(int id);
         Task<bool> RemoveBanAsync(int id);
 

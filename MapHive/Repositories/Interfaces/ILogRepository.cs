@@ -10,14 +10,14 @@ namespace MapHive.Repositories
         /// <param name="page">The page number (1-based)</param>
         /// <param name="pageSize">The number of items per page</param>
         /// <param name="searchTerm">Optional search term to filter logs</param>
-        /// <param name="sortField">Optional field to sort by</param>
+        /// <param name="sortColumnName">Optional field to sort by</param>
         /// <param name="sortDirection">Sort direction ('asc' or 'desc')</param>
         /// <returns>List of logs</returns>
         Task<IEnumerable<LogGet>> GetLogsAsync(
             int page = 1,
             int pageSize = 20,
             string searchTerm = "",
-            string sortField = "Timestamp",
+            string sortColumnName = "Timestamp",
             string sortDirection = "desc");
 
         /// <summary>

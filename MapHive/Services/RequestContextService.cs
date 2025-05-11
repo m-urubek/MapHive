@@ -14,7 +14,7 @@ namespace MapHive.Services
         public string IpAddress =>
             (_httpContextAccessor.HttpContext ?? throw new Exception("Not in request"))
                 .Connection.RemoteIpAddress?.ToString()
-            ?? throw new WarningException("Unable to retrieve IP address");
+            ?? throw new PublicWarningException("Unable to retrieve IP address");
 
         public bool IsRequestAjax => _httpContextAccessor.HttpContext?.Request.Headers.XRequestedWith.ToString() == "XMLHttpRequest";
 

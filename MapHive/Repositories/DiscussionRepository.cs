@@ -22,8 +22,7 @@ namespace MapHive.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
-                string username = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId);
-                thread.AuthorName = username;
+                thread.AuthorName = thread.UserId == null ? "Anonymous" : await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
@@ -39,8 +38,9 @@ namespace MapHive.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
-                string username = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId);
-                thread.AuthorName = username;
+                if (!thread.UserId.HasValue)
+                    throw new Exception($"Dicussion thread {thread.Id} doesn't have user assigned!");
+                thread.AuthorName = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
@@ -58,8 +58,7 @@ namespace MapHive.Repositories
             }
 
             DiscussionThreadGet thread = MapRowToThreadGet(row: dt.Rows[0]);
-            string username = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId);
-            thread.AuthorName = username;
+            thread.AuthorName = thread.UserId.HasValue ? await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value) : "anonymous";
             thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
             return thread;
         }
@@ -74,7 +73,7 @@ namespace MapHive.Repositories
                 new("@UserId", dto.UserId),
                 new("@ThreadName", dto.ThreadName),
                 new("@IsReviewThread", dto.IsReviewThread),
-                new("@ReviewId", dto.ReviewId.HasValue ? (object)dto.ReviewId.Value : DBNull.Value),
+                new("@ReviewId", dto.ReviewId),
                 new("@CreatedAt", now)
             ];
             int threadId = await _sqlClientSingleton.InsertAsync(query: threadQuery, parameters: threadParams);
@@ -122,7 +121,7 @@ namespace MapHive.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
-                thread.AuthorName = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId);
+                thread.AuthorName = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId ?? throw new Exception($"{nameof(GetThreadsByUserIdAsync)}: thread \"{thread.Id}\" doesn't have user assigned!"));
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
@@ -188,13 +187,14 @@ parameters: [new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), n
             const string table = "DiscussionThreads";
             return new DiscussionThreadGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_DiscussionThreads", Convert.ToInt32),
-                LocationId = row.GetValueOrDefault(_logManagerService, table, "LocationId", Convert.ToInt32),
-                UserId = row.GetValueOrDefault(_logManagerService, table, "UserId", Convert.ToInt32),
-                ThreadName = row.GetValueOrDefault(_logManagerService, table, "ThreadName", v => v.ToString()!, string.Empty),
-                IsReviewThread = row.GetValueOrDefault(_logManagerService, table, "IsReviewThread", Convert.ToBoolean),
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_DiscussionThreads", isRequired: true, converter: Convert.ToInt32),
+                LocationId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "LocationId", isRequired: true, converter: Convert.ToInt32),
+                UserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UserId", isRequired: true, converter: Convert.ToInt32),
+                ThreadName = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "ThreadName", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                IsReviewThread = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsReviewThread", isRequired: true, converter: Convert.ToBoolean),
+                CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
                 ReviewId = row["ReviewId"] != DBNull.Value ? Convert.ToInt32(row["ReviewId"]) : null,
-                CreatedAt = row.GetValueOrDefault(_logManagerService, table, "CreatedAt", Convert.ToDateTime),
+                AuthorName = string.Empty,
                 Messages = new List<ThreadMessageGet>() // will be populated
             };
         }
@@ -204,14 +204,14 @@ parameters: [new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), n
             const string table = "ThreadMessages";
             return new ThreadMessageGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, table, "Id_ThreadMessages", Convert.ToInt32),
-                ThreadId = row.GetValueOrDefault(_logManagerService, table, "ThreadId", Convert.ToInt32),
-                UserId = row.GetValueOrDefault(_logManagerService, table, "UserId", Convert.ToInt32),
-                MessageText = row.GetValueOrDefault(_logManagerService, table, "MessageText", v => v.ToString()!, string.Empty),
-                IsInitialMessage = row.GetValueOrDefault(_logManagerService, table, "IsInitialMessage", Convert.ToBoolean),
-                IsDeleted = row.GetValueOrDefault(_logManagerService, table, "IsDeleted", Convert.ToBoolean),
-                CreatedAt = row.GetValueOrDefault(_logManagerService, table, "CreatedAt", Convert.ToDateTime),
-                DeletedAt = row["DeletedAt"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["DeletedAt"]) : null,
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_ThreadMessages", isRequired: true, converter: Convert.ToInt32),
+                ThreadId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "ThreadId", isRequired: true, converter: Convert.ToInt32),
+                UserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UserId", isRequired: true, converter: Convert.ToInt32),
+                MessageText = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "MessageText", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                IsInitialMessage = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsInitialMessage", isRequired: true, converter: Convert.ToBoolean),
+                IsDeleted = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsDeleted", isRequired: true, converter: Convert.ToBoolean),
+                CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
+                DeletedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "DeletedAt", isRequired: false, converter: Convert.ToDateTime),
                 AuthorName = string.Empty, // populated by caller
                 DeletedByUsername = null
             };
