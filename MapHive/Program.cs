@@ -31,7 +31,7 @@ builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IDataGridService, DataGridService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 
-builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterService>();
+builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterSingleton>();
 
 // Add SqlClient as a singleton
 builder.Services.AddSingleton<ISqlClientSingleton, SqlClientSingleton>();
@@ -82,7 +82,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IRequestContextService, RequestContextService>();
 builder.Services.AddScoped<IUserFriendlyExceptionService, UserFriendlyExceptionService>();
 
-// Register DatabaseUpdaterService as Singleton
+// Register DatabaseUpdaterSingleton as Singleton
 
 WebApplication app = builder.Build();
 
@@ -111,7 +111,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Run the DatabaseUpdaterService to apply any pending updates
+// Run the DatabaseUpdaterSingleton to apply any pending updates
 IDatabaseUpdaterSingleton dbUpdaterService = app.Services.GetService<IDatabaseUpdaterSingleton>() ?? throw new Exception($"{nameof(IDatabaseUpdaterSingleton)} not found!");
 await dbUpdaterService.RunAsync();
 

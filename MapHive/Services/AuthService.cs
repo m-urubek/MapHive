@@ -154,19 +154,7 @@ namespace MapHive.Services
 
         public string HashPassword(string password)
         {
-            // Normalize the password to ensure consistent hashing
-            password = password.Normalize(normalizationForm: System.Text.NormalizationForm.FormKD);
-            byte[] bytes = SHA256.HashData(source: Encoding.UTF8.GetBytes(s: password));
-
-            // Use lowercase hex format for consistency
-            StringBuilder builder = new();
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                _ = builder.Append(value: bytes[i].ToString(format: "x2"));
-            }
-
-            // Return lowercase hex string
-            return builder.ToString().ToLowerInvariant();
+            return MapHive.Utilities.HashingUtility.HashPassword(password: password);
         }
 
         public bool VerifyPassword(string password, string storedHash)

@@ -8,7 +8,7 @@ namespace MapHive.Singletons
     /// <summary>
     /// Service responsible for applying database schema updates.
     /// </summary>
-    public class DatabaseUpdaterService(ISqlClientSingleton sqlClientSingleton, ILogManagerSingleton logManagerSingleton) : IDatabaseUpdaterSingleton
+    public class DatabaseUpdaterSingleton(ISqlClientSingleton sqlClientSingleton, ILogManagerSingleton logManagerSingleton) : IDatabaseUpdaterSingleton
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
         private readonly ILogManagerSingleton _logManagerSingleton = logManagerSingleton;
@@ -32,7 +32,7 @@ namespace MapHive.Singletons
                     ? 0
                     : int.Parse(s: versionRawData.Rows[0]["Value"].ToString()!);
 
-                MethodInfo[] versionMethods = [.. typeof(DatabaseUpdaterService).GetMethods(bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance)
+                MethodInfo[] versionMethods = [.. typeof(DatabaseUpdaterSingleton).GetMethods(bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance)
                                                   .Where(predicate: m => m.Name.StartsWith(value: "V") && m.Name.Length > 1 && int.TryParse(s: m.Name[1..], result: out _))
                                                   .OrderBy(keySelector: m => int.Parse(s: m.Name[1..]))];
 
@@ -81,7 +81,7 @@ namespace MapHive.Singletons
             }
             catch (Exception ex)
             {
-                _logManagerSingleton.Log(severity: LogSeverity.Critical, message: "Database Updater: An error occurred during database update.", exception: ex, source: nameof(DatabaseUpdaterService));
+                _logManagerSingleton.Log(severity: LogSeverity.Critical, message: "Database Updater: An error occurred during database update.", exception: ex, source: nameof(DatabaseUpdaterSingleton));
                 // Rethrow or handle critical failure appropriately
                 throw;
             }

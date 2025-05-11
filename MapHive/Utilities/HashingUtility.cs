@@ -3,8 +3,25 @@ namespace MapHive.Utilities
     using System.Security.Cryptography;
     using System.Text;
 
-    public static class NetworkingUtility
+    public static class HashingUtility
     {
+        public static string HashPassword(string password)
+        {
+            // Normalize the password to ensure consistent hashing
+            password = password.Normalize(System.Text.NormalizationForm.FormKD);
+            byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
+
+            // Use lowercase hex format for consistency
+            StringBuilder builder = new();
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                _ = builder.Append(bytes[i].ToString("x2"));
+            }
+
+            // Return lowercase hex string
+            return builder.ToString().ToLowerInvariant();
+        }
+
         /// <summary>
         /// Hashes an IP address using SHA256 for secure storage
         /// </summary>
@@ -27,4 +44,4 @@ namespace MapHive.Utilities
             return builder.ToString();
         }
     }
-}
+} 

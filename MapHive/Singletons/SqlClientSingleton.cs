@@ -398,7 +398,7 @@ namespace MapHive.Singletons
         {
             string adminUsername = "admin";
             string adminPassword = "admin"; // Plain text password
-            string hashedPassword = HashPassword(password: adminPassword); // Hash the password
+            string hashedPassword = MapHive.Utilities.HashingUtility.HashPassword(password: adminPassword);
             DateTime registrationDate = DateTime.UtcNow;
             int adminTier = (int)UserTier.Admin; // Assuming UserTier is an enum and Admin maps to an int
 
@@ -416,25 +416,6 @@ namespace MapHive.Singletons
                 new SQLiteParameter("@IpAddressHistory", "INITIAL_SETUP")
             ];
             _ = await InsertAsync(query: insertAdminQuery, parameters: adminParams);
-        }
-
-        // Helper method to hash password (copied from AuthService for simplicity here)
-        // Consider refactoring to a shared utility if needed elsewhere
-        private static string HashPassword(string password)
-        {
-            // Normalize the password to ensure consistent hashing
-            password = password.Normalize(normalizationForm: System.Text.NormalizationForm.FormKD);
-            byte[] bytes = SHA256.HashData(source: Encoding.UTF8.GetBytes(s: password));
-
-            // Use lowercase hex format to ensure consistency with AuthService
-            StringBuilder builder = new();
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                _ = builder.Append(value: bytes[i].ToString(format: "x2"));
-            }
-
-            // Return lowercase hex string
-            return builder.ToString().ToLowerInvariant();
         }
 
         private void LogBeforeDbCreated(string logMessage)
