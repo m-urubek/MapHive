@@ -5,7 +5,7 @@
 {
     <div class="user-friendly-message" id="userFriendlyMessage">
         <div class="alert @Model.AlertClass alert-dismissible fade show" role="alert">
-            <span>@Model.Message</span>
+            <span>@Html.Raw(Model.Message)</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>

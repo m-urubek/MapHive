@@ -32,6 +32,13 @@ namespace MapHive.Controllers
             return View(model: categories);
         }
 
+        [HttpGet]
+        [Authorize(Roles = "Admin,2")]
+        public IActionResult AddCategory()
+        {
+            return View(model: new CategoryCreate { Name = string.Empty, Description = string.Empty, Icon = string.Empty });
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]

@@ -9,13 +9,14 @@ namespace MapHive.Models.Exceptions.UserFriendlyExceptions
 
         public IViewComponentResult Invoke()
         {
-            if (!string.IsNullOrEmpty(value: _userFriendlyExceptionService.Message))
+            string? message = _userFriendlyExceptionService.Message;
+            if (!string.IsNullOrEmpty(message))
             {
                 // Get the message type, default to Blue if not specified
                 string messageTypeString = _userFriendlyExceptionService.Type ?? "Blue";
 
                 // Try to parse the message type from the string
-                if (!Enum.TryParse(value: messageTypeString, result: out UserFriendlyExceptionBase.MessageType messageType))
+                if (!Enum.TryParse(messageTypeString, out UserFriendlyExceptionBase.MessageType messageType))
                 {
                     messageType = UserFriendlyExceptionBase.MessageType.Blue;
                 }
@@ -26,7 +27,7 @@ namespace MapHive.Models.Exceptions.UserFriendlyExceptions
                 // Create a ViewModel to pass both the message and type to the view
                 UserFriendlyExceptionMessageViewModel viewModel = new()
                 {
-                    Message = _userFriendlyExceptionService.Message,
+                    Message = message,
                     MessageType = messageType
                 };
 

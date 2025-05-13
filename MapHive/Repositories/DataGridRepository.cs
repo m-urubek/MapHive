@@ -206,7 +206,7 @@ namespace MapHive.Repositories
                     {
                         // Handle cases where a column might be expected but not in the result (e.g., calculated columns)
                         cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = string.Empty }); // Or handle differently
-                        _logManagerService.Log(Models.Enums.LogSeverity.Error, $"Column \"{columnName}\" not found in the result set for table \"{tableName}\".");
+                        _ = _logManagerService.LogAsync(Models.Enums.LogSeverity.Error, $"Column \"{columnName}\" not found in the result set for table \"{tableName}\".");
                     }
                 }
                 rows.Add(item: new()

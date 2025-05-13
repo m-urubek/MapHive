@@ -26,13 +26,10 @@ namespace MapHive.Services
             ArgumentNullException.ThrowIfNull(request);
 
             if (string.IsNullOrEmpty(value: _requestContextService.IpAddress))
-            {
-                _logManagerService.Log(severity: LogSeverity.Warning, message: "Login failed: Unable to retrieve client IP address.");
-                throw new OrangeUserException("Login failed due to a network issue. Please try again.");
-            }
+                throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
 
             AuthResponse response = await _authService.LoginAsync(request: request, ipAddress: _requestContextService.IpAddress);
-            _logManagerService.Log(severity: LogSeverity.Information, message: $"User {request.Username} successfully logged in.");
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {request.Username} successfully logged in.");
             return response;
         }
 
@@ -41,19 +38,16 @@ namespace MapHive.Services
             ArgumentNullException.ThrowIfNull(request);
 
             if (string.IsNullOrEmpty(value: _requestContextService.IpAddress))
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "Registration failed: Unable to retrieve client IP address.");
-                throw new RedUserException("Unable to retrieve your IP address. Registration cannot proceed.");
-            }
+                throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
 
             AuthResponse response = await _authService.RegisterAsync(request: request, ipAddress: _requestContextService.IpAddress);
-            _logManagerService.Log(severity: LogSeverity.Information, message: $"User {request.Username} successfully registered and logged in.");
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {request.Username} successfully registered and logged in.");
             return response;
         }
 
         public Task LogoutAsync()
         {
-            _logManagerService.Log(severity: LogSeverity.Information, message: "User logged out.");
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "User logged out.");
             return _authService.LogoutAsync();
         }
 

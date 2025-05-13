@@ -37,7 +37,7 @@ namespace MapHive.Services
             if (await _userRepository.IsIpBannedAsync(hashedIpAddress: hashedIpAddress))
             {
                 // LogGet the attempt but throw a user-friendly (less informative) error
-                _logManagerService.Log(severity: LogSeverity.Warning, message: $"Registration attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress})");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Registration attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress})");
                 throw new OrangeUserException("Registration failed due to security reasons.");
             }
 
@@ -59,7 +59,7 @@ namespace MapHive.Services
             await SignInUserAsync(user: _mapper.Map<UserLogin>(source: userGet));
 
             // Log registration, including hashed IP after sign-in so UserId is available
-            _logManagerService.Log(severity: LogSeverity.Information, message: $"New user registered: {userId}",
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"New user registered: {userId}",
                 additionalData: $"Hashed IP: {hashedIpAddress}");
 
             return new AuthResponse
@@ -76,14 +76,14 @@ namespace MapHive.Services
             UserGet? userGet = await _userRepository.GetUserByUsernameAsync(username: request.Username);
             if (userGet == null)
             {
-                _logManagerService.Log(severity: LogSeverity.Warning, message: $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
             // Check password
             if (!VerifyPassword(password: request.Password, storedHash: userGet.PasswordHash))
             {
-                _logManagerService.Log(severity: LogSeverity.Warning, message: $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Failed login attempt for username: {request.Username} from IP: {ipAddress}");
                 throw new OrangeUserException("Invalid username or password");
             }
 
@@ -91,7 +91,7 @@ namespace MapHive.Services
             UserBanGet? activeBan = await _userRepository.GetActiveBanByUserIdAsync(userId: userGet.Id);
             if (activeBan != null)
             {
-                _logManagerService.Log(severity: LogSeverity.Warning, message: $"Banned user login attempt: {request.Username} (Ban ID: {activeBan.Id})");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Banned user login attempt: {request.Username} (Ban ID: {activeBan.Id})");
                 string banMessage = "Your account is currently banned.";
                 if (activeBan.ExpiresAt.HasValue)
                 {
@@ -108,7 +108,7 @@ namespace MapHive.Services
             string hashedIpAddress = HashingUtility.HashIpAddress(ipAddress: ipAddress);
             if (await _userRepository.IsIpBannedAsync(hashedIpAddress: hashedIpAddress))
             {
-                _logManagerService.Log(severity: LogSeverity.Warning, message: $"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Login attempt from banned IP: {ipAddress} (Hashed: {hashedIpAddress}) for user: {request.Username}");
                 throw new OrangeUserException("Login failed due to security reasons.");
             }
 
@@ -116,7 +116,7 @@ namespace MapHive.Services
             await SignInUserAsync(user: _mapper.Map<UserLogin>(source: userGet));
 
             // Log successful login after sign-in
-            _logManagerService.Log(severity: LogSeverity.Information, message: $"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"UserLogin logged in: {request.Username}", additionalData: $"IP: {ipAddress}");
 
             // Update IP history if necessary (consider rate limiting or specific logic)
             if (!userGet.IpAddressHistory.Contains(value: hashedIpAddress))
@@ -146,7 +146,7 @@ namespace MapHive.Services
             if (_httpContextAccessor.HttpContext != null)
             {
                 await _httpContextAccessor.HttpContext.SignOutAsync(scheme: CookieAuthenticationDefaults.AuthenticationScheme);
-                _logManagerService.Log(severity: LogSeverity.Information, message: "UserLogin logged out");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "UserLogin logged out");
             }
         }
 
@@ -211,7 +211,7 @@ properties: authProperties);
             }
             else
             {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "HttpContext is null. Cannot sign in user.");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: "HttpContext is null. Cannot sign in user.");
                 // Handle the error appropriately, maybe throw an exception
                 throw new InvalidOperationException("HttpContext is not available to sign in the user.");
             }

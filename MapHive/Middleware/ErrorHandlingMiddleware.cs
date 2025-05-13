@@ -7,7 +7,7 @@ namespace MapHive.Middleware
 
     public class ErrorHandlingMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, ILogManagerService logManagerService, IConfigurationService configurationService)
+        public async Task InvokeAsync(HttpContext context, ILogManagerService logManagerService, IConfigurationService configurationService, IUserContextService userContextService)
         {
             // Resolve scoped services from the request
             IUserFriendlyExceptionService userFriendlyExceptionService = context.RequestServices.GetRequiredService<IUserFriendlyExceptionService>();
@@ -25,7 +25,7 @@ namespace MapHive.Middleware
             }
             catch (PublicWarningException ex)
             {
-                logManagerService.Log(
+                _ = logManagerService.LogAsync(
                     severity: LogSeverity.Warning,
                     message: ex.Message,
                     exception: ex,
@@ -36,7 +36,7 @@ namespace MapHive.Middleware
             }
             catch (PublicErrorException ex)
             {
-                logManagerService.Log(
+                _ = logManagerService.LogAsync(
                     severity: LogSeverity.Error,
                     message: ex.Message,
                     exception: ex,
@@ -45,30 +45,47 @@ namespace MapHive.Middleware
                 );
                 await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(ex.Message), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _ = logManagerService.LogAsync(
+                    severity: LogSeverity.Error,
+                    message: "User is not authorized to access this resource",
+                    exception: ex,
+                    source: nameof(ErrorHandlingMiddleware),
+                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                );
+                await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException("Unauthorized"), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
+            }
             catch (Exception ex)
             {
                 try
                 {
-                    if (await configurationService.GetDevelopmentModeAsync())
+                    if (await configurationService.GetDevelopmentModeAsync() || (userContextService.IsAuthenticated && userContextService.IsAdminRequired))
                     {
-                        //TODO after admin panel is done, display link to some page in admin panel displaying details of the exception
-                        await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(ex.ToString()), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
+                        int logId = await logManagerService.LogAsync(
+                            severity: LogSeverity.Critical,
+                            message: ex.Message,
+                            exception: ex,
+                            source: nameof(ErrorHandlingMiddleware),
+                            additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                        );
+                        string errorMessage = $"<a href=\"/Display/Item?tableName=Logs&id={logId}\">View log details</a><br/>{ex}";
+                        await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException(errorMessage), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
                     }
                     else
                     {
+                        _ = logManagerService.LogAsync(
+                            severity: LogSeverity.Critical,
+                            message: ex.Message,
+                            exception: ex,
+                            source: nameof(ErrorHandlingMiddleware),
+                            additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
+                        );
                         // Show a generic error message to the user
                         await HandleUserFriendlyExceptionAsync(context: context, exception: new RedUserException("Internal Server Error!"), userFriendlyExceptionService: userFriendlyExceptionService, requestContextService: requestContextService);
                     }
                 }
                 catch { } // Don't let UI message display issues prevent error logging
-
-                logManagerService.Log(
-                    severity: LogSeverity.Critical,
-                    message: ex.Message,
-                    exception: ex,
-                    source: nameof(ErrorHandlingMiddleware),
-                    additionalData: $"{{\"path\": \"{context.Request.Path}\", \"method\": \"{context.Request.Method}\"}}"
-                );
             }
         }
 
@@ -90,6 +107,8 @@ namespace MapHive.Middleware
             else
             {
                 // For regular requests, redirect back to the same page (or referrer if available)
+                // The session persists across requests via a cookie, so the next request's
+                // view component will pick up the message from session and display the popup.
                 context.Response.Redirect(location: requestContextService.Referer ?? context.Request.Path);
             }
         }

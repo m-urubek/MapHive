@@ -25,7 +25,7 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserId;
+                int userId = _userContextService.UserIdRequired;
                 _ = await _reviewService.CreateReviewAsync(model: reviewViewModel, userId: userId);
                 return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
@@ -36,7 +36,7 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = _userContextService.UserId;
+            int userId = _userContextService.UserIdRequired;
             ReviewViewModel model = await _reviewService.GetEditModelAsync(reviewId: id, userId: userId);
             return View(model: model);
         }
@@ -49,7 +49,7 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserId;
+                int userId = _userContextService.UserIdRequired;
                 await _reviewService.EditReviewAsync(id: id, model: reviewViewModel, userId: userId);
                 return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
@@ -62,9 +62,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = _userContextService.UserId;
-            bool isAdmin = User.IsInRole(role: "Admin");
-            int locationId = await _reviewService.DeleteReviewAsync(id: id, userId: userId, isAdmin: isAdmin);
+            int userId = _userContextService.UserIdRequired;
+            int locationId = await _reviewService.DeleteReviewAsync(id: id, userId: userId);
             return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
         }
     }

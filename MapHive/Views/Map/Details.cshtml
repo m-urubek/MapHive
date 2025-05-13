@@ -1,12 +1,13 @@
 @model MapHive.Models.ViewModels.MapLocationViewModel
 @using MapHive.Models.RepositoryModels
+@using System.Data
 
 @{
     ViewData["Title"] = "Location Details";
 }
 
 <div class="container">
-    <h2 class="my-4">@Model.Name</h2>
+    <h2 class="my-4">@Model.MapLocationGet.Name</h2>
 
     <div class="row">
         <div class="col-md-6">
@@ -17,19 +18,20 @@
                 <div class="card-body">
                     <dl class="row">
                         <dt class="col-sm-4">Name</dt>
-                        <dd class="col-sm-8">@Model.Name</dd>
+                        <dd class="col-sm-8">@Model.MapLocationGet.Name</dd>
 
                         <dt class="col-sm-4">Description</dt>
-                        <dd class="col-sm-8">@Model.Description</dd>
+                        <dd class="col-sm-8">@Model.MapLocationGet.Description</dd>
 
                         <dt class="col-sm-4">Category</dt>
                         <dd class="col-sm-8">
-                            @if (Model.Category != null)
+    using System.Data;
+                            @if (Model.MapLocationGet.Category != null)
                             {
-                                <span>@Model.Category.Name</span>
-                                @if (!string.IsNullOrEmpty(Model.Category.Icon))
+                                <span>@Model.MapLocationGet.Category.Name</span>
+                                @if (!string.IsNullOrEmpty(Model.MapLocationGet.Category.Icon))
                                 {
-                                    <i class="@Model.Category.Icon ms-1"></i>
+                                    <i class="@Model.MapLocationGet.Category.Icon ms-1"></i>
                                 }
                             }
                             else
@@ -39,57 +41,57 @@
                         </dd>
 
                         <dt class="col-sm-4">Address</dt>
-                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.Address) ? "N/A" : Model.Address)</dd>
+                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.MapLocationGet.Address) ? "N/A" : Model.MapLocationGet.Address)</dd>
 
                         <dt class="col-sm-4">Coordinates</dt>
-                        <dd class="col-sm-8">@Model.Latitude, @Model.Longitude</dd>
+                        <dd class="col-sm-8">@Model.MapLocationGet.Latitude, @Model.MapLocationGet.Longitude</dd>
 
                         <dt class="col-sm-4">Website</dt>
                         <dd class="col-sm-8">
-                            @if (string.IsNullOrEmpty(Model.Website))
+                            @if (string.IsNullOrEmpty(Model.MapLocationGet.Website))
                             {
                                 <span>N/A</span>
                             }
                             else
                             {
-                                <a href="@Model.Website" target="_blank">@Model.Website</a>
+                                <a href="@Model.MapLocationGet.Website" target="_blank">@Model.MapLocationGet.Website</a>
                             }
                         </dd>
 
                         <dt class="col-sm-4">Phone Number</dt>
-                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.PhoneNumber) ? "N/A" : Model.PhoneNumber)</dd>
+                        <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.MapLocationGet.PhoneNumber) ? "N/A" : Model.MapLocationGet.PhoneNumber)</dd>
 
                         <dt class="col-sm-4">Created</dt>
-                        <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+                        <dd class="col-sm-8">@Model.MapLocationGet.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
 
                         <dt class="col-sm-4">Last Updated</dt>
-                        <dd class="col-sm-8">@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+                        <dd class="col-sm-8">@Model.MapLocationGet.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
 
                         <dt class="col-sm-4">Added By</dt>
                         <dd class="col-sm-8">
-                            @if (ViewBag.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                            @if (Model.AuthorUsername is null)
                             {
-                                @ViewBag.AuthorUsername
+                                <span>Anonymous</span>
                             }
                             else
                             {
-                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@ViewBag.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == ViewBag.AuthorUsername ? "true" : null)">@ViewBag.AuthorUsername</a>
+                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
                             }
                         </dd>
 
                         <dt class="col-sm-4">Rating</dt>
                         <dd class="col-sm-8">
-                            @if (ViewBag.ReviewCount > 0)
+                            @if (Model.ReviewCount > 0)
                             {
                                 <div class="d-flex align-items-center">
                                     <div class="rating-stars">
                                         @for (int i = 1; i <= 5; i++)
                                         {
-                                            if (i <= Math.Round(ViewBag.AverageRating))
+                                            if (i <= Math.Round(Model.AverageRating ?? 0))
                                             {
                                                 <i class="fas fa-star text-warning"></i>
                                             }
-                                            else if (i - 0.5 <= ViewBag.AverageRating)
+                                            else if (i - 0.5 <= (Model.AverageRating ?? 0))
                                             {
                                                 <i class="fas fa-star-half-alt text-warning"></i>
                                             }
@@ -99,7 +101,7 @@
                                             }
                                         }
                                     </div>
-                                    <span class="ms-2">@ViewBag.AverageRating.ToString("0.0") (@ViewBag.ReviewCount @(ViewBag.ReviewCount == 1 ? "review" : "reviews"))</span>
+                                    <span class="ms-2">@((Model.AverageRating ?? throw new NoNullAllowedException(nameof(Model.AverageRating ))).ToString("0.0")) (@Model.ReviewCount @(Model.ReviewCount == 1 ? "review" : "reviews"))</span>
                                 </div>
                             }
                             else
@@ -111,10 +113,10 @@
                 </div>
                 <div class="card-footer">
                     @if (User.Identity?.IsAuthenticated == true &&
-                          (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.UserId.ToString()))
+                          (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.MapLocationGet.UserId.ToString()))
                     {
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit</a>
-                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Delete</a>
+                        <a asp-action="Edit" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-warning">Edit</a>
+                        <a asp-action="Delete" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-danger">Delete</a>
                     }
                     <a asp-action="Index" class="btn btn-secondary">Back to List</a>
                 </div>
@@ -138,12 +140,12 @@
             <ul class="nav nav-tabs" id="locationTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="true">
-                        Reviews (@ViewBag.ReviewCount)
+                        Reviews (@Model.ReviewCount)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="discussions-tab" data-bs-toggle="tab" data-bs-target="#discussions" type="button" role="tab" aria-controls="discussions" aria-selected="false">
-                        Discussions (@ViewBag.RegularDiscussionCount)
+                        Discussions (@Model.RegularDiscussionCount)
                     </button>
                 </li>
             </ul>
@@ -152,29 +154,29 @@
                 <div class="tab-pane fade show active" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4>Reviews</h4>
-                        @if (User.Identity?.IsAuthenticated == true && !ViewBag.HasReviewed)
+                        @if (Model.HasReviewed is null || !Model.HasReviewed.Value)
                         {
-                            <a asp-controller="Review" asp-action="Create" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <a asp-controller="Review" asp-action="Create" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-primary">
                                 <i class="fas fa-star"></i> Write a Review
                             </a>
                         }
                     </div>
 
-                    @if (Model.Reviews.Any())
+                    @if (Model.Reviews?.Any() ?? false)
                     {
                         @foreach (var review in Model.Reviews)
                         {
                             <div class="card mb-3">
                                 <div class="card-header d-flex justify-content-between align-items-center">
                                     <div>
-                                        @if (review.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                        @if (review.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            <span class="fw-bold">@review.AuthorName</span>
+                                            <span class="fw-bold">@review.AuthorUsername</span>
                                         }
                                         else
                                         {
                                             <span class="fw-bold">
-                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@review.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == review.AuthorName ? "true" : null)">@review.AuthorName</a>
+                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@review.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == review.AuthorUsername ? "true" : null)">@review.AuthorUsername</a>
                                             </span>
                                         }
                                         <span class="text-muted ms-2">@review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
@@ -198,7 +200,7 @@
                                 </div>
                                 <div class="card-footer d-flex justify-content-between">
                                     @{
-                                        var reviewThread = Model.Discussions.FirstOrDefault(t => t.IsReviewThread && t.ReviewId == review.Id);
+                                        DiscussionThreadGet? reviewThread = Model.Discussions?.FirstOrDefault(t => t.IsReviewThread && t.ReviewId == review.Id);
                                     }
 
                                     <div>
@@ -241,7 +243,7 @@
                         <h4>Discussions</h4>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <a asp-controller="Discussion" asp-action="Create" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <a asp-controller="Discussion" asp-action="Create" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-primary">
                                 <i class="fas fa-plus"></i> Start a Discussion
                             </a>
                         }
@@ -299,7 +301,7 @@
                 boxZoom: false,
                 keyboard: false,
                 tap: false
-            }).setView([@Model.Latitude, @Model.Longitude], 13);
+            }).setView([@Model.MapLocationGet.Latitude, @Model.MapLocationGet.Longitude], 13);
 
             // Add the OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -308,7 +310,7 @@
             }).addTo(map);
 
             // Add a marker for the location
-            var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);
+            var marker = L.marker([@Model.MapLocationGet.Latitude, @Model.MapLocationGet.Longitude]).addTo(map);
         });
     </script>
 } 

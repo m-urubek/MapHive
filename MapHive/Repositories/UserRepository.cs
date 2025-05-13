@@ -43,6 +43,12 @@ namespace MapHive.Repositories
             return result.Rows.Count > 0 ? MapDataRowToUserGet(row: result.Rows[0]) : null;
         }
 
+        public async Task<UserGet> GetUserByIdOrThrowAsync(int id)
+        {
+            UserGet? user = await GetUserByIdAsync(id: id);
+            return user ?? throw new PublicErrorException($"User \"{id}\" not found in database!");
+        }
+
         public async Task<UserGet?> GetUserByUsernameAsync(string username)
         {
             string query = "SELECT * FROM Users WHERE Username = @Username";
@@ -57,6 +63,12 @@ namespace MapHive.Repositories
             UserGet user = MapDataRowToUserGet(row: result.Rows[0]);
 
             return string.IsNullOrEmpty(value: user.PasswordHash) ? throw new Exception("User {username} found but has empty password hash") : user;
+        }
+
+        public async Task<UserGet> GetUserByUsernameOrThrowAsync(string username)
+        {
+            UserGet? user = await GetUserByUsernameAsync(username: username);
+            return user ?? throw new PublicErrorException($"User \"{username}\" not found in database!");
         }
 
         public async Task<bool> CheckUsernameExistsAsync(string username)

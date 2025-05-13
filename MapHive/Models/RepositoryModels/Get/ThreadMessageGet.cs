@@ -28,7 +28,7 @@ namespace MapHive.Models.RepositoryModels
         public DateTime? DeletedAt { get; set; }
 
         // Populated by repository
-        public required string AuthorName { get; set; } = string.Empty;
+        public required string AuthorUsername { get; set; } = string.Empty;
 
         // Populated by repository on delete
         public string? DeletedByUsername { get; set; }

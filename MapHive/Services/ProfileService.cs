@@ -38,9 +38,6 @@ namespace MapHive.Services
         {
             UserGet userGet = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new Exception($"User \"{username}\" not found!");
 
-            int? currentUserId = _userContextService.UserId;
-            _ = currentUserId.HasValue && userGet.Id == currentUserId.Value;
-
             // Check ban status
             UserBanGet? activeBan = await _userRepository.GetActiveBanByUserIdAsync(userId: userGet.Id);
             if (activeBan == null || !activeBan.IsActive)
@@ -55,13 +52,6 @@ namespace MapHive.Services
             IEnumerable<MapLocationGet> locations = await _mapRepository.GetLocationsByUserIdAsync(userId: userGet.Id);
             IEnumerable<DiscussionThreadGet> threads = await _discussionRepository.GetThreadsByUserIdAsync(userId: userGet.Id);
 
-            bool isAdmin = false;
-            if (currentUserId.HasValue)
-            {
-                UserGet? currentUser = await _userRepository.GetUserByIdAsync(id: currentUserId.Value);
-                isAdmin = currentUser != null && currentUser.Tier == Models.Enums.UserTier.Admin;
-            }
-
             return new PublicProfileViewModel
             {
                 UserId = userGet.Id,
@@ -70,7 +60,6 @@ namespace MapHive.Services
                 RegistrationDate = userGet.RegistrationDate,
                 UserLocations = locations,
                 UserThreads = threads,
-                IsAdmin = isAdmin,
                 CurrentBan = activeBan
             };
         }

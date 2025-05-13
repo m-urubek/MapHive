@@ -12,8 +12,10 @@ namespace MapHive.Repositories
         // Basic user lookup
         Task<string> GetUsernameByIdAsync(int userId);
         Task<UserGet?> GetUserByUsernameAsync(string username);
+        Task<UserGet> GetUserByUsernameOrThrowAsync(string username);
         Task<bool> CheckUsernameExistsAsync(string username);
         Task<UserGet?> GetUserByIdAsync(int id);
+        Task<UserGet> GetUserByIdOrThrowAsync(int id);
 
         // Ban related methods
         Task<int> BanUserAsync(UserBanGetCreate banDto);

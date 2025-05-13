@@ -53,7 +53,7 @@
                                     Hello, @User.Identity.Name!
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">My Profile</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="PrivateProfile">My Profile</a></li>
                                     @if (User.IsInRole("Admin") || User.IsInRole("2"))
                                     {
                                         <li><a class="dropdown-item text-danger" asp-controller="Admin" asp-action="Index">Admin Panel</a></li>

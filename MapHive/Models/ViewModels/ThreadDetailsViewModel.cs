@@ -10,7 +10,7 @@ namespace MapHive.Models.ViewModels
         public bool IsReviewThread { get; set; }
         public int? ReviewId { get; set; }
         public DateTime CreatedAt { get; set; }
-        public required string AuthorName { get; set; }
+        public required string AuthorUsername { get; set; }
         public List<ThreadMessageGet> Messages { get; set; } = new List<ThreadMessageGet>();
 
         // Navigation properties

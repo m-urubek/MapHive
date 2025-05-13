@@ -12,7 +12,7 @@ namespace MapHive.Services
 
         private HttpContext HttpContext => _httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
 
-        private void EnsureAuthenticated()
+        public void EnsureAuthenticated()
         {
             if (!IsAuthenticated)
             {
@@ -20,7 +20,7 @@ namespace MapHive.Services
             }
         }
 
-        public int UserId
+        public int UserIdRequired
         {
             get
             {
@@ -30,7 +30,7 @@ namespace MapHive.Services
             }
         }
 
-        public string Username
+        public string UsernameRequired
         {
             get
             {
@@ -40,5 +40,16 @@ namespace MapHive.Services
         }
 
         public bool IsAuthenticated => HttpContext?.User?.Identity?.IsAuthenticated == true;
+
+        public bool IsAdminRequired
+        {
+            get
+            {
+                EnsureAuthenticated();
+                return HttpContext.User.IsInRole(role: "Admin");
+            }
+        }
+
+        public bool IsAuthenticatedAndAdmin => IsAuthenticated && IsAdminRequired;
     }
 }

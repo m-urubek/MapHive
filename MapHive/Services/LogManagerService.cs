@@ -12,14 +12,14 @@ namespace MapHive.Services
         private readonly IRequestContextService _requestContextService = requestContextService;
         private readonly IUserContextService _userContextService = userContextService;
 
-        public void Log(
+        public async Task<int> LogAsync(
             LogSeverity severity,
             string message,
             Exception? exception = null,
             string? source = null,
             string? additionalData = null)
         {
-            _logManagerSingleton.Log(severity: severity, message: message, exception: exception, source: source, additionalData: additionalData, userId: _userContextService.UserId, requestPath: _requestContextService.RequestPath);
+            return await _logManagerSingleton.LogAsync(severity: severity, message: message, exception: exception, source: source, additionalData: additionalData, userId: _userContextService.UserIdRequired, requestPath: _requestContextService.RequestPath);
         }
     }
 }

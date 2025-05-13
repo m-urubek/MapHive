@@ -9,6 +9,6 @@ namespace MapHive.Services
         Task<ReviewGet> CreateReviewAsync(ReviewViewModel model, int userId);
         Task<ReviewViewModel> GetEditModelAsync(int reviewId, int userId);
         Task EditReviewAsync(int id, ReviewViewModel model, int userId);
-        Task<int> DeleteReviewAsync(int id, int userId, bool isAdmin);
+        Task<int> DeleteReviewAsync(int id, int userId);
     }
 }

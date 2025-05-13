@@ -23,8 +23,7 @@ namespace MapHive.Singletons
                 DataTable versionRawData = await _sqlClientSingleton.SelectAsync(query: "SELECT * FROM VersionNumber ORDER BY Id_VersionNumber LIMIT 1");
                 if (versionRawData.Rows.Count == 0)
                 {
-                    _logManagerSingleton.Log(severity: LogSeverity.Error, message: "Database Updater: VersionNumber table is empty or does not exist.");
-                    // Consider throwing a specific exception or handling initialization differently
+                    _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Error, message: "Database Updater: VersionNumber table is empty or does not exist.");
                     throw new Exception("Database Updater: VersionNumber table is empty or does not exist.");
                 }
 
@@ -44,18 +43,18 @@ namespace MapHive.Singletons
                     int methodVersion = int.Parse(s: method.Name[1..]);
                     if (methodVersion > dbVersion)
                     {
-                        _logManagerSingleton.Log(severity: LogSeverity.Information, message: $"Database Updater: Applying update V{methodVersion}...");
+                        _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Information, message: $"Database Updater: Applying update V{methodVersion}...");
                         Task? task = (Task?)method.Invoke(obj: this, parameters: null);
                         if (task != null)
                         {
                             await task;
-                            _logManagerSingleton.Log(severity: LogSeverity.Information, message: $"Database Updater: Update V{methodVersion} applied successfully.");
+                            _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Information, message: $"Database Updater: Update V{methodVersion} applied successfully.");
                             lastUpdateNumber = methodVersion;
                             updatesApplied = true;
                         }
                         else
                         {
-                            _logManagerSingleton.Log(severity: LogSeverity.Warning, message: $"Database Updater: Update method V{methodVersion} did not return a Task.");
+                            _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Warning, message: $"Database Updater: Update method V{methodVersion} did not return a Task.");
                         }
                     }
                 }
@@ -72,16 +71,16 @@ namespace MapHive.Singletons
                     {
                         throw new Exception($"Database Updater: Failed to update database version number to {lastUpdateNumber}.");
                     }
-                    _logManagerSingleton.Log(severity: LogSeverity.Information, message: $"Database Updater: Database version updated to {lastUpdateNumber}.");
+                    _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Information, message: $"Database Updater: Database version updated to {lastUpdateNumber}.");
                 }
                 else
                 {
-                    _logManagerSingleton.Log(severity: LogSeverity.Information, message: "Database Updater: Database is up to date.");
+                    _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Information, message: "Database Updater: Database is up to date.");
                 }
             }
             catch (Exception ex)
             {
-                _logManagerSingleton.Log(severity: LogSeverity.Critical, message: "Database Updater: An error occurred during database update.", exception: ex, source: nameof(DatabaseUpdaterSingleton));
+                _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Critical, message: "Database Updater: An error occurred during database update.", exception: ex, source: nameof(DatabaseUpdaterSingleton));
                 // Rethrow or handle critical failure appropriately
                 throw;
             }

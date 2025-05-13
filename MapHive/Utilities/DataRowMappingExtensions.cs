@@ -13,7 +13,7 @@ namespace MapHive.Utilities
             if (value == DBNull.Value)
             {
                 if (isRequired)
-                    logManager.Log(LogSeverity.Warning, $"Value for column \"{columnName}\" in table \"{tableName}\" cannot be null");
+                    _ = logManager.LogAsync(LogSeverity.Warning, $"Value for column \"{columnName}\" in table \"{tableName}\" cannot be null");
                 return defaultValue;
             }
             return converter(value);

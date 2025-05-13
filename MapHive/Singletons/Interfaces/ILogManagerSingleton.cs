@@ -4,7 +4,7 @@ namespace MapHive.Singletons
 
     public interface ILogManagerSingleton
     {
-        public void Log(
+        public Task<int> LogAsync(
             LogSeverity severity,
             string message,
             Exception? exception = null,

@@ -24,7 +24,7 @@ namespace MapHive.Models.RepositoryModels
         public required DateTime CreatedAt { get; set; }
 
         // This property will be populated by the repository
-        public required string AuthorName { get; set; }//todo remove
+        public required string AuthorUsername { get; set; }
 
         // Messages in this thread
         public required List<ThreadMessageGet> Messages { get; set; }

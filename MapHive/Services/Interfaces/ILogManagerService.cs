@@ -4,7 +4,7 @@ namespace MapHive.Services
 
     public interface ILogManagerService
     {
-        public void Log(
+        public Task<int> LogAsync(
             LogSeverity severity,
             string message,
             Exception? exception = null,

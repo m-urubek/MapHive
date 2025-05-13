@@ -13,7 +13,7 @@ namespace MapHive.Repositories
         private readonly IUserRepository _userRepository = userRepository;
         private readonly ILogManagerService _logManagerService = logManagerService;
 
-        public async Task<IEnumerable<ReviewGet>> GetReviewsByLocationIdAsync(int locationId)
+        public async Task<List<ReviewGet>?> GetReviewsByLocationIdAsync(int locationId)
         {
             string query = @"
                 SELECT r.*, u.Username
@@ -32,7 +32,7 @@ namespace MapHive.Repositories
                 string? username = row.Table.Columns.Contains(name: "Username") && row["Username"] != DBNull.Value
                                      ? row["Username"].ToString()
                                      : await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
-                rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
+                rg.AuthorUsername = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
                 reviews.Add(item: rg);
             }
 
@@ -52,7 +52,7 @@ namespace MapHive.Repositories
 
             ReviewGet rg = MapRowToReviewGet(row: result.Rows[0]);
             string username = await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
-            rg.AuthorName = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
+            rg.AuthorUsername = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
 
             return rg;
         }
@@ -87,7 +87,7 @@ namespace MapHive.Repositories
                 IsAnonymous = review.IsAnonymous,
                 CreatedAt = now,
                 UpdatedAt = now,
-                AuthorName = review.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin")
+                AuthorUsername = review.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin")
             };
         }
 
@@ -175,7 +175,7 @@ namespace MapHive.Repositories
                 IsAnonymous = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsAnonymous", isRequired: true, converter: Convert.ToBoolean),
                 CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
                 UpdatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UpdatedAt", isRequired: true, converter: Convert.ToDateTime),
-                AuthorName = string.Empty // will be set after mapping
+                AuthorUsername = string.Empty // will be set after mapping
             };
         }
     }

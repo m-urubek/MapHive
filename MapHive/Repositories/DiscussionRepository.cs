@@ -7,7 +7,10 @@ namespace MapHive.Repositories
     using MapHive.Singletons;
     using MapHive.Utilities;
 
-    public class DiscussionRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository, ILogManagerService logManagerService) : IDiscussionRepository
+    public class DiscussionRepository(
+        ISqlClientSingleton sqlClientSingleton,
+        IUserRepository userRepository,
+        ILogManagerService logManagerService) : IDiscussionRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
         private readonly IUserRepository _userRepository = userRepository;
@@ -22,14 +25,14 @@ namespace MapHive.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
-                thread.AuthorName = thread.UserId == null ? "Anonymous" : await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
+                thread.AuthorUsername = thread.UserId == null ? "Anonymous" : await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
             return list;
         }
 
-        public async Task<IEnumerable<DiscussionThreadGet>> GetAllDiscussionThreadsByLocationIdAsync(int locationId)
+        public async Task<List<DiscussionThreadGet>?> GetAllDiscussionThreadsByLocationIdAsync(int locationId)
         {
             List<DiscussionThreadGet> list = new();
             string query = "SELECT * FROM DiscussionThreads WHERE LocationId = @LocationId ORDER BY CreatedAt DESC";
@@ -40,11 +43,11 @@ namespace MapHive.Repositories
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
                 if (!thread.UserId.HasValue)
                     throw new Exception($"Dicussion thread {thread.Id} doesn't have user assigned!");
-                thread.AuthorName = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
+                thread.AuthorUsername = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value);
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
-            return list;
+            return list.Count > 0 ? list : null;
         }
 
         public async Task<DiscussionThreadGet?> GetThreadByIdAsync(int id)
@@ -58,7 +61,7 @@ namespace MapHive.Repositories
             }
 
             DiscussionThreadGet thread = MapRowToThreadGet(row: dt.Rows[0]);
-            thread.AuthorName = thread.UserId.HasValue ? await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value) : "anonymous";
+            thread.AuthorUsername = thread.UserId.HasValue ? await _userRepository.GetUsernameByIdAsync(userId: thread.UserId.Value) : "anonymous";
             thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
             return thread;
         }
@@ -112,7 +115,7 @@ namespace MapHive.Repositories
             return rows > 0;
         }
 
-        public async Task<IEnumerable<DiscussionThreadGet>> GetThreadsByUserIdAsync(int userId)
+        public async Task<List<DiscussionThreadGet>> GetThreadsByUserIdAsync(int userId)
         {
             List<DiscussionThreadGet> list = new();
             string query = "SELECT DISTINCT dt.* FROM DiscussionThreads dt LEFT JOIN ThreadMessages tm ON dt.Id_DiscussionThreads = tm.ThreadId WHERE dt.UserId = @UserId OR tm.UserId = @UserId ORDER BY dt.CreatedAt DESC";
@@ -121,14 +124,14 @@ namespace MapHive.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 DiscussionThreadGet thread = MapRowToThreadGet(row: row);
-                thread.AuthorName = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId ?? throw new Exception($"{nameof(GetThreadsByUserIdAsync)}: thread \"{thread.Id}\" doesn't have user assigned!"));
+                thread.AuthorUsername = await _userRepository.GetUsernameByIdAsync(userId: thread.UserId ?? throw new Exception($"{nameof(GetThreadsByUserIdAsync)}: thread \"{thread.Id}\" doesn't have user assigned!"));
                 thread.Messages = [.. await GetMessagesByThreadIdAsync(threadId: thread.Id)];
                 list.Add(item: thread);
             }
             return list;
         }
 
-        public async Task<IEnumerable<ThreadMessageGet>> GetMessagesByThreadIdAsync(int threadId)
+        public async Task<List<ThreadMessageGet>> GetMessagesByThreadIdAsync(int threadId)
         {
             List<ThreadMessageGet> list = new();
             string query = "SELECT * FROM ThreadMessages WHERE ThreadId = @ThreadId ORDER BY CreatedAt";
@@ -194,7 +197,7 @@ parameters: [new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), n
                 IsReviewThread = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsReviewThread", isRequired: true, converter: Convert.ToBoolean),
                 CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
                 ReviewId = row["ReviewId"] != DBNull.Value ? Convert.ToInt32(row["ReviewId"]) : null,
-                AuthorName = string.Empty,
+                AuthorUsername = string.Empty,
                 Messages = new List<ThreadMessageGet>() // will be populated
             };
         }
@@ -212,7 +215,7 @@ parameters: [new("@Del", deletedByUserId), new("@DeletedAt", DateTime.UtcNow), n
                 IsDeleted = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsDeleted", isRequired: true, converter: Convert.ToBoolean),
                 CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
                 DeletedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "DeletedAt", isRequired: false, converter: Convert.ToDateTime),
-                AuthorName = string.Empty, // populated by caller
+                AuthorUsername = string.Empty, // populated by caller
                 DeletedByUsername = null
             };
         }

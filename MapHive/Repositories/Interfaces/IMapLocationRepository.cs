@@ -6,11 +6,13 @@ namespace MapHive.Repositories
     {
         Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync();
         Task<MapLocationGet?> GetLocationByIdAsync(int id);
+        Task<MapLocationGet> GetLocationByIdOrThrowAsync(int id);
         Task<MapLocationGet> AddLocationAsync(MapLocationCreate location);
         Task<MapLocationGet?> UpdateLocationAsync(MapLocationUpdate location);
         Task<bool> DeleteLocationAsync(int id);
         Task<IEnumerable<MapLocationGet>> GetLocationsByUserIdAsync(int userId);
         Task<MapLocationGet?> GetLocationWithCategoryAsync(int id);
+        Task<MapLocationGet> GetLocationWithCategoryOrThrowAsync(int id);
 
         // Category methods
         Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync();

@@ -23,8 +23,7 @@ namespace MapHive.Controllers
         public async Task<IActionResult> Add()
         {
             // Prepare Add page data
-            int userId = _userContextService.UserId;
-            AddLocationPageViewModel vm = await _mapService.GetAddLocationPageViewModelAsync(currentUserId: userId);
+            AddLocationPageViewModel vm = await _mapService.GetAddLocationPageViewModelAsync();
             return View(model: vm);
         }
 
@@ -37,8 +36,8 @@ namespace MapHive.Controllers
             if (!ModelState.IsValid)
             {
                 // Re-populate categories on validation failure
-                int userId = _userContextService.UserId;
-                AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync(currentUserId: userId);
+                int userId = _userContextService.UserIdRequired;
+                AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync();
                 return View(model: fallback);
             }
             _ = await _mapService.AddLocationAsync(mapLocationCreate: mapLocationCreate);
@@ -49,20 +48,14 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = _userContextService.UserId;
-            bool isAdmin = User.IsInRole(role: "Admin");
             try
             {
-                EditLocationPageViewModel vm = await _mapService.GetEditLocationPageViewModelAsync(id: id, currentUserId: userId, isAdmin: isAdmin);
+                EditLocationPageViewModel vm = await _mapService.GetEditLocationPageViewModelAsync(id: id);
                 return View(model: vm);
             }
             catch (KeyNotFoundException)
             {
                 return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
             }
         }
 
@@ -74,14 +67,11 @@ namespace MapHive.Controllers
         {
             if (!ModelState.IsValid)
             {
-                // Re-populate categories on validation failure
-                int userId = _userContextService.UserId;
-                bool isAdmin = User.IsInRole(role: "Admin");
-                EditLocationPageViewModel fallback = await _mapService.GetEditLocationPageViewModelAsync(id: editLocationPageViewModel.UpdateModel.Id, currentUserId: userId, isAdmin: isAdmin);
+                EditLocationPageViewModel fallback = await _mapService.GetEditLocationPageViewModelAsync(id: editLocationPageViewModel.UpdateModel.Id);
                 fallback.UpdateModel = editLocationPageViewModel.UpdateModel;
                 return View(model: fallback);
             }
-            _ = await _mapService.UpdateLocationAsync(id: editLocationPageViewModel.UpdateModel.Id, updateDto: editLocationPageViewModel.UpdateModel, currentUserId: _userContextService.UserId, isAdmin: User.IsInRole(role: "Admin"));
+            _ = await _mapService.UpdateLocationAsync(id: editLocationPageViewModel.UpdateModel.Id, updateDto: editLocationPageViewModel.UpdateModel);
             return RedirectToAction(actionName: nameof(Index));
         }
 
@@ -89,20 +79,14 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = _userContextService.UserId;
-            bool isAdmin = User.IsInRole(role: "Admin");
             try
             {
-                MapLocationGet location = await _mapService.GetLocationForDeleteAsync(id: id, currentUserId: userId, isAdmin: isAdmin);
+                MapLocationGet location = await _mapService.GetLocationByIdOrThrowAsync(id: id);
                 return View(model: location);
             }
             catch (KeyNotFoundException)
             {
                 return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
             }
         }
 
@@ -112,20 +96,14 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            int userId = _userContextService.UserId;
-            bool isAdmin = User.IsInRole(role: "Admin");
             try
             {
-                _ = await _mapService.DeleteLocationAsync(id: id, currentUserId: userId, isAdmin: isAdmin);
+                _ = await _mapService.DeleteLocationAsync(id: id);
                 return RedirectToAction(actionName: nameof(Index));
             }
             catch (KeyNotFoundException)
             {
                 return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
             }
         }
 
@@ -135,13 +113,7 @@ namespace MapHive.Controllers
             try
             {
                 // Retrieve all details via service
-                MapLocationViewModel viewModel = await _mapService.GetLocationDetailsAsync(id: id, currentUserId: _userContextService.UserId);
-                // Determine if current user has already reviewed
-                ViewBag.HasReviewed = await _mapService.HasUserReviewedLocationAsync(userId: _userContextService.UserId, locationId: id);
-                ViewBag.AuthorUsername = viewModel.AuthorName;
-                ViewBag.AverageRating = viewModel.AverageRating;
-                ViewBag.ReviewCount = viewModel.ReviewCount;
-                ViewBag.RegularDiscussionCount = viewModel.RegularDiscussionCount;
+                MapLocationViewModel viewModel = await _mapService.GetLocationDetailsAsync(id: id);
                 return View(model: viewModel);
             }
             catch (KeyNotFoundException)

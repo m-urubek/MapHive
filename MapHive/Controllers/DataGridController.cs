@@ -5,8 +5,10 @@ namespace MapHive.Controllers
     using MapHive.Models.BusinessModels;
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
+    [Authorize(Roles = "Admin,2")]
     public class DataGridController : Controller
     {
         private readonly JsonSerializerOptions _jsonOptions;

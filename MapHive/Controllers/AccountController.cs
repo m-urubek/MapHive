@@ -1,6 +1,7 @@
 namespace MapHive.Controllers
 {
     using System.Security.Claims;
+    using MapHive.Filters;
     using MapHive.Models;
     using MapHive.Models.Enums;
     using MapHive.Models.Exceptions;
@@ -34,13 +35,15 @@ namespace MapHive.Controllers
         private readonly IUserContextService _userContextService = userContextService;
 
         [HttpGet]
+        [OnlyAnonymous]
         public IActionResult Login()
         {
-            return _userContextService.IsAuthenticated ? RedirectToAction(actionName: "Index", controllerName: "Home") : View();
+            return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [OnlyAnonymous]
         public async Task<IActionResult> Login(LoginRequest loginRequest)
         {
             if (!ModelState.IsValid)
@@ -58,22 +61,18 @@ namespace MapHive.Controllers
                 ModelState.AddModelError(key: "", errorMessage: ex.Message);
                 return View(model: loginRequest);
             }
-            catch (Exception ex)
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: $"Unexpected error during login for {loginRequest.Username}.", exception: ex);
-                ModelState.AddModelError(key: "", errorMessage: "An unexpected error occurred during login. Please try again later.");
-                return View(model: loginRequest);
-            }
         }
 
         [HttpGet]
+        [OnlyAnonymous]
         public IActionResult Register()
         {
-            return _userContextService.IsAuthenticated ? RedirectToAction(actionName: "Index", controllerName: "Home") : View();
+            return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [OnlyAnonymous]
         public async Task<IActionResult> Register(RegisterRequest registerRequest)
         {
             RecaptchaSettings recaptchaSettings = _recaptchaSettings;
@@ -107,14 +106,14 @@ namespace MapHive.Controllers
 
                 if (validationResponse?.success != true)
                 {
-                    _logManagerService.Log(severity: LogSeverity.Warning, message: "reCAPTCHA validation failed for user registration attempt.");
+                    _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: "reCAPTCHA validation failed for user registration attempt.");
                     ModelState.AddModelError(key: "RecaptchaResponse", errorMessage: "reCAPTCHA verification failed. Please try again.");
                     return View(model: registerRequest);
                 }
             }
             else if (!string.IsNullOrEmpty(value: registerRequest.RecaptchaResponse))
             {
-                _logManagerService.Log(severity: LogSeverity.Information, message: "Accepting reCAPTCHA test response during registration.");
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "Accepting reCAPTCHA test response during registration.");
             }
             else
             {
@@ -134,7 +133,7 @@ namespace MapHive.Controllers
             }
             catch (Exception ex)
             {
-                _logManagerService.Log(severity: LogSeverity.Error, message: $"Unexpected error during registration for {registerRequest.Username}.", exception: ex);
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: $"Unexpected error during registration for {registerRequest.Username}.", exception: ex);
                 ModelState.AddModelError(key: "", errorMessage: "An unexpected error occurred during registration. Please try again later.");
                 return View(model: registerRequest);
             }
@@ -166,7 +165,7 @@ namespace MapHive.Controllers
         {
             if (!_userContextService.IsAuthenticated)
                 throw new PublicErrorException(message: "User is not authenticated.");
-            int userId = _userContextService.UserId;
+            int userId = _userContextService.UserIdRequired;
             PrivateProfileViewModel? viewModel = await _profileService.GetPrivateProfileAsync(userId: userId);
             return viewModel == null ? RedirectToAction(actionName: "Login") : View(model: viewModel);
         }
@@ -179,20 +178,15 @@ namespace MapHive.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> BanUser(string username)
         {
             if (!_userContextService.IsAuthenticated)
                 throw new PublicErrorException(message: "User is not authenticated.");
-            int adminId = _userContextService.UserId;
-            if (adminId == 0)
-            {
-                return Forbid();
-            }
 
             try
             {
-                BanUserPageViewModel vm = await _adminService.GetBanUserPageViewModelAsync(adminId: adminId, username: username);
+                BanUserPageViewModel vm = await _adminService.GetBanUserPageViewModelAsync(adminId: _userContextService.UserIdRequired, username: username);
                 return View(model: vm);
             }
             catch (UnauthorizedAccessException)
@@ -207,20 +201,15 @@ namespace MapHive.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> ProcessBan(string username, BanViewModel banViewModel)
         {
             if (!_userContextService.IsAuthenticated)
                 throw new PublicErrorException(message: "User is not authenticated.");
-            int adminId = _userContextService.UserId;
-            if (adminId == 0)
-            {
-                return Forbid();
-            }
 
             try
             {
-                bool success = await _adminService.BanUserAsync(adminId: adminId, username: username, model: banViewModel);
+                bool success = await _adminService.BanUserAsync(adminId: _userContextService.UserIdRequired, username: username, model: banViewModel);
                 if (success)
                 {
                     TempData["SuccessMessage"] = banViewModel.BanType == BanType.Account
@@ -241,27 +230,13 @@ namespace MapHive.Controllers
             {
                 return NotFound();
             }
-            catch (Exception ex)
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "Unexpected error during ban process.", exception: ex);
-                TempData["ErrorMessage"] = "An unexpected error occurred. Please try again later.";
-                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
-            }
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> UnbanUser(int banId, string username)
         {
-            if (!_userContextService.IsAuthenticated)
-                throw new PublicErrorException(message: "User is not authenticated.");
-            int adminId = _userContextService.UserId;
-            if (adminId == 0)
-            {
-                return Forbid();
-            }
-
             try
             {
                 bool success = await _adminService.RemoveBanAsync(id: banId);
@@ -279,12 +254,6 @@ namespace MapHive.Controllers
             {
                 return Forbid();
             }
-            catch (Exception ex)
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "Unexpected error during unban process.", exception: ex);
-                TempData["ErrorMessage"] = "An unexpected error occurred. Please try again later.";
-                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
-            }
         }
 
         [HttpPost]
@@ -292,18 +261,15 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ChangeUsername(ChangeUsernameViewModel changeUsernameViewModel)
         {
-            if (!_userContextService.IsAuthenticated)
-                throw new PublicErrorException(message: "User is not authenticated.");
 
             if (!ModelState.IsValid)
             {
-                int currentUserId = _userContextService.UserId;
-                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: currentUserId);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
                 profileVm.ChangeUsernameViewModel = changeUsernameViewModel;
                 return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            int userId = _userContextService.UserId;
+            int userId = _userContextService.UserIdRequired;
             if (userId == 0)
             {
                 return RedirectToAction(actionName: "Login");
@@ -343,14 +309,6 @@ namespace MapHive.Controllers
                 profileOnError.ChangeUsernameViewModel = changeUsernameViewModel;
                 return View(viewName: "PrivateProfile", model: profileOnError);
             }
-            catch (Exception ex)
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "Unexpected error during username change.", exception: ex);
-                ModelState.AddModelError(key: "", errorMessage: "An unexpected error occurred. Please try again later.");
-                PrivateProfileViewModel? profileOnError = await _profileService.GetPrivateProfileAsync(userId: userId);
-                profileOnError.ChangeUsernameViewModel = changeUsernameViewModel;
-                return View(viewName: "PrivateProfile", model: profileOnError);
-            }
         }
 
         [HttpPost]
@@ -363,13 +321,12 @@ namespace MapHive.Controllers
 
             if (!ModelState.IsValid)
             {
-                int currentUserId = _userContextService.UserId;
-                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: currentUserId);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
                 profileVm.ChangePasswordViewModel = changePasswordViewModel;
                 return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            int userId = _userContextService.UserId;
+            int userId = _userContextService.UserIdRequired;
             if (userId == 0)
             {
                 return RedirectToAction(actionName: "Login");
@@ -386,12 +343,6 @@ namespace MapHive.Controllers
             catch (UserFriendlyExceptionBase ex)
             {
                 ModelState.AddModelError(key: "CurrentPassword", errorMessage: ex.Message);
-                return View(viewName: "PrivateProfile", model: await _profileService.GetPrivateProfileAsync(userId: userId));
-            }
-            catch (Exception ex)
-            {
-                _logManagerService.Log(severity: LogSeverity.Error, message: "Unexpected error during password change.", exception: ex);
-                ModelState.AddModelError(key: "", errorMessage: "An unexpected error occurred. Please try again later.");
                 return View(viewName: "PrivateProfile", model: await _profileService.GetPrivateProfileAsync(userId: userId));
             }
         }

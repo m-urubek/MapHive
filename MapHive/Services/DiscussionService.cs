@@ -9,19 +9,21 @@ namespace MapHive.Services
         IDiscussionRepository discussionRepository,
         IMapLocationRepository mapRepository,
         IReviewRepository reviewRepository,
-        IMapper mapper) : IDiscussionService
+        IMapper mapper,
+        IUserContextService userContextService) : IDiscussionService
     {
         private readonly IDiscussionRepository _discussionRepository = discussionRepository;
         private readonly IMapLocationRepository _mapRepository = mapRepository;
         private readonly IReviewRepository _reviewRepository = reviewRepository;
         private readonly IMapper _mapper = mapper;
+        private readonly IUserContextService _userContextService = userContextService;
 
         public async Task<ThreadDetailsViewModel> GetThreadDetailsAsync(int threadId)
         {
             DiscussionThreadGet dto = await _discussionRepository.GetThreadByIdAsync(id: threadId)
                 ?? throw new KeyNotFoundException($"Thread {threadId} not found");
             ThreadDetailsViewModel viewModel = _mapper.Map<ThreadDetailsViewModel>(source: dto);
-            viewModel.Messages = [.. await _discussionRepository.GetMessagesByThreadIdAsync(threadId: threadId)];
+            viewModel.Messages = await _discussionRepository.GetMessagesByThreadIdAsync(threadId: threadId);
             viewModel.Location = await _mapRepository.GetLocationByIdAsync(id: dto.LocationId)
                 ?? throw new Exception("Location not found");
             if (dto.IsReviewThread && dto.ReviewId.HasValue)
@@ -61,11 +63,11 @@ namespace MapHive.Services
             return _discussionRepository.AddMessageAsync(message: dto);
         }
 
-        public async Task DeleteMessageAsync(int messageId, int userId, bool isAdmin)
+        public async Task DeleteMessageAsync(int messageId, int userId)
         {
             ThreadMessageGet message = await _discussionRepository.GetMessageByIdAsync(id: messageId)
                 ?? throw new KeyNotFoundException($"Message {messageId} not found");
-            if (!isAdmin && message.UserId != userId)
+            if (!_userContextService.IsAdminRequired && message.UserId != userId)
             {
                 throw new UnauthorizedAccessException();
             }

@@ -10,12 +10,14 @@ namespace MapHive.Services
         IReviewRepository reviewRepository,
         IMapLocationRepository mapRepository,
         IDiscussionRepository discussionRepository,
-        IMapper mapper) : IReviewService
+        IMapper mapper,
+        IUserContextService userContextService) : IReviewService
     {
         private readonly IReviewRepository _reviewRepository = reviewRepository;
         private readonly IMapLocationRepository _mapRepository = mapRepository;
         private readonly IDiscussionRepository _discussionRepository = discussionRepository;
         private readonly IMapper _mapper = mapper;
+        private readonly IUserContextService _userContextService = userContextService;
 
         public async Task<ReviewViewModel> GetCreateModelAsync(int locationId)
         {
@@ -89,11 +91,11 @@ namespace MapHive.Services
             }
         }
 
-        public async Task<int> DeleteReviewAsync(int id, int userId, bool isAdmin)
+        public async Task<int> DeleteReviewAsync(int id, int userId)
         {
             ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: id)
                 ?? throw new KeyNotFoundException($"Review {id} not found");
-            if (!isAdmin && review.UserId != userId)
+            if (!_userContextService.IsAdminRequired && review.UserId != userId)
             {
                 throw new UnauthorizedAccessException();
             }

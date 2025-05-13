@@ -32,6 +32,12 @@ namespace MapHive.Repositories
             return dt.Rows.Count == 0 ? null : MapDataRowToGet(dt.Rows[0]);
         }
 
+        public async Task<MapLocationGet> GetLocationByIdOrThrowAsync(int id)
+        {
+            MapLocationGet? location = await GetLocationByIdAsync(id: id);
+            return location ?? throw new PublicErrorException($"Location \"{id}\" not found in database!");
+        }
+
         public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto)
         {
             DateTime now = DateTime.UtcNow;
@@ -131,6 +137,12 @@ query: @"UPDATE MapLocations
             MapLocationGet? loc = await GetLocationByIdAsync(id: id);
             (loc ?? throw new PublicErrorException($"Location \"{id}\" not found in database!")).Category = await GetCategoryByIdAsync(id: loc.CategoryId);
             return loc;
+        }
+
+        public async Task<MapLocationGet> GetLocationWithCategoryOrThrowAsync(int id)
+        {
+            MapLocationGet? locationGet = await GetLocationWithCategoryAsync(id: id);
+            return locationGet ?? throw new PublicErrorException($"Location \"{id}\" not found in database!");
         }
 
         // Category methods

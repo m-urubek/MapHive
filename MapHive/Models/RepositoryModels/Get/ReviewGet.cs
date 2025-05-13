@@ -27,6 +27,6 @@ namespace MapHive.Models.RepositoryModels
 
         public required DateTime UpdatedAt { get; set; }
 
-        public required string AuthorName { get; set; } = string.Empty;
+        public required string AuthorUsername { get; set; } = string.Empty;
     }
 }

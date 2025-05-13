@@ -79,7 +79,7 @@ builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
 builder.Services.AddScoped<IDisplayPageService, DisplayPageService>();
 
 // Register application services for MVC controllers
-builder.Services.AddScoped<IMapService, MapService>();
+builder.Services.AddScoped<IMapService, MapLocationService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();

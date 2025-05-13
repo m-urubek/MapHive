@@ -12,7 +12,7 @@ namespace MapHive.Services
         private readonly IFileLoggerSingleton _fileLogger = fileLogger;
         private readonly ILogRepository _logRepository = logRepository;
 
-        public void Log(
+        public async Task<int> LogAsync(
             LogSeverity severity,
             string message,
             Exception? exception = null,
@@ -21,60 +21,58 @@ namespace MapHive.Services
             int? userId = null,
             string? requestPath = null)
         {
-            _ = Task.Run(async () =>
+            int logId = 0;
+            try
+            {
+                LogCreate logCreate = new()
+                {
+                    Exception = exception,
+                    Message = message,
+                    Severity = severity,
+                    Source = source,
+                    UserId = userId,
+                    RequestPath = requestPath,
+                    AdditionalData = TryFormatAdditionalData(data: additionalData),
+                    Timestamp = DateTime.UtcNow
+                };
+                try
+                {
+                    _fileLogger.LogToFile(logCreate.ToString());
+                }
+                catch (Exception exFile)
+                {
+                    Console.WriteLine($"Failed to log to file {exFile}");
+                    Console.WriteLine(logCreate);
+                }
+                try
+                {
+                    logId = await _logRepository.CreateLogRowAsync(logCreate: logCreate);
+                }
+                catch (Exception exDb)
+                {
+                    _fileLogger.LogToFile("Failed to log to database: " + exDb);
+                }
+            }
+            catch (Exception ex)
             {
                 try
                 {
-                    LogCreate logCreate = new()
+                    logId = await _logRepository.CreateLogRowAsync(logCreate: new LogCreate
                     {
-                        Exception = exception,
-                        Message = message,
-                        Severity = severity,
-                        Source = source,
-                        UserId = userId,
-                        RequestPath = requestPath,
-                        AdditionalData = TryFormatAdditionalData(data: additionalData),
-                        Timestamp = DateTime.UtcNow
-                    };
-
-                    try
-                    {
-                        _fileLogger.LogToFile(message: logCreate.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(value: $"Failed to log to file {ex}");
-                        Console.WriteLine(value: logCreate);
-                    }
-                    try
-                    {
-                        _ = await _logRepository.CreateLogRowAsync(logCreate: logCreate);
-                    }
-                    catch (Exception ex)
-                    {
-                        _fileLogger.LogToFile(message: "Failed to log to database: " + ex.ToString());
-                    }
+                        Message = "Failed to log: " + ex,
+                        Severity = LogSeverity.Critical,
+                        Timestamp = DateTime.Now
+                    });
                 }
-                catch (Exception ex)
+                catch { }
+                try
                 {
-                    try
-                    {
-                        _ = await _logRepository.CreateLogRowAsync(logCreate: new LogCreate()
-                        {
-                            Message = "Failed to log: " + ex,
-                            Severity = LogSeverity.Critical,
-                            Timestamp = DateTime.Now
-                        });
-                    }
-                    catch { /*ignore*/ }
-                    try
-                    {
-                        _fileLogger.LogToFile(message: "Failed to log: " + ex);
-                    }
-                    catch { /*ignore*/ }
-                    Console.WriteLine(value: $"Failed to log: {ex}");
+                    _fileLogger.LogToFile("Failed to log: " + ex);
                 }
-            });
+                catch { }
+                Console.WriteLine($"Failed to log: {ex}");
+            }
+            return logId;
         }
 
         private static string? TryFormatAdditionalData(string? data)
