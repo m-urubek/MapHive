@@ -11,7 +11,7 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    @await Component.InvokeAsync("UserFriendlyMessage")
+    @await Component.InvokeAsync("UserFriendlyExceptionMessage")
     
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
@@ -34,7 +34,7 @@
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-controller="Map" asp-action="Add">Add Place</a>
                             </li>
-                            @if (User.HasClaim("UserTier", "2"))
+                            @if (User.IsInRole("Admin") || User.IsInRole("2"))
                             {
                                 <li class="nav-item">
                                     <a class="nav-link text-danger" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
@@ -53,8 +53,8 @@
                                     Hello, @User.Identity.Name!
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">My Profile</a></li>
-                                    @if (User.HasClaim("UserTier", "2"))
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="PrivateProfile">My Profile</a></li>
+                                    @if (User.IsInRole("Admin") || User.IsInRole("2"))
                                     {
                                         <li><a class="dropdown-item text-danger" asp-controller="Admin" asp-action="Index">Admin Panel</a></li>
                                         <li><hr class="dropdown-divider"></li>
@@ -82,7 +82,7 @@
             </div>
         </nav>
     </header>
-    <div class="container">
+    <div class="container-fluid">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>

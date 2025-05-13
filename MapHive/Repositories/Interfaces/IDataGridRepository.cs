@@ -1,15 +1,16 @@
-using MapHive.Models.DataGrid;
-using System.Data;
-
-namespace MapHive.Repositories.Interfaces
+namespace MapHive.Repositories
 {
+    using System.Data;
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+
     public interface IDataGridRepository
     {
         Task<DataTable> GetTableSchemaAsync(string tableName);
-        Task<List<DataGridColumn>> GetColumnsForTableAsync(string tableName);
-        Task<SearchColumnInfo> GetSearchColumnInfoAsync(string tableName, string columnName);
-        Task<DataGrid> GetGridDataAsync(string tableName, int page = 1, int pageSize = 20,
-            string searchTerm = "", string sortField = "", string sortDirection = "asc");
-        Task<int> GetTotalRowsCountAsync(string tableName, string searchTerm = "");
+        Task<List<DataGridColumnGet>> GetColumnsForTableAsync(string tableName);
+        Task<ColumnInfo> GetColumnInfoAsync(string tableName, string columnName);
+        Task<DataGridGet> GetGridDataAsync(string tableName, int page = 1, int pageSize = 20, string searchColumn = "",
+            string searchTerm = "", string sortColumnName = "", string sortDirection = "asc");
+        Task<int> GetTotalRowsCountAsync(string tableName, string searchColumnName, string searchTerm);
     }
 }

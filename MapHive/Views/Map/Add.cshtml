@@ -1,4 +1,5 @@
-@model MapHive.Models.MapLocation
+@using MapHive.Models.RepositoryModels
+@model MapHive.Models.ViewModels.AddLocationPageViewModel
 
 @{
     ViewData["Title"] = "Add New Location";
@@ -13,22 +14,22 @@
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Name" class="control-label"></label>
-                    <input asp-for="Name" class="form-control" />
-                    <span asp-validation-for="Name" class="text-danger"></span>
+                    <label asp-for="@Model.Name" class="control-label"></label>
+                    <input asp-for="@Model.Name" class="form-control" />
+                    <span asp-validation-for="@Model.Name" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Description" class="control-label"></label>
-                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-                    <span asp-validation-for="Description" class="text-danger"></span>
+                    <label asp-for="@Model.Description" class="control-label"></label>
+                    <textarea asp-for="@Model.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="@Model.Description" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="CategoryId" class="control-label">Category</label>
-                    <select asp-for="CategoryId" class="form-select">
+                    <label asp-for="@Model.CategoryId" class="control-label">Category</label>
+                    <select asp-for="@Model.CategoryId" class="form-select">
                         <option value="">-- Select Category --</option>
-                        @foreach (var category in ViewBag.Categories)
+                        @foreach (var category in Model.Categories)
                         {
                             <option value="@category.Id">@category.Name</option>
                         }
@@ -38,41 +39,41 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Latitude" class="control-label"></label>
-                            <input asp-for="Latitude" class="form-control" id="latitude" />
-                            <span asp-validation-for="Latitude" class="text-danger"></span>
+                            <label asp-for="@Model.Latitude" class="control-label"></label>
+                            <input asp-for="@Model.Latitude" class="form-control" id="latitude" />
+                            <span asp-validation-for="@Model.Latitude" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Longitude" class="control-label"></label>
-                            <input asp-for="Longitude" class="form-control" id="longitude" />
-                            <span asp-validation-for="Longitude" class="text-danger"></span>
+                            <label asp-for="@Model.Longitude" class="control-label"></label>
+                            <input asp-for="@Model.Longitude" class="form-control" id="longitude" />
+                            <span asp-validation-for="@Model.Longitude" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Address" class="control-label"></label>
-                    <input asp-for="Address" class="form-control" />
-                    <span asp-validation-for="Address" class="text-danger"></span>
+                    <label asp-for="@Model.Address" class="control-label"></label>
+                    <input asp-for="@Model.Address" class="form-control" />
+                    <span asp-validation-for="@Model.Address" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Website" class="control-label"></label>
-                    <input asp-for="Website" class="form-control" placeholder="https://example.com" />
-                    <span asp-validation-for="Website" class="text-danger"></span>
+                    <label asp-for="@Model.Website" class="control-label"></label>
+                    <input asp-for="@Model.Website" class="form-control" placeholder="https://example.com" />
+                    <span asp-validation-for="@Model.Website" class="text-danger"></span>
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="PhoneNumber" class="control-label"></label>
-                    <input asp-for="PhoneNumber" class="form-control" />
-                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    <label asp-for="@Model.PhoneNumber" class="control-label"></label>
+                    <input asp-for="@Model.PhoneNumber" class="form-control" />
+                    <span asp-validation-for="@Model.PhoneNumber" class="text-danger"></span>
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input asp-for="IsAnonymous" class="form-check-input" />
-                    <label asp-for="IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
+                    <input asp-for="@Model.IsAnonymous" class="form-check-input" />
+                    <label asp-for="@Model.IsAnonymous" class="form-check-label">Submit anonymously (your username won't be displayed)</label>
                 </div>
                 
                 <div class="form-group mt-4">

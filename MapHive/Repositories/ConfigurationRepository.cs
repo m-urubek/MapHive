@@ -1,54 +1,59 @@
-using MapHive.Models;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-
 namespace MapHive.Repositories
 {
-    public class ConfigurationRepository : IConfigurationRepository
+    using System.Data;
+    using System.Data.SQLite;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
+    using MapHive.Singletons;
+    using MapHive.Utilities;
+
+    public class ConfigurationRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IConfigurationRepository
     {
-        public ConfigurationItem? GetConfigurationItem(string key)
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
+
+        public async Task<ConfigurationItem?> GetConfigurationItemAsync(string key)
         {
             string query = "SELECT * FROM Configuration WHERE Key = @Key";
-            SQLiteParameter[] parameters = new SQLiteParameter[] { new("@Key", key) };
+            SQLiteParameter[] parameters = [new("@Key", key)];
 
-            DataTable result = CurrentRequest.SqlClient.Select(query, parameters);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
-            return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(result.Rows[0]) : null;
+            return result.Rows.Count > 0 ? MapDataRowToConfigurationItem(row: result.Rows[0]) : null;
         }
 
-        public List<ConfigurationItem> GetAllConfigurationItems()
+        public async Task<List<ConfigurationItem>> GetAllConfigurationItemsAsync()
         {
             string query = "SELECT * FROM Configuration";
 
-            DataTable result = CurrentRequest.SqlClient.Select(query);
+            DataTable result = await _sqlClientSingleton.SelectAsync(query: query);
             List<ConfigurationItem> items = new();
 
             foreach (DataRow row in result.Rows)
             {
-                items.Add(MapDataRowToConfigurationItem(row));
+                items.Add(item: MapDataRowToConfigurationItem(row: row));
             }
 
             return items;
         }
 
-        public int AddConfigurationItem(ConfigurationItem item)
+        public async Task<int> AddConfigurationItemAsync(ConfigurationItem item)
         {
             string query = @"
                 INSERT INTO Configuration (Key, Value, Description)
                 VALUES (@Key, @Value, @Description)";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Key", item.Key),
                 new("@Value", item.Value),
                 new("@Description", item.Description as object ?? DBNull.Value)
-            };
+            ];
 
-            return CurrentRequest.SqlClient.Insert(query, parameters);
+            return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
 
-        public int UpdateConfigurationItem(ConfigurationItem item)
+        public async Task<int> UpdateConfigurationItemAsync(ConfigurationItem item)
         {
             string query = @"
                 UPDATE Configuration 
@@ -56,46 +61,38 @@ namespace MapHive.Repositories
                     Description = @Description
                 WHERE Key = @Key";
 
-            SQLiteParameter[] parameters = new SQLiteParameter[]
-            {
+            SQLiteParameter[] parameters =
+            [
                 new("@Value", item.Value),
                 new("@Description", item.Description as object ?? DBNull.Value),
                 new("@Key", item.Key)
-            };
+            ];
 
-            return CurrentRequest.SqlClient.Update(query, parameters);
+            return await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
         }
 
-        public AppSettings GetAppSettings()
+        public async Task<string?> GetConfigurationValueAsync(string key)
         {
-            AppSettings settings = new();
-
-            // Load all configuration items
-            List<ConfigurationItem> items = this.GetAllConfigurationItems();
-
-            // Map the configuration items to AppSettings properties
-            foreach (ConfigurationItem item in items)
-            {
-                switch (item.Key)
-                {
-                    case "DevelopmentMode":
-                        settings.DevelopmentMode = bool.TryParse(item.Value, out bool isDevelopmentMode) && isDevelopmentMode;
-                        break;
-                        // Add other configuration mappings as needed
-                }
-            }
-
-            return settings;
+            ConfigurationItem? configItem = await GetConfigurationItemAsync(key: key);
+            return configItem?.Value;
         }
 
-        private static ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
+        public async Task<int> DeleteConfigurationItemAsync(string key)
         {
+            string query = "DELETE FROM Configuration WHERE Key = @Key";
+            SQLiteParameter[] parameters = [new("@Key", key)];
+            return await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
+        }
+
+        private ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
+        {
+            const string table = "Configuration";
             return new ConfigurationItem
             {
-                Id = Convert.ToInt32(row["Id_Configuration"]),
-                Key = row["Key"].ToString() ?? string.Empty,
-                Value = row["Value"].ToString() ?? string.Empty,
-                Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null
+                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Configuration", isRequired: true, converter: Convert.ToInt32),
+                Key = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Key", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Value = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Value", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
+                Description = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Description", isRequired: false, converter: v => v.ToString()!, defaultValue: default)
             };
         }
     }

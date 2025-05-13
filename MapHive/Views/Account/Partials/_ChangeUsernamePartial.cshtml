@@ -1,4 +1,4 @@
-@model MapHive.Models.PrivateProfileViewModel
+@model MapHive.Models.ViewModels.ChangeUsernameViewModel
 
 <div class="card shadow h-100">
     <div class="card-header bg-info text-white">
@@ -6,10 +6,11 @@
     </div>
     <div class="card-body">
         <form asp-action="ChangeUsername" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
             <div class="mb-3">
-                <label asp-for="ChangeUsernameModel.NewUsername" class="form-label">New Username</label>
-                <input asp-for="ChangeUsernameModel.NewUsername" class="form-control" />
-                <span asp-validation-for="ChangeUsernameModel.NewUsername" class="text-danger"></span>
+                <label asp-for="NewUsername" class="form-label">New Username</label>
+                <input asp-for="NewUsername" class="form-control" />
+                <span asp-validation-for="NewUsername" class="text-danger"></span>
             </div>
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary">Update Username</button>

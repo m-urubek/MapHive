@@ -1,22 +1,24 @@
-using MapHive.Models;
-
 namespace MapHive.Repositories
 {
+    using MapHive.Models.RepositoryModels;
+
     public interface IMapLocationRepository
     {
-        Task<IEnumerable<MapLocation>> GetAllLocationsAsync();
-        Task<MapLocation> GetLocationByIdAsync(int id);
-        Task<MapLocation> AddLocationAsync(MapLocation location);
-        Task<MapLocation> UpdateLocationAsync(MapLocation location);
+        Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync();
+        Task<MapLocationGet?> GetLocationByIdAsync(int id);
+        Task<MapLocationGet> GetLocationByIdOrThrowAsync(int id);
+        Task<MapLocationGet> AddLocationAsync(MapLocationCreate location);
+        Task<MapLocationGet?> UpdateLocationAsync(MapLocationUpdate location);
         Task<bool> DeleteLocationAsync(int id);
-        Task<IEnumerable<MapLocation>> GetLocationsByUserIdAsync(int userId);
-        Task<MapLocation> GetLocationWithCategoryAsync(int id);
+        Task<IEnumerable<MapLocationGet>> GetLocationsByUserIdAsync(int userId);
+        Task<MapLocationGet?> GetLocationWithCategoryAsync(int id);
+        Task<MapLocationGet> GetLocationWithCategoryOrThrowAsync(int id);
 
         // Category methods
-        Task<IEnumerable<Category>> GetAllCategoriesAsync();
-        Task<Category?> GetCategoryByIdAsync(int id);
-        Task<Category> AddCategoryAsync(Category category);
-        Task<Category> UpdateCategoryAsync(Category category);
+        Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync();
+        Task<CategoryGet?> GetCategoryByIdAsync(int id);
+        Task<CategoryGet> AddCategoryAsync(CategoryCreate category);
+        Task<CategoryGet?> UpdateCategoryAsync(CategoryUpdate category);
         Task<bool> DeleteCategoryAsync(int id);
     }
 }

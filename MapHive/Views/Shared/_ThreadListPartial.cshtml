@@ -1,4 +1,5 @@
-@model IEnumerable<MapHive.Models.DiscussionThread>
+@using MapHive.Models.RepositoryModels
+@model IEnumerable<DiscussionThreadGet>
 @{
     bool isReviewThread = (bool)(ViewData["IsReviewThread"] ?? false);
     string threadType = isReviewThread ? "Review Discussions" : "General Discussions";
@@ -35,13 +36,13 @@
                     </p>
                     <small>
                         Started by 
-                        @if (thread.AuthorName.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                        @if (thread.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
                         {
-                            @thread.AuthorName
+                            @thread.AuthorUsername
                         }
                         else
                         {
-                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@thread.AuthorName" asp-route-viewPublic="@(User.Identity?.Name == thread.AuthorName ? "true" : null)">@thread.AuthorName</a>
+                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@thread.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == thread.AuthorUsername ? "true" : null)">@thread.AuthorUsername</a>
                         } - 
                         @thread.Messages.Count @(thread.Messages.Count == 1 ? "message" : "messages") - 
                         Location: <a asp-controller="Map" asp-action="Details" asp-route-id="@thread.LocationId">View Place</a>

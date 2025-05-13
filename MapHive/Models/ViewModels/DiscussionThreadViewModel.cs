@@ -1,7 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MapHive.Models.ViewModels
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class DiscussionThreadViewModel
     {
         public int LocationId { get; set; }

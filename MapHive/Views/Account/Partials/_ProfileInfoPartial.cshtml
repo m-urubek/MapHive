@@ -1,4 +1,5 @@
-@model MapHive.Models.BaseProfileViewModel
+@using MapHive.Models.Enums
+@model MapHive.Models.ViewModels.BaseProfileViewModel
 @{
     // Determine if this is the current user's private profile
     bool isPrivateProfile = User.Identity?.Name == Model.Username && Context.Request.Path.Value?.Contains("/PrivateProfile") == true;

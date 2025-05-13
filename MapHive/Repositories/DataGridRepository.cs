@@ -1,77 +1,72 @@
-using MapHive.Models.DataGrid;
-using MapHive.Repositories.Interfaces;
-using MapHive.Singletons;
-using System.Data;
-using System.Data.SQLite;
-
 namespace MapHive.Repositories
 {
-    public class DataGridRepository : IDataGridRepository
+    using System.Data;
+    using System.Data.SQLite;
+    using System.Text.RegularExpressions;
+    using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Services;
+    using MapHive.Singletons;
+    using MapHive.Utilities;
+
+    public partial class DataGridRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IDataGridRepository
     {
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly ILogManagerService _logManagerService = logManagerService;
+
         // Get schema information for a table
         public async Task<DataTable> GetTableSchemaAsync(string tableName)
         {
             // Sanitize table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             string query = $"PRAGMA table_info({tableName})";
-            return await CurrentRequest.SqlClient.SelectAsync(query);
+            return await _sqlClientSingleton.SelectAsync(query: query);
         }
 
         // Get schema information about foreign keys for a table
         private async Task<DataTable> GetForeignKeysAsync(string tableName)
         {
             // Sanitize table name to prevent SQL injection
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
             string query = $"PRAGMA foreign_key_list({tableName})";
-            return await CurrentRequest.SqlClient.SelectAsync(query);
+            return await _sqlClientSingleton.SelectAsync(query: query);
         }
 
         // Get columns for a table
-        public async Task<List<DataGridColumn>> GetColumnsForTableAsync(string tableName)
+        public async Task<List<DataGridColumnGet>> GetColumnsForTableAsync(string tableName)
         {
-            DataTable schemaTable = await this.GetTableSchemaAsync(tableName);
-            DataTable foreignKeysTable = await this.GetForeignKeysAsync(tableName);
+            DataTable schemaTable = await GetTableSchemaAsync(tableName: tableName);
+            DataTable foreignKeysTable = await GetForeignKeysAsync(tableName: tableName);
 
-            List<DataGridColumn> columns = new();
+            List<DataGridColumnGet> columns = new();
 
             for (int i = 0; i < schemaTable.Rows.Count; i++)
             {
                 DataRow row = schemaTable.Rows[i];
                 string columnName = row["name"].ToString() ?? string.Empty;
 
-                // Skip internal ID columns
-                if (columnName.StartsWith("Id_") && i == 0)
-                {
-                    continue;
-                }
-
-                DataGridColumn column = new()
+                DataGridColumnGet column = new()
                 {
                     DisplayName = columnName, //translate later
                     InternalName = columnName,
-                    Flex = "1 1 auto",
-                    Index = i
+                    Flex = "1",      // Use shorthand flex:1 (equivalent to 1 1 0) for consistent zero-basis flex
+                    Index = i,
+                    IsLastColumn = false
                 };
 
                 // Check if this column is a foreign key
-                foreach (DataRow fkRow in foreignKeysTable.Rows)
-                {
-                    string fromColumn = fkRow["from"].ToString() ?? string.Empty;
-                    if (columnName == fromColumn)
-                    {
-                        break;
-                    }
-                }
+                bool isForeignKey = foreignKeysTable.AsEnumerable()
+                                        .Any(predicate: fkRow => fkRow["from"].ToString() == columnName);
 
-                columns.Add(column);
+                columns.Add(item: column);
             }
 
             // Mark the last column
@@ -84,293 +79,266 @@ namespace MapHive.Repositories
         }
 
         // Get information about a column for search
-        public async Task<SearchColumnInfo> GetSearchColumnInfoAsync(string tableName, string columnName)
+        public async Task<ColumnInfo> GetColumnInfoAsync(string tableName, string columnName)
         {
             // Sanitize table and column names
-            if (!IsValidTableName(tableName) || !IsValidColumnName(columnName))
+            if (!IsValidTableName(tableName: tableName) || !IsValidColumnName(columnName: columnName))
             {
                 throw new ArgumentException("Invalid table or column name");
             }
 
-            SearchColumnInfo searchInfo = new()
+            ColumnInfo searchInfo = new()
             {
                 TableName = tableName,
                 ColumnName = columnName
             };
 
             // Check if this column is a foreign key
-            DataTable foreignKeysTable = await this.GetForeignKeysAsync(tableName);
-            foreach (DataRow fkRow in foreignKeysTable.Rows)
+            DataTable foreignKeysTable = await GetForeignKeysAsync(tableName: tableName);
+            DataRow? fkRow = foreignKeysTable.AsEnumerable()
+                                .FirstOrDefault(predicate: row => row["from"].ToString() == columnName);
+
+            if (fkRow != null)
             {
-                string fromColumn = fkRow["from"].ToString() ?? string.Empty;
-                if (columnName == fromColumn)
-                {
-                    searchInfo.IsForeignKey = true;
-                    searchInfo.ForeignTable = fkRow["table"].ToString();
-                    searchInfo.ForeignColumn = fkRow["to"].ToString();
-                    break;
-                }
+                searchInfo.IsForeignKey = true;
+                searchInfo.ForeignTable = fkRow["table"]?.ToString();
+                searchInfo.ForeignColumn = fkRow["to"]?.ToString();
             }
 
             return searchInfo;
         }
 
         // Get grid data with pagination, sorting, and searching
-        public async Task<DataGrid> GetGridDataAsync(
+        public async Task<DataGridGet> GetGridDataAsync(
             string tableName,
             int page = 1,
             int pageSize = 20,
+            string searchColumnName = "",
             string searchTerm = "",
-            string sortField = "",
+            string sortColumnName = "",
             string sortDirection = "asc")
         {
             // Validate parameters
-            if (!IsValidTableName(tableName))
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
-            if (!string.IsNullOrEmpty(sortField) && !IsValidColumnName(sortField))
+            if (!string.IsNullOrEmpty(value: sortColumnName) && !IsValidColumnName(columnName: sortColumnName))
             {
                 throw new ArgumentException("Invalid sort field");
             }
 
+            // Ensure page and pageSize are valid
+            page = Math.Max(val1: 1, val2: page);
+            pageSize = Math.Clamp(value: pageSize, min: 1, max: 100); // Example clamp
+
             // Initialize view model
-            DataGrid viewModel = new()
+            DataGridGet dataGridGet = new()
             {
                 TableName = tableName,
                 CurrentPage = page,
                 PageSize = pageSize,
                 SearchTerm = searchTerm,
-                SortField = sortField,
-                SortDirection = sortDirection,
+                SortField = sortColumnName,
+                SortDirection = sortDirection.Equals("desc", StringComparison.InvariantCultureIgnoreCase) ? "desc" : "asc", // Sanitize direction
                 // Get table columns
-                Columns = await this.GetColumnsForTableAsync(tableName)
+                Columns = await GetColumnsForTableAsync(tableName: tableName),
+                Items = new List<DataGridRowGet>(),
+                TotalCount = 0
             };
 
             // Build query
-            (string query, List<SQLiteParameter> parameters) = await this.BuildQueryAsync(
-                tableName,
-                page,
-                pageSize,
-                searchTerm,
-                sortField,
-                sortDirection
+            (string query, List<SQLiteParameter> parameters) = await BuildQueryAsync(
+                tableName: tableName,
+                columns: dataGridGet.Columns, // Pass columns to avoid re-fetching
+                page: page,
+                pageSize: pageSize,
+                searchColumnName: searchColumnName,
+                searchTerm: searchTerm,
+                sortColumnName: sortColumnName,
+                sortDirection: dataGridGet.SortDirection
             );
 
             // Execute query to get data
-            DataTable dataTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable dataTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parameters]);
 
             // Convert data to grid rows
-            viewModel.Items = ConvertDataTableToGridRows(dataTable, viewModel.Columns);
+            dataGridGet.Items = ConvertDataTableToGridRows(dataTable: dataTable, columns: dataGridGet.Columns, tableName: tableName);
 
             // Get total count for pagination
-            viewModel.TotalCount = await this.GetTotalRowsCountAsync(tableName, searchTerm);
+            dataGridGet.TotalCount = await GetTotalRowsCountAsync(tableName: tableName, searchColumnName: sortColumnName, searchTerm: searchTerm);
 
-            return viewModel;
+            return dataGridGet;
         }
 
         // Helper method to convert DataTable to grid rows
-        private static List<DataGridRow> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumn> columns)
+        private List<DataGridRowGet> ConvertDataTableToGridRows(DataTable dataTable, List<DataGridColumnGet> columns, string tableName)
         {
-            List<DataGridRow> rows = new();
+            List<DataGridRowGet> rows = new();
+            string idColumnName = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName ?? throw new Exception($"{nameof(ConvertDataTableToGridRows)}: idColumnName is null!");
 
             foreach (DataRow dataRow in dataTable.Rows)
             {
-                DataGridRow row = new();
-
-                // Find the ID column
-                string idColumnName = FindIdColumnName(dataTable.Columns, dataRow);
-                if (!string.IsNullOrEmpty(idColumnName) && dataRow[idColumnName] != DBNull.Value)
+                // Assign RowId using mapping extension
+                //if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(name: idColumnName))
+                int rowId = dataRow.GetValueOrDefault(
+                    _logManagerService,
+                     tableName: tableName,
+                      columnName: idColumnName,
+                       isRequired: true,
+                        converter: v =>
                 {
-                    // Parse the ID value if possible
-                    if (int.TryParse(dataRow[idColumnName].ToString(), out int idValue))
-                    {
-                        row.RowId = idValue;
-                    }
-                }
+                    _ = int.TryParse(v.ToString(), out int idValue);
+                    return idValue;
+                }, defaultValue: 0);
 
-                foreach (DataGridColumn column in columns)
+                Dictionary<string, DataGridCellGet> cellsByColumnNames = new();
+                foreach (DataGridColumnGet column in columns)
                 {
                     string columnName = column.InternalName;
-
-                    if (!dataTable.Columns.Contains(columnName))
+                    if (dataTable.Columns.Contains(name: columnName))
                     {
-                        continue;
+                        string cellContent = dataRow.GetValueOrDefault(_logManagerService, tableName: tableName, columnName: columnName, isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty);
+                        cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = cellContent });
                     }
-
-                    string cellContent = dataRow[columnName]?.ToString() ?? string.Empty;
-
-                    DataGridCell cell = new()
+                    else
                     {
-                        Content = cellContent,
-                    };
-
-                    row.CellsByColumnNames[columnName] = cell;
+                        // Handle cases where a column might be expected but not in the result (e.g., calculated columns)
+                        cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = string.Empty }); // Or handle differently
+                        _ = _logManagerService.LogAsync(Models.Enums.LogSeverity.Error, $"Column \"{columnName}\" not found in the result set for table \"{tableName}\".");
+                    }
                 }
-
-                rows.Add(row);
+                rows.Add(item: new()
+                {
+                    RowId = rowId,
+                    CellsByColumnNames = cellsByColumnNames
+                });
             }
-
             return rows;
         }
 
-        // Helper method to find the ID column name in a table
-        private static string FindIdColumnName(DataColumnCollection columns, DataRow row)
+        // Get total count of rows matching the search criteria
+        public async Task<int> GetTotalRowsCountAsync(string tableName, string searchColumnName, string searchTerm)
         {
-            // Common patterns for ID column names
-            string[] idPatterns = new[]
-            {
-                "Id",
-                "ID",
-                "_id",
-                "id_"
-            };
-
-            // First, look for columns starting with "Id_"
-            foreach (DataColumn column in columns)
-            {
-                if (column.ColumnName.StartsWith("Id_", StringComparison.OrdinalIgnoreCase))
-                {
-                    return column.ColumnName;
-                }
-            }
-
-            // Then look for plain "Id" or "{TableName}Id"
-            foreach (DataColumn column in columns)
-            {
-                foreach (string pattern in idPatterns)
-                {
-                    if (column.ColumnName.Equals(pattern, StringComparison.OrdinalIgnoreCase) ||
-                        column.ColumnName.EndsWith(pattern, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return column.ColumnName;
-                    }
-                }
-            }
-
-            // If no ID column is found, return the first column as a fallback
-            return columns.Count > 0 ? columns[0].ColumnName : string.Empty;
-        }
-
-        // Get total count of rows for pagination
-        public async Task<int> GetTotalRowsCountAsync(string tableName, string searchTerm = "")
-        {
-            // Validate tableName
-            if (!IsValidTableName(tableName))
+            // Validate
+            if (!IsValidTableName(tableName: tableName))
             {
                 throw new ArgumentException("Invalid table name");
             }
 
-            // Build WHERE clause
-            (string whereClause, List<SQLiteParameter> parameters) = await this.BuildWhereClauseAsync(tableName, searchTerm);
+            // Build WHERE clause for counting
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchColumnName: searchColumnName, searchTerm: searchTerm);
 
-            // Build count query
             string query = $"SELECT COUNT(*) FROM {tableName} {whereClause}";
 
             // Execute query
-            DataTable resultTable = await CurrentRequest.SqlClient.SelectAsync(query, parameters.ToArray());
+            DataTable resultTable = await _sqlClientSingleton.SelectAsync(query: query, parameters: [.. parameters]);
 
-            // Get total count
-            return Convert.ToInt32(resultTable.Rows[0][0]);
+            return resultTable.Rows.Count > 0 && resultTable.Rows[0][0] != DBNull.Value ? Convert.ToInt32(value: resultTable.Rows[0][0]) : 0;
         }
 
-        // Build SQL query with search, sorting, and pagination
+        // Build the main SQL query for fetching grid data
         private async Task<(string query, List<SQLiteParameter> parameters)> BuildQueryAsync(
             string tableName,
+            List<DataGridColumnGet> columns,
             int page,
             int pageSize,
+            string searchColumnName,
             string searchTerm,
-            string sortField,
+            string sortColumnName,
             string sortDirection)
         {
             // Build WHERE clause
-            (string whereClause, List<SQLiteParameter> parameters) = await this.BuildWhereClauseAsync(tableName, searchTerm);
+            (string whereClause, List<SQLiteParameter> parameters) = BuildWhereClause(searchColumnName: searchColumnName, searchTerm: searchTerm);
 
             // Build ORDER BY clause
-            string orderByClause = "";
-            if (!string.IsNullOrEmpty(sortField) && IsValidColumnName(sortField))
+            string orderByClause = string.Empty;
+            if (!string.IsNullOrEmpty(value: sortColumnName) && IsValidColumnName(columnName: sortColumnName) && columns.Any(predicate: c => c.InternalName == sortColumnName))
             {
-                string direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-                orderByClause = $"ORDER BY {sortField} {direction}";
+                string direction = sortDirection.Equals(value: "desc", comparisonType: StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+                orderByClause = $"ORDER BY \"{sortColumnName}\" {direction}"; // Quote column name
+            }
+            else
+            {
+                // Default sort by the first column (usually ID) if available
+                string? firstColumn = columns.FirstOrDefault(predicate: c => c.InternalName.StartsWith(value: "Id_"))?.InternalName ?? columns.FirstOrDefault()?.InternalName;
+                if (!string.IsNullOrEmpty(value: firstColumn))
+                {
+                    orderByClause = $"ORDER BY \"{firstColumn}\" ASC"; // Quote column name
+                }
             }
 
-            // Calculate offset for pagination
+            // Build LIMIT/OFFSET clause for pagination
             int offset = (page - 1) * pageSize;
+            string limitClause = "LIMIT @PageSize OFFSET @Offset";
+            parameters.Add(item: new SQLiteParameter("@PageSize", pageSize));
+            parameters.Add(item: new SQLiteParameter("@Offset", offset));
 
-            // Build simple SELECT 
-            string query = $"SELECT {tableName}.* FROM {tableName} {whereClause} {orderByClause} LIMIT @PageSize OFFSET @Offset";
+            // Select only the columns needed for the grid
+            string selectColumns = string.Join(separator: ", ", values: columns.Select(selector: c => $"\"{c.InternalName}\"")); // Quote column names
+            if (!columns.Any(predicate: c => c.InternalName.StartsWith(value: "Id_"))) // Ensure ID column is selected if not already included
+            {
+                DataRow? idCol = (await GetTableSchemaAsync(tableName: tableName)).AsEnumerable().FirstOrDefault(predicate: r => ((string)r["name"]).StartsWith(value: "Id_"));
+                if (idCol != null && !selectColumns.Contains(value: $"\"{idCol["name"]}\""))
+                {
+                    selectColumns = $"\"{idCol["name"]}\", {selectColumns}";
+                }
+            }
+            if (string.IsNullOrEmpty(value: selectColumns))
+            {
+                selectColumns = "*"; // Fallback if no columns somehow
+            }
 
-            // Add pagination parameters
-            parameters.Add(new SQLiteParameter("@PageSize", pageSize));
-            parameters.Add(new SQLiteParameter("@Offset", offset));
+            string query = $"SELECT {selectColumns} FROM {tableName} {whereClause} {orderByClause} {limitClause}";
 
             return (query, parameters);
         }
 
-        // Build WHERE clause for search
-        private async Task<(string whereClause, List<SQLiteParameter> parameters)> BuildWhereClauseAsync(
-            string tableName,
+        // Build the WHERE clause based on the search term
+        private static (string whereClause, List<SQLiteParameter> parameters) BuildWhereClause(
+            string searchColumnName,
             string searchTerm)
         {
-            List<string> conditions = new();
-            List<SQLiteParameter> parameters = new();
-
-            // Get table schema to know which columns to search in
-            DataTable schemaTable = await this.GetTableSchemaAsync(tableName);
-
-            // Add search term condition
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            if (string.IsNullOrWhiteSpace(value: searchTerm))
             {
-                List<string> searchConditions = new();
-
-                foreach (DataRow row in schemaTable.Rows)
-                {
-                    string columnName = row["name"].ToString() ?? string.Empty;
-                    string columnType = row["type"].ToString()?.ToLower() ?? string.Empty;
-
-                    // Only search in text columns
-                    if (columnType.Contains("text") || columnType.Contains("char") || columnType.Contains("clob"))
-                    {
-                        searchConditions.Add($"{columnName} LIKE @SearchTerm");
-                    }
-                    // Search in numeric columns if the search term is a number
-                    else if ((columnType.Contains("int") || columnType.Contains("real") || columnType.Contains("double")) && double.TryParse(searchTerm, out _))
-                    {
-                        searchConditions.Add($"{columnName} = @SearchTermNumeric");
-                    }
-                }
-
-                if (searchConditions.Count > 0)
-                {
-                    conditions.Add($"({string.Join(" OR ", searchConditions)})");
-                    parameters.Add(new SQLiteParameter("@SearchTerm", $"%{searchTerm}%"));
-
-                    if (double.TryParse(searchTerm, out double numericValue))
-                    {
-                        parameters.Add(new SQLiteParameter("@SearchTermNumeric", numericValue));
-                    }
-                }
+                return (string.Empty, new List<SQLiteParameter>());
             }
 
-            // Combine all conditions
-            string whereClause = conditions.Count > 0 ? $"WHERE {string.Join(" AND ", conditions)}" : string.Empty;
+            List<string> conditions = new();
+            List<SQLiteParameter> parameters = new();
+            int paramIndex = 0;
 
-            return (whereClause, parameters);
+            // Maybe add type checking here later to avoid searching non-text fields?
+            string paramName = $"@SearchParam{paramIndex++}";
+            conditions.Add(item: $"CAST(\"{searchColumnName}\" AS TEXT) LIKE {paramName}"); // Quote column name
+            parameters.Add(item: new SQLiteParameter(paramName, $"%{searchTerm}%"));
+
+            if (conditions.Count != 0)
+            {
+                return ("WHERE " + string.Join(separator: " OR ", values: conditions), parameters);
+            }
+            else
+            {
+                return (string.Empty, parameters); // No searchable columns found
+            }
         }
 
         // Validate table name to prevent SQL injection
         private static bool IsValidTableName(string tableName)
         {
-            return !string.IsNullOrWhiteSpace(tableName) &&
-                   System.Text.RegularExpressions.Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$");
+            return !string.IsNullOrWhiteSpace(value: tableName) && MyRegex().IsMatch(input: tableName);
         }
 
         // Validate column name to prevent SQL injection
         private static bool IsValidColumnName(string columnName)
         {
-            return !string.IsNullOrWhiteSpace(columnName) &&
-                   System.Text.RegularExpressions.Regex.IsMatch(columnName, @"^[a-zA-Z0-9_]+$");
+            return !string.IsNullOrWhiteSpace(value: columnName) && MyRegex1().IsMatch(input: columnName);
         }
+
+        [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+        private static partial Regex MyRegex();
+        [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+        private static partial Regex MyRegex1();
     }
 }

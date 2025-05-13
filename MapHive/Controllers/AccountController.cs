@@ -1,216 +1,142 @@
-using MapHive.Models;
-using MapHive.Models.Exceptions;
-using MapHive.Singletons;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using reCAPTCHA.AspNetCore;
-using System.Security.Claims;
-
 namespace MapHive.Controllers
 {
-    public class AccountController : Controller
+    using System.Security.Claims;
+    using MapHive.Filters;
+    using MapHive.Models;
+    using MapHive.Models.Enums;
+    using MapHive.Models.Exceptions;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authentication;
+    using Microsoft.AspNetCore.Authentication.Cookies;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Options;
+    using Microsoft.Extensions.Primitives;
+    using reCAPTCHA.AspNetCore;
+
+    public class AccountController(
+        IAccountService accountService,
+        IAdminService adminService,
+        IProfileService profileService,
+        ILogManagerService logManager,
+        IRecaptchaService recaptchaService,
+        IConfigurationService configSingleton,
+        IUserContextService userContextService,
+        IOptions<RecaptchaSettings> recaptchaOptions) : Controller
     {
+        private readonly IAccountService _accountService = accountService;
+        private readonly IAdminService _adminService = adminService;
+        private readonly IProfileService _profileService = profileService;
+        private readonly ILogManagerService _logManagerService = logManager;
+        private readonly IRecaptchaService _recaptchaService = recaptchaService;
+        private readonly RecaptchaSettings _recaptchaSettings = recaptchaOptions.Value;
+        private readonly IConfigurationService _configSingleton = configSingleton;
+        private readonly IUserContextService _userContextService = userContextService;
+
         [HttpGet]
+        [OnlyAnonymous]
         public IActionResult Login()
         {
-            return this.User.Identity?.IsAuthenticated == true ? this.RedirectToAction("Index", "Home") : this.View();
+            return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginRequest model)
+        [OnlyAnonymous]
+        public async Task<IActionResult> Login(LoginRequest loginRequest)
         {
-            if (!this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return this.View(model);
+                return View(model: loginRequest);
             }
 
-            // Authenticate the user
-            AuthResponse response = await CurrentRequest.AuthService.LoginAsync(model);
-
-            if (response.Success && response.User != null)
+            try
             {
-                // Get client IP address
-                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-
-                // Check for account ban
-                if (await this.CheckForUserBanAsync(response.User.Id))
-                {
-                    return this.View(model); // Return if user banned
-                }
-
-                // Check for IP ban (skipped for admins)
-                if (await this.CheckForIpBanAsync(currentIpAddress, response.User.Tier))
-                {
-                    return this.View(model); // Return if IP banned
-                }
-
-                // Create claims principal
-                ClaimsPrincipal principal = this.CreatePrincipal(response.User);
-
-                // Define authentication properties
-                AuthenticationProperties authProperties = new()
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                };
-
-                // Record the login IP address if it's new
-                this.RecordLoginIpAddress(response.User, currentIpAddress);
-
-                // Sign in the user
-                await this.HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal,
-                    authProperties);
-
-                return this.RedirectToAction("Index", "Home");
+                _ = await _accountService.LoginAsync(request: loginRequest);
+                return RedirectToAction(actionName: "Index", controllerName: "Home");
             }
-
-            // If authentication failed or user is null, add error and return view
-            this.ModelState.AddModelError("", response.Message);
-            return this.View(model);
+            catch (UserFriendlyExceptionBase ex)
+            {
+                ModelState.AddModelError(key: "", errorMessage: ex.Message);
+                return View(model: loginRequest);
+            }
         }
 
         [HttpGet]
+        [OnlyAnonymous]
         public IActionResult Register()
         {
-            return this.User.Identity?.IsAuthenticated == true ? this.RedirectToAction("Index", "Home") : this.View();
+            return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterRequest model)
+        [OnlyAnonymous]
+        public async Task<IActionResult> Register(RegisterRequest registerRequest)
         {
-            // Add explicit check for null or empty RecaptchaResponse and try to get it from form data
-            if (string.IsNullOrEmpty(model.RecaptchaResponse))
+            RecaptchaSettings recaptchaSettings = _recaptchaSettings;
+            bool devMode = await _configSingleton.GetDevelopmentModeAsync();
+            bool isUsingTestKeys = devMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+
+            if (string.IsNullOrEmpty(value: registerRequest.RecaptchaResponse) && Request.Form.ContainsKey(key: "g-recaptcha-response"))
             {
-                // Fallback: try to get the reCAPTCHA response directly from the form data
-                string recaptchaResponse = this.Request.Form["g-recaptcha-response"].ToString();
-                if (!string.IsNullOrEmpty(recaptchaResponse))
+                StringValues recaptchaResponse = Request.Form["g-recaptcha-response"];
+                if (recaptchaResponse.Count == 0 || string.IsNullOrWhiteSpace(recaptchaResponse.ToString()))
                 {
-                    // If found in form data, use it
-                    model.RecaptchaResponse = recaptchaResponse;
-
-                    // Remove the error state for RecaptchaResponse if it exists
-                    if (this.ModelState.ContainsKey("RecaptchaResponse"))
-                    {
-                        _ = this.ModelState.Remove("RecaptchaResponse");
-                    }
-                }
-            }
-
-            if (!this.ModelState.IsValid)
-            {
-                return this.View(model);
-            }
-
-            // Get reCAPTCHA settings from configuration (for test key detection)
-            RecaptchaSettings recaptchaSettings = CurrentRequest.RecaptchaService.RecaptchaSettings;
-            bool isUsingTestKeys = MainClient.AppSettings.DevelopmentMode && recaptchaSettings.SiteKey == "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
-
-            // For test keys, accept any non-null response
-            if (isUsingTestKeys && !string.IsNullOrEmpty(model.RecaptchaResponse))
-            {
-                // Using test keys with a response, so we'll consider it valid
-                CurrentRequest.LogManager.Information("Accepting reCAPTCHA test response");
-            }
-            // Skip server-side validation when using test keys
-            else if (!isUsingTestKeys)
-            {
-                // Only validate if not using test keys
-                RecaptchaResponse validationResponse = await CurrentRequest.RecaptchaService.Validate(model.RecaptchaResponse);
-                if (!validationResponse.success)
-                {
-                    // Log the failure
-                    CurrentRequest.LogManager.Warning($"reCAPTCHA validation failed for user registration attempt");
-
-                    // Add error to model state
-                    this.ModelState.AddModelError("RecaptchaResponse", "reCAPTCHA verification failed. Please try again.");
-                    return this.View(model);
-                }
-            }
-
-            // Get client IP address
-            string? ipAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ipAddress))
-            {
-                throw new RedUserException("Unable to retreive your IP address");
-            }
-
-            // Check if the IP is banned for registration
-            // Note: All new registrations are subject to IP bans since new users always start as normal users
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
-            if (ipBan != null && ipBan.IsActive)
-            {
-                this.ModelState.AddModelError("", $"Registration from your IP address is not allowed. Reason: {ipBan.Reason}");
-                return this.View(model);
-            }
-
-            // Create the user
-            AuthResponse response = await CurrentRequest.AuthService.RegisterAsync(model, ipAddress);
-
-            if (response.Success && response.User != null)
-            {
-                // Create claims
-                List<Claim> claims = new()
-                {
-                    new Claim(ClaimTypes.Name, response.User.Username),
-                    new Claim(ClaimTypes.NameIdentifier, response.User.Id.ToString()),
-                    new Claim("UserTier", ((int)response.User.Tier).ToString()),
-                };
-
-                // Add role claims based on UserTier
-                this.AddAdminRoleClaim(claims, response.User.Tier);
-
-                ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                ClaimsPrincipal principal = new(identity);
-
-                AuthenticationProperties authProperties = new()
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                };
-
-                // Record the IP address if it's new for this user
-                string? currentIpAddress = CurrentRequest.HttpContext.HttpContext?.Connection.RemoteIpAddress?.ToString();
-                if (!string.IsNullOrEmpty(currentIpAddress))
-                {
-                    // Ensure IpAddressHistory is not null before processing (Renamed)
-                    response.User.IpAddressHistory ??= string.Empty;
-
-                    // Split the known IPs by newline, handling potential carriage returns as well (Renamed)
-                    List<string> knownIPs = response.User.IpAddressHistory
-                        .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-
-                    // Check if the current IP is already known (case-insensitive comparison)
-                    if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
-                    {
-                        // Append the new IP address (Renamed)
-                        if (!string.IsNullOrEmpty(response.User.IpAddressHistory))
-                        {
-                            response.User.IpAddressHistory += "\n"; // Add newline separator if not empty
-                        }
-                        response.User.IpAddressHistory += currentIpAddress;
-
-                        // Save the updated user information
-                        CurrentRequest.UserRepository.UpdateUser(response.User);
-                    }
+                    throw new PublicWarningException(message: "Unable to retreive reCAPTCHA response!");
                 }
 
-                await this.HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal,
-                    authProperties);
-
-                return this.RedirectToAction("Index", "Home");
+                registerRequest.RecaptchaResponse = recaptchaResponse.ToString();
+                _ = ModelState.Remove(key: "RecaptchaResponse");
             }
 
-            this.ModelState.AddModelError("", response.Message);
-            return this.View(model);
+            if (!ModelState.IsValid)
+            {
+                return View(model: registerRequest);
+            }
+
+            if (!isUsingTestKeys)
+            {
+                RecaptchaResponse? validationResponse = null;
+                if (!string.IsNullOrEmpty(value: registerRequest.RecaptchaResponse))
+                {
+                    validationResponse = await _recaptchaService.Validate(responseCode: registerRequest.RecaptchaResponse);
+                }
+
+                if (validationResponse?.success != true)
+                {
+                    _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: "reCAPTCHA validation failed for user registration attempt.");
+                    ModelState.AddModelError(key: "RecaptchaResponse", errorMessage: "reCAPTCHA verification failed. Please try again.");
+                    return View(model: registerRequest);
+                }
+            }
+            else if (!string.IsNullOrEmpty(value: registerRequest.RecaptchaResponse))
+            {
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "Accepting reCAPTCHA test response during registration.");
+            }
+            else
+            {
+                ModelState.AddModelError(key: "RecaptchaResponse", errorMessage: "reCAPTCHA response missing (Test Mode).");
+                return View(model: registerRequest);
+            }
+
+            try
+            {
+                _ = await _accountService.RegisterAsync(request: registerRequest);
+                return RedirectToAction(actionName: "Index", controllerName: "Home");
+            }
+            catch (UserFriendlyExceptionBase ex)
+            {
+                ModelState.AddModelError(key: "", errorMessage: ex.Message);
+                return View(model: registerRequest);
+            }
+            catch (Exception ex)
+            {
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: $"Unexpected error during registration for {registerRequest.Username}.", exception: ex);
+                ModelState.AddModelError(key: "", errorMessage: "An unexpected error occurred during registration. Please try again later.");
+                return View(model: registerRequest);
+            }
         }
 
         [HttpPost]
@@ -218,507 +144,221 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Logout()
         {
-            await this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return this.RedirectToAction("Index", "Home");
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+            await _accountService.LogoutAsync();
+            return RedirectToAction(actionName: "Index", controllerName: "Home");
         }
 
         [HttpGet]
         [Authorize]
         public IActionResult Profile()
         {
-            // Redirect to the private profile when user accesses /Account/Profile
-            return this.RedirectToAction("PrivateProfile");
+            return !_userContextService.IsAuthenticated
+                ? throw new PublicErrorException(message: "User is not authenticated.")
+                : (IActionResult)RedirectToAction(actionName: "PrivateProfile");
         }
 
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
         {
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null || !int.TryParse(userId, out int id))
-            {
-                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
-                throw new OrangeUserException("Your session is invalid, login again.");
-            }
-
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
-            {
-                this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).GetAwaiter().GetResult();
-                throw new OrangeUserException("Your session is invalid, login again.");
-            }
-
-            // Get the user's places
-            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id);
-
-            // Get the user's threads
-            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id);
-
-            PrivateProfileViewModel model = new()
-            {
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations,
-                UserThreads = userThreads
-            };
-
-            return this.View(model);
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+            int userId = _userContextService.UserIdRequired;
+            PrivateProfileViewModel? viewModel = await _profileService.GetPrivateProfileAsync(userId: userId);
+            return viewModel == null ? RedirectToAction(actionName: "Login") : View(model: viewModel);
         }
 
         [HttpGet]
         public async Task<IActionResult> PublicProfile(string username)
         {
-            if (string.IsNullOrEmpty(username))
-            {
-                return this.RedirectToAction("Index", "Home");
-            }
-
-            // Check if user exists
-            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
-            if (user == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only redirect to private profile if the user is viewing their own profile
-            // AND they didn't explicitly request to see their public profile
-            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isOwnProfile = currentUserId != null && int.TryParse(currentUserId, out int id) && user.Id == id;
-
-            // Check if the request came from the "Show Public Profile" button
-            bool isExplicitPublicProfileRequest = this.Request.Headers["Referer"].ToString().Contains("/PrivateProfile");
-
-            // Only redirect if viewing own profile and not explicitly requesting public view
-            if (isOwnProfile && !isExplicitPublicProfileRequest && !this.Request.Query.ContainsKey("viewPublic"))
-            {
-                return this.RedirectToAction("PrivateProfile");
-            }
-
-            // Get the user's places
-            IEnumerable<MapLocation> userLocations = await CurrentRequest.MapRepository.GetLocationsByUserIdAsync(user.Id);
-
-            // Get the user's threads
-            IEnumerable<DiscussionThread> userThreads = await CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(user.Id);
-
-            // Check if current user is an admin
-            bool isAdmin = false;
-            if (currentUserId != null && int.TryParse(currentUserId, out int currentId))
-            {
-                User? currentUser = CurrentRequest.UserRepository.GetUserById(currentId);
-                isAdmin = currentUser != null && currentUser.Tier == UserTier.Admin;
-            }
-
-            // Get active ban if any
-            UserBan? activeBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(user.Id);
-
-            // If no account ban, check for IP ban based on registration IP
-            if (activeBan == null || !activeBan.IsActive)
-            {
-                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (!string.IsNullOrEmpty(registrationIp))
-                {
-                    activeBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(registrationIp);
-                }
-            }
-
-            PublicProfileViewModel model = new()
-            {
-                UserId = user.Id,
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations,
-                UserThreads = userThreads,
-                IsAdmin = isAdmin,
-                CurrentBan = activeBan
-            };
-
-            return this.View(model);
+            PublicProfileViewModel? viewModel = await _profileService.GetPublicProfileAsync(username: username);
+            return viewModel == null ? RedirectToAction(actionName: "Index", controllerName: "Home") : View(model: viewModel);
         }
 
         [HttpGet]
-        [Authorize]
-        public IActionResult BanUser(string username)
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> BanUser(string username)
         {
-            // Check if current user is an admin
-            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+
+            try
             {
-                return this.Forbid();
+                BanUserPageViewModel vm = await _adminService.GetBanUserPageViewModelAsync(adminId: _userContextService.UserIdRequired, username: username);
+                return View(model: vm);
             }
-
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            catch (UnauthorizedAccessException)
             {
-                return this.Forbid();
+                return Forbid();
             }
-
-            // Check if target user exists
-            User? user = CurrentRequest.UserRepository.GetUserByUsername(username);
-            if (user == null)
+            catch (KeyNotFoundException)
             {
-                return this.NotFound();
+                return NotFound();
             }
-
-            // Set up viewbag data
-            this.ViewBag.Username = user.Username;
-            this.ViewBag.UserId = user.Id;
-            // Add registration IP to ViewBag for potential IP ban
-            string registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "N/A";
-            this.ViewBag.RegistrationIp = registrationIp;
-            this.ViewBag.UserTier = user.Tier;
-
-            return this.View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> ProcessBan(int userId, string username, BanViewModel model)
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> ProcessBan(string username, BanViewModel banViewModel)
         {
-            // Check if current user is an admin
-            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
-            {
-                return this.Forbid();
-            }
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
 
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            try
             {
-                return this.Forbid();
-            }
-
-            // Check if the target user exists
-            User? user = CurrentRequest.UserRepository.GetUserById(userId);
-            if (user == null)
-            {
-                return this.NotFound();
-            }
-
-            // Prevent admins from banning other admins
-            if (user.Tier == UserTier.Admin)
-            {
-                this.TempData["ErrorMessage"] = "Cannot ban another administrator.";
-                return this.RedirectToAction("PublicProfile", new { username });
-            }
-
-            if (!this.ModelState.IsValid)
-            {
-                this.TempData["ErrorMessage"] = "Invalid ban parameters.";
-                return this.RedirectToAction("BanUser", new { username });
-            }
-
-            // Create the ban object
-            UserBan ban = new()
-            {
-                BannedByUserId = adminId,
-                Reason = model.Reason,
-                BanType = model.BanType,
-                BannedAt = DateTime.UtcNow
-            };
-
-            // Set expiry date if not permanent
-            if (!model.IsPermanent && model.BanDurationDays.HasValue)
-            {
-                ban.ExpiresAt = DateTime.UtcNow.AddDays(model.BanDurationDays.Value);
-            }
-
-            // Set the appropriate ID or IP based on ban type
-            if (model.BanType == BanType.Account)
-            {
-                ban.UserId = userId;
-            }
-            else if (model.BanType == BanType.IpAddress)
-            {
-                // Get registration IP from history
-                string? registrationIp = user.IpAddressHistory?.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (string.IsNullOrEmpty(registrationIp))
+                bool success = await _adminService.BanUserAsync(adminId: _userContextService.UserIdRequired, username: username, model: banViewModel);
+                if (success)
                 {
-                    this.TempData["ErrorMessage"] = "Could not determine registration IP for IP ban.";
-                    return this.RedirectToAction("PublicProfile", new { username });
+                    TempData["SuccessMessage"] = banViewModel.BanType == BanType.Account
+                        ? $"User {username} has been banned successfully." // using username
+                        : "IP address ban applied successfully.";
                 }
-                ban.IpAddress = registrationIp;
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to ban user. Please try again.";
+                }
+                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
             }
-
-            // Save the ban
-            int banId = await CurrentRequest.UserRepository.BanUserAsync(ban);
-
-            if (banId > 0)
+            catch (UnauthorizedAccessException)
             {
-                this.TempData["SuccessMessage"] = model.BanType == BanType.Account
-                    ? $"User {user.Username} has been banned successfully."
-                    : $"IP address {ban.IpAddress} has been banned successfully.";
+                return Forbid();
             }
-            else
+            catch (KeyNotFoundException)
             {
-                this.TempData["ErrorMessage"] = "Failed to ban user. Please try again.";
+                return NotFound();
             }
-
-            return this.RedirectToAction("PublicProfile", new { username });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize]
+        [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> UnbanUser(int banId, string username)
         {
-            // Check if current user is an admin
-            string? currentUserId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(currentUserId) || !int.TryParse(currentUserId, out int adminId))
+            try
             {
-                return this.Forbid();
+                bool success = await _adminService.RemoveBanAsync(id: banId);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "Ban has been removed successfully.";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
+                }
+                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
             }
-
-            User? admin = CurrentRequest.UserRepository.GetUserById(adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
+            catch (UnauthorizedAccessException)
             {
-                return this.Forbid();
+                return Forbid();
             }
-
-            // Remove the ban
-            bool success = await CurrentRequest.UserRepository.UnbanUserAsync(banId);
-
-            if (success)
-            {
-                this.TempData["SuccessMessage"] = "Ban has been removed successfully.";
-            }
-            else
-            {
-                this.TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
-            }
-
-            return this.RedirectToAction("PublicProfile", new { username });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize]
-        public async Task<IActionResult> ChangeUsername(ChangeUsernameViewModel model)
+        public async Task<IActionResult> ChangeUsername(ChangeUsernameViewModel changeUsernameViewModel)
         {
-            if (!this.ModelState.IsValid)
+
+            if (!ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
+                profileVm.ChangeUsernameViewModel = changeUsernameViewModel;
+                return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null || !int.TryParse(userId, out int id))
+            int userId = _userContextService.UserIdRequired;
+            if (userId == 0)
             {
-                return this.RedirectToAction("Login");
+                return RedirectToAction(actionName: "Login");
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            try
             {
-                return this.RedirectToAction("Login");
+                // Delegate change to service
+                await _accountService.ChangeUsernameAsync(userId: userId, newUsername: changeUsernameViewModel.NewUsername);
+
+                // Reissue authentication cookie with new username
+                string tierValue = User.FindFirst(type: "UserTier")?.Value ?? "0";
+                List<Claim> claims = new()
+                {
+                    new Claim(type: ClaimTypes.NameIdentifier, value: userId.ToString()),
+                    new Claim(type: ClaimTypes.Name, value: changeUsernameViewModel.NewUsername),
+                    new Claim(type: "UserTier", value: tierValue)
+                };
+                AddAdminRoleClaim(claims: claims, tier: (UserTier)int.Parse(s: tierValue));
+
+                ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                ClaimsPrincipal principal = new(identity);
+                await HttpContext.SignOutAsync(scheme: CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignInAsync(scheme: CookieAuthenticationDefaults.AuthenticationScheme, principal: principal, properties: new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(days: 7)
+                });
+
+                TempData["SuccessMessage"] = "Username changed successfully";
+                return RedirectToAction(actionName: "PrivateProfile");
             }
-
-            // Check if the username already exists
-            if (CurrentRequest.UserRepository.CheckUsernameExists(model.NewUsername) && !user.Username.Equals(model.NewUsername, StringComparison.OrdinalIgnoreCase))
+            catch (UserFriendlyExceptionBase ex)
             {
-                this.ModelState.AddModelError("ChangeUsernameModel.NewUsername", "Username already exists");
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
+                ModelState.AddModelError(key: "ChangeUsernameViewModel.NewUsername", errorMessage: ex.Message);
+                PrivateProfileViewModel? profileOnError = await _profileService.GetPrivateProfileAsync(userId: userId);
+                profileOnError.ChangeUsernameViewModel = changeUsernameViewModel;
+                return View(viewName: "PrivateProfile", model: profileOnError);
             }
-
-            // Update the username
-            user.Username = model.NewUsername;
-            CurrentRequest.UserRepository.UpdateUser(user);
-
-            // Update user claims
-            List<Claim> claims = new()
-            {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("UserTier", ((int)user.Tier).ToString()),
-            };
-
-            // Add role claims based on UserTier
-            this.AddAdminRoleClaim(claims, user.Tier);
-
-            ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            ClaimsPrincipal principal = new(identity);
-
-            AuthenticationProperties authProperties = new()
-            {
-                IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-            };
-
-            await this.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            await this.HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                authProperties);
-
-            this.TempData["SuccessMessage"] = "Username changed successfully";
-            return this.RedirectToAction("PrivateProfile");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize]
-        public IActionResult ChangePassword(ChangePasswordViewModel model)
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel changePasswordViewModel)
         {
-            if (!this.ModelState.IsValid)
+            if (!_userContextService.IsAuthenticated)
+                throw new PublicErrorException(message: "User is not authenticated.");
+
+            if (!ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
+                profileVm.ChangePasswordViewModel = changePasswordViewModel;
+                return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null || !int.TryParse(userId, out int id))
+            int userId = _userContextService.UserIdRequired;
+            if (userId == 0)
             {
-                return this.RedirectToAction("Login");
+                return RedirectToAction(actionName: "Login");
             }
 
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
+            try
             {
-                return this.RedirectToAction("Login");
+                // Delegate change to service
+                await _accountService.ChangePasswordAsync(userId: userId, currentPassword: changePasswordViewModel.CurrentPassword, newPassword: changePasswordViewModel.NewPassword);
+
+                TempData["SuccessMessage"] = "Password changed successfully";
+                return RedirectToAction(actionName: "PrivateProfile");
             }
-
-            // Verify current password
-            if (!CurrentRequest.AuthService.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            catch (UserFriendlyExceptionBase ex)
             {
-                this.ModelState.AddModelError("ChangePasswordModel.CurrentPassword", "Current password is incorrect");
-                PrivateProfileViewModel? profileModel = this.GetCurrentUserPrivateProfile();
-                return profileModel == null ? this.RedirectToAction("Login") : this.View("PrivateProfile", profileModel);
+                ModelState.AddModelError(key: "CurrentPassword", errorMessage: ex.Message);
+                return View(viewName: "PrivateProfile", model: await _profileService.GetPrivateProfileAsync(userId: userId));
             }
-
-            // Update password
-            user.PasswordHash = CurrentRequest.AuthService.HashPassword(model.NewPassword);
-            CurrentRequest.UserRepository.UpdateUser(user);
-
-            this.TempData["SuccessMessage"] = "Password changed successfully";
-            return this.RedirectToAction("PrivateProfile");
-        }
-
-        private PrivateProfileViewModel? GetCurrentUserPrivateProfile()
-        {
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null || !int.TryParse(userId, out int id))
-            {
-                return null;
-            }
-
-            User? user = CurrentRequest.UserRepository.GetUserById(id);
-            if (user == null)
-            {
-                return null;
-            }
-
-            // Get user locations
-            IEnumerable<MapLocation> userLocations = CurrentRequest.MapRepository.GetLocationsByUserIdAsync(id).GetAwaiter().GetResult();
-
-            // Get user threads
-            IEnumerable<DiscussionThread> userThreads = CurrentRequest.DiscussionRepository.GetThreadsByUserIdAsync(id).GetAwaiter().GetResult();
-
-            return new PrivateProfileViewModel
-            {
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
-                UserLocations = userLocations,
-                UserThreads = userThreads
-            };
         }
 
         [HttpGet]
         public IActionResult AccessDenied()
         {
-            return this.View();
+            return View();
         }
 
-        #region Login Helpers
-
-        private async Task<bool> CheckForUserBanAsync(int userId)
-        {
-            UserBan? userBan = await CurrentRequest.UserRepository.GetActiveBanByUserIdAsync(userId);
-            if (userBan != null && userBan.IsActive)
-            {
-                string banMessage = userBan.ExpiresAt.HasValue
-                    ? $"Your account has been banned until {userBan.ExpiresAt.Value.ToString("g")}. Reason: {userBan.Reason}"
-                    : $"Your account has been permanently banned. Reason: {userBan.Reason}";
-                this.ModelState.AddModelError("", banMessage);
-                return true; // User is banned
-            }
-            return false; // User is not banned
-        }
-
-        private async Task<bool> CheckForIpBanAsync(string? ipAddress, UserTier userTier)
-        {
-            // Skip IP ban check for admins or if IP is missing
-            if (userTier == UserTier.Admin || string.IsNullOrEmpty(ipAddress))
-            {
-                return false; // Not banned (or check skipped)
-            }
-
-            UserBan? ipBan = await CurrentRequest.UserRepository.GetActiveBanByIpAddressAsync(ipAddress);
-            if (ipBan != null && ipBan.IsActive)
-            {
-                this.ModelState.AddModelError("", $"Your IP address has been banned. Reason: {ipBan.Reason}");
-                return true; // IP is banned
-            }
-            return false; // IP is not banned
-        }
-
-        private ClaimsPrincipal CreatePrincipal(User user)
-        {
-            List<Claim> claims = new()
-            {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("UserTier", ((int)user.Tier).ToString()),
-            };
-
-            // Add role claims based on UserTier
-            this.AddAdminRoleClaim(claims, user.Tier);
-
-            ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            return new ClaimsPrincipal(identity);
-        }
-
-        private void RecordLoginIpAddress(User user, string? currentIpAddress)
-        {
-            if (string.IsNullOrEmpty(currentIpAddress))
-            {
-                return; // Cannot record if IP is missing
-            }
-
-            // Ensure IpAddressHistory is not null before processing
-            user.IpAddressHistory ??= string.Empty;
-
-            // Split the known IPs by newline, handling potential carriage returns as well
-            List<string> knownIPs = user.IpAddressHistory
-                .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                .ToList();
-
-            // Check if the current IP is already known (case-insensitive comparison)
-            if (!knownIPs.Contains(currentIpAddress, StringComparer.OrdinalIgnoreCase))
-            {
-                // Append the new IP address
-                if (!string.IsNullOrEmpty(user.IpAddressHistory))
-                {
-                    user.IpAddressHistory += "\n"; // Add newline separator if not empty
-                }
-                user.IpAddressHistory += currentIpAddress;
-
-                // Save the updated user information
-                CurrentRequest.UserRepository.UpdateUser(user);
-            }
-        }
-
-        private void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
+        private static void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
         {
             if (tier == UserTier.Admin)
             {
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                claims.Add(item: new Claim(type: ClaimTypes.Role, value: "Admin"));
             }
         }
-
-        #endregion
     }
 }

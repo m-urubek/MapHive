@@ -1,145 +1,93 @@
-using MapHive.Models;
-using MapHive.Models.Exceptions;
-using MapHive.Singletons;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-
 namespace MapHive.Controllers
 {
-    public class MapController : Controller
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
+    using MapHive.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
+
+    public class MapController(IMapService mapService, IUserContextService userContextService) : Controller
     {
+        private readonly IMapService _mapService = mapService;
+        private readonly IUserContextService _userContextService = userContextService;
+
         // GET: Map
         public async Task<IActionResult> Index()
         {
-            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
-            return this.View(locations);
+            IEnumerable<MapLocationGet> locations = await _mapService.GetAllLocationsAsync();
+            return View(model: locations);
         }
 
         // GET: Map/Add
-        [Authorize] // Only authenticated users can access this action
+        [Authorize]
         public async Task<IActionResult> Add()
         {
-            // Get all categories for dropdown
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
-            this.ViewBag.Categories = categories;
-
-            return this.View();
+            // Prepare Add page data
+            AddLocationPageViewModel vm = await _mapService.GetAddLocationPageViewModelAsync();
+            return View(model: vm);
         }
 
         // POST: Map/Add
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize] // Only authenticated users can create places
-        public async Task<IActionResult> Add(MapLocation location)
+        [Authorize]
+        public async Task<IActionResult> Add(MapLocationCreate mapLocationCreate)
         {
-            // Get all categories for dropdown, fetch before model state check
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
-
-            if (this.ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                // Set the current user as the creator
-                string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id))
-                {
-                    throw new OrangeUserException("User ID not found in claims");
-                }
-                location.UserId = id;
-
-                _ = await CurrentRequest.MapRepository.AddLocationAsync(location);
-                return this.RedirectToAction(nameof(Index));
+                // Re-populate categories on validation failure
+                int userId = _userContextService.UserIdRequired;
+                AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync();
+                return View(model: fallback);
             }
-
-            // If we get here, there was an error, so assign pre-fetched categories to ViewBag
-            this.ViewBag.Categories = categories;
-
-            return this.View(location);
+            _ = await _mapService.AddLocationAsync(mapLocationCreate: mapLocationCreate);
+            return RedirectToAction(actionName: nameof(Index));
         }
 
         // GET: Map/Edit/5
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
+            try
             {
-                return this.NotFound();
+                EditLocationPageViewModel vm = await _mapService.GetEditLocationPageViewModelAsync(id: id);
+                return View(model: vm);
             }
-
-            // Only allow the creator or admin to edit
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId))
+            catch (KeyNotFoundException)
             {
-                return this.Forbid();
+                return NotFound();
             }
-
-            // Get all categories for dropdown
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
-            this.ViewBag.Categories = categories;
-
-            return this.View(location);
         }
 
         // POST: Map/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize]
-        public async Task<IActionResult> Edit(int id, MapLocation location)
+        public async Task<IActionResult> Edit(EditLocationPageViewModel editLocationPageViewModel)
         {
-            if (id != location.Id)
+            if (!ModelState.IsValid)
             {
-                return this.NotFound();
+                EditLocationPageViewModel fallback = await _mapService.GetEditLocationPageViewModelAsync(id: editLocationPageViewModel.UpdateModel.Id);
+                fallback.UpdateModel = editLocationPageViewModel.UpdateModel;
+                return View(model: fallback);
             }
-
-            MapLocation existingLocation = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (existingLocation == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the creator or admin to edit
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || existingLocation.UserId != currentUserId))
-            {
-                return this.Forbid();
-            }
-
-            // Get all categories for dropdown, fetch before model state check
-            IEnumerable<Category> categories = await CurrentRequest.MapRepository.GetAllCategoriesAsync();
-
-            if (this.ModelState.IsValid)
-            {
-                _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
-                return this.RedirectToAction(nameof(Index));
-            }
-
-            // If we get here, there was an error, so assign pre-fetched categories to ViewBag
-            this.ViewBag.Categories = categories;
-
-            return this.View(location);
+            _ = await _mapService.UpdateLocationAsync(id: editLocationPageViewModel.UpdateModel.Id, updateDto: editLocationPageViewModel.UpdateModel);
+            return RedirectToAction(actionName: nameof(Index));
         }
 
         // GET: Map/Delete/5
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationWithCategoryAsync(id);
-            if (location == null)
+            try
             {
-                return this.NotFound();
+                MapLocationGet location = await _mapService.GetLocationByIdOrThrowAsync(id: id);
+                return View(model: location);
             }
-
-            // Only allow the creator or admin to delete
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            return !isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId)
-                ? this.Forbid()
-                : this.View(location);
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         // POST: Map/Delete/5
@@ -148,86 +96,38 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
+            try
             {
-                return this.NotFound();
+                _ = await _mapService.DeleteLocationAsync(id: id);
+                return RedirectToAction(actionName: nameof(Index));
             }
-
-            // Only allow the creator or admin to delete
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId))
+            catch (KeyNotFoundException)
             {
-                return this.Forbid();
+                return NotFound();
             }
-
-            _ = await CurrentRequest.MapRepository.DeleteLocationAsync(id);
-            return this.RedirectToAction(nameof(Index));
         }
 
         // GET: Map/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationWithCategoryAsync(id);
-            if (location == null)
+            try
             {
-                return this.NotFound();
+                // Retrieve all details via service
+                MapLocationViewModel viewModel = await _mapService.GetLocationDetailsAsync(id: id);
+                return View(model: viewModel);
             }
-
-            // Get the author's username if not anonymous
-            if (!location.IsAnonymous)
+            catch (KeyNotFoundException)
             {
-                // We'll need the username for display, so use ViewBag to pass it
-                User? user = CurrentRequest.UserRepository.GetUserById(location.UserId);
-                this.ViewBag.AuthorUsername = user?.Username ?? "Unknown";
+                return NotFound();
             }
-            else
-            {
-                this.ViewBag.AuthorUsername = "Anonymous";
-            }
-
-            // Get reviews for this location
-            IEnumerable<Review> reviews = await CurrentRequest.ReviewRepository.GetReviewsByLocationIdAsync(id);
-            this.ViewBag.Reviews = reviews;
-
-            // Get average rating
-            double averageRating = await CurrentRequest.ReviewRepository.GetAverageRatingForLocationAsync(id);
-            this.ViewBag.AverageRating = averageRating;
-
-            // Get review count
-            int reviewCount = await CurrentRequest.ReviewRepository.GetReviewCountForLocationAsync(id);
-            this.ViewBag.ReviewCount = reviewCount;
-
-            // Check if the current user has already reviewed this location
-            bool hasReviewed = false;
-            if (this.User.Identity?.IsAuthenticated == true)
-            {
-                string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out int currentUserId))
-                {
-                    hasReviewed = await CurrentRequest.ReviewRepository.HasUserReviewedLocationAsync(currentUserId, id);
-                }
-            }
-            this.ViewBag.HasReviewed = hasReviewed;
-
-            // Get discussion threads for this location
-            IEnumerable<DiscussionThread> discussionThreads = await CurrentRequest.DiscussionRepository.GetAllDiscussionThreadsByLocationIdAsync(id);
-            this.ViewBag.DiscussionThreads = discussionThreads;
-
-            // Calculate the count of regular discussion threads (excluding review threads)
-            this.ViewBag.RegularDiscussionCount = discussionThreads.Count(t => !t.IsReviewThread);
-
-            return this.View(location);
         }
 
         // API endpoint to get all locations as JSON
         [HttpGet]
         public async Task<IActionResult> GetLocations()
         {
-            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
-            return this.Json(locations);
+            IEnumerable<MapLocationGet> locations = await _mapService.GetAllLocationsAsync();
+            return Json(data: locations);
         }
     }
 }
