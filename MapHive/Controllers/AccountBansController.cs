@@ -6,14 +6,15 @@ namespace MapHive.Controllers
     using MapHive.Services;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using MapHive.Repositories;
 
     [Authorize]
-    public class UserBansController(
+    public class AccountBansController(
         IDataGridService dataGridService,
-        IUserBansService userBansService) : Controller
+        IAccountBansRepository accountBansRepository) : Controller
     {
         private readonly IDataGridService _dataGridService = dataGridService;
-        private readonly IUserBansService _userBansService = userBansService;
+        private readonly IAccountBansRepository _accountBansRepository = accountBansRepository;
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
@@ -22,9 +23,9 @@ namespace MapHive.Controllers
             DataGridViewModel viewModel = new()
             {
                 Title = "Manage User Bans",
-                TableName = "UserBans",
+                TableName = "AccountBans",
                 ColumnNames = new List<string>(),
-                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "UserBans")
+                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "AccountBans")
             };
             return View("_DataGrid", viewModel);
         }
@@ -34,7 +35,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Remove(int id)
         {
-            bool success = await _userBansService.RemoveUserBanAsync(banId: id);
+            bool success = await _accountBansRepository.RemoveAccountBanAsync(banId: id);
             if (success)
             {
                 TempData["SuccessMessage"] = "User ban removed successfully.";

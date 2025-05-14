@@ -36,7 +36,7 @@ namespace MapHive.Controllers
             if (!ModelState.IsValid)
             {
                 // Re-populate categories on validation failure
-                int userId = _userContextService.UserIdRequired;
+                int accountId = _userContextService.AccountIdRequired;
                 AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync();
                 return View(model: fallback);
             }

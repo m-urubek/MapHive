@@ -2,14 +2,11 @@ namespace MapHive.Models.ViewModels
 {
     using MapHive.Models.Enums;
 
-    public class BanUserPageViewModel : BanViewModel
+    public class BanUserPageViewModel
     {
-        public string Username { get; set; } = string.Empty;
+        public required string Username { get; set; }
+        public int AccountId { get; set; }
 
-        public int UserId { get; set; }
-
-        public UserTier UserTier { get; set; }
-
-        public string RegistrationIp { get; set; } = string.Empty;
+        public AccountTier AccountTier { get; set; }
     }
 }

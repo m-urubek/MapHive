@@ -11,7 +11,7 @@ namespace MapHive.Models.RepositoryModels
         public int LocationId { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public int AccountId { get; set; }
 
         [Required]
         [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]

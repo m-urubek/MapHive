@@ -11,24 +11,24 @@ namespace MapHive.Models.RepositoryModels
         public required int ThreadId { get; set; }
 
         [Required]
-        public required int UserId { get; set; }
+        public required int AccountId { get; set; }
 
         [Required]
         [StringLength(1000, ErrorMessage = "Message text cannot be longer than 1000 characters")]
         public required string MessageText { get; set; }
 
-        public required bool IsInitialMessage { get; set; } = false;
+        public required bool IsInitialMessage { get; set; }
 
-        public required bool IsDeleted { get; set; } = false;
+        public required bool IsDeleted { get; set; }
 
-        public int? DeletedByUserId { get; set; }
+        public int? DeletedByAccountId { get; set; }
 
         public required DateTime CreatedAt { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
         // Populated by repository
-        public required string AuthorUsername { get; set; } = string.Empty;
+        public required string AuthorUsername { get; set; }
 
         // Populated by repository on delete
         public string? DeletedByUsername { get; set; }

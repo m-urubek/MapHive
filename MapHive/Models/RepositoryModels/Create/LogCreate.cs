@@ -11,7 +11,7 @@ namespace MapHive.Models.RepositoryModels
         public required string Message { get; set; }
         public string? Source { get; set; }
         public Exception? Exception { get; set; }
-        public int? UserId { get; set; }
+        public int? AccountId { get; set; }
         public string? RequestPath { get; set; }
         public string? AdditionalData { get; set; }
 
@@ -24,7 +24,7 @@ namespace MapHive.Models.RepositoryModels
                 _ = sb.AppendLine(handler: $"SEVERITY: {Severity}");
                 _ = sb.AppendLine(handler: $"MESSAGE: {Message}");
                 sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {Source}");
-                _ = sb.AppendLine(handler: $"USER: {UserId?.ToString() ?? "system"}");
+                _ = sb.AppendLine(handler: $"USER: {AccountId?.ToString() ?? "system"}");
                 sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {RequestPath}");
                 sb.AppendLineIfNotNullOrWhitespace(value: $"EXCEPTION: {Exception?.ToString()}");
                 sb.AppendLineIfNotNullOrWhitespace(value: $"ADDITIONAL: {AdditionalData}");

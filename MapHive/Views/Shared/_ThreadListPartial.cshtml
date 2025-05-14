@@ -27,12 +27,9 @@
                         <small>@thread.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                     </div>
                     <p class="mb-1">
-                        @if (thread.HasInitialMessage)
-                        {
-                            @(thread.InitialMessage.MessageText.Length > 100 
-                                ? thread.InitialMessage.MessageText.Substring(0, 100) + "..." 
-                                : thread.InitialMessage.MessageText)
-                        }
+                        @(thread.InitialMessage.MessageText.Length > 100 
+                            ? thread.InitialMessage.MessageText.Substring(0, 100) + "..." 
+                            : thread.InitialMessage.MessageText)
                     </p>
                     <small>
                         Started by 
@@ -42,7 +39,7 @@
                         }
                         else
                         {
-                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@thread.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == thread.AuthorUsername ? "true" : null)">@thread.AuthorUsername</a>
+                            <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@thread.AccountId" asp-route-viewPublic="@(User.Identity?.Name == thread.AuthorUsername ? "true" : null)">@thread.AuthorUsername</a>
                         } - 
                         @thread.Messages.Count @(thread.Messages.Count == 1 ? "message" : "messages") - 
                         Location: <a asp-controller="Map" asp-action="Details" asp-route-id="@thread.LocationId">View Place</a>

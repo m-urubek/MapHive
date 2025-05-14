@@ -5,7 +5,7 @@ namespace MapHive.Repositories
     using System.Text.RegularExpressions;
     using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
+    using MapHive.Utilities.Extensions;
 
     public partial class DisplayPageRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IDisplayPageRepository
     {
@@ -37,7 +37,7 @@ namespace MapHive.Repositories
             }
 
             // Convert DataRow to Dictionary
-            return ConvertDataRowToDictionary(row: result.Rows[0], columns: result.Columns, tableName: tableName);
+            return ConvertDataRowToDictionary(row: result.Rows[0], columns: result.Columns);
         }
 
         public async Task<bool> TableExistsAsync(string tableName)
@@ -96,14 +96,14 @@ namespace MapHive.Repositories
             return "Id_Log";
         }
 
-        private Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns, string tableName)
+        private Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns)
         {
             Dictionary<string, string> result = new();
 
             foreach (DataColumn column in columns)
             {
                 string columnName = column.ColumnName;
-                string value = row.GetValueOrDefault(_logManagerService, tableName: tableName, columnName: columnName, isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty);
+                string value = row.ToNullableString(columnName: columnName) ?? string.Empty;
 
                 // Format the column name for better display (remove Id_ prefix, add spaces between camel case)
                 string displayName = FormatColumnNameForDisplay(columnName: columnName);

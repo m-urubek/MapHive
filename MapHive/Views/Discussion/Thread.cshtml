@@ -37,7 +37,7 @@
                             }
                             else
                             {
-                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
+                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@Model.AuthorId" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
                             }
                             on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
                         </small>
@@ -55,7 +55,7 @@
                                     else
                                     {
                                         <span class="fw-bold">
-                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Review.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.Review.AuthorUsername ? "true" : null)">@Model.Review.AuthorUsername</a>
+                                            <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@Model.Review.AccountId" asp-route-viewPublic="@(User.Identity?.Name == Model.Review.AuthorUsername ? "true" : null)">@Model.Review.AuthorUsername</a>
                                         </span>
                                     }
                                     <span class="text-muted ms-2">@Model.Review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
@@ -89,7 +89,7 @@
                                     else
                                     {
                                         <span class="fw-bold">
-                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
+                                            <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@Model.InitialMessage.AccountId" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
                                         </span>
                                     }
                                     <span class="text-muted ms-2">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
@@ -106,7 +106,7 @@
                                                 }
                                                 else
                                                 {
-                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
+                                                    <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@Model.InitialMessage.AccountId" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
                                                 }
                                                 deleted their message</p>
                                         }
@@ -120,7 +120,7 @@
                                         <p>@Model.InitialMessage.MessageText</p>
                                         
                                         @if (User.Identity?.IsAuthenticated == true && 
-                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.InitialMessage.UserId.ToString()))
+                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.InitialMessage.AccountId.ToString()))
                                         {
                                             <div class="message-actions mt-2">
                                                 <form asp-action="DeleteMessage" asp-route-id="@Model.InitialMessage.Id" method="post" class="d-inline">
@@ -153,14 +153,14 @@
                                         else
                                         {
                                             <span class="fw-bold">
-                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
+                                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-username="@message.AccountId" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
                                             </span>
                                         }
                                         <span class="text-muted ms-2">@message.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                     </div>
                                     
                                     @if (!message.IsDeleted && User.Identity?.IsAuthenticated == true && 
-                                        (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == message.UserId.ToString()))
+                                        (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == message.AccountId.ToString()))
                                     {
                                         <div class="message-actions">
                                             <form asp-action="DeleteMessage" asp-route-id="@message.Id" method="post" class="d-inline">
@@ -183,7 +183,7 @@
                                                 }
                                                 else
                                                 {
-                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
+                                                    <a asp-controller="Account" asp-action="PublicProfileById" asp-route-username="@message.AccountId" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
                                                 }
                                                 deleted their message</p>
                                         }

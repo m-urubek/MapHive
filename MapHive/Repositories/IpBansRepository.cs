@@ -8,7 +8,7 @@ namespace MapHive.Repositories
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
+    using MapHive.Utilities.Extensions;
 
     public partial class IpBansRepository(
         ISqlClientSingleton sqlClientSingleton,
@@ -34,20 +34,20 @@ namespace MapHive.Repositories
 
         public async Task<int> CreateIpBanAsync(IpBanCreate ipBan)
         {
-            if (string.IsNullOrEmpty(value: ipBan.IpAddress) || !MyRegex().IsMatch(input: ipBan.IpAddress))
+            if (string.IsNullOrEmpty(value: ipBan.HashedIpAddress) || !MyRegex().IsMatch(input: ipBan.HashedIpAddress))
             {
                 throw new ArgumentException("IP address must be a valid SHA256 hash.");
             }
 
             string query = @"
-                INSERT INTO IpBans (HashedIpAddress, Reason, BannedAt, ExpiresAt, BannedByUserId)
-                VALUES (@HashedIpAddress, @Reason, @BannedAt, @ExpiresAt, @BannedByUserId);";
+                INSERT INTO IpBans (HashedIpAddress, Reason, BannedAt, ExpiresAt, BannedByAccountId)
+                VALUES (@HashedIpAddress, @Reason, @BannedAt, @ExpiresAt, @BannedByAccountId);";
             SQLiteParameter[] parameters = [
-                new("@HashedIpAddress", ipBan.IpAddress),
+                new("@HashedIpAddress", ipBan.HashedIpAddress),
                 new("@Reason", ipBan.Reason),
                 new("@BannedAt", ipBan.BannedAt.ToString(format: "yyyy-MM-dd HH:mm:ss")),
                 new("@ExpiresAt", ipBan.ExpiresAt.HasValue ? ipBan.ExpiresAt.Value.ToString(format: "yyyy-MM-dd HH:mm:ss") : DBNull.Value),
-                new("@BannedByUserId", ipBan.BannedByUserId)
+                new("@BannedByAccountId", ipBan.BannedByAccountId)
             ];
             return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
         }
@@ -126,17 +126,13 @@ namespace MapHive.Repositories
 
         private IpBanGet MapDataRowToIpBanGet(DataRow row)
         {
-            const string table = "IpBans";
             return new IpBanGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_IpBan", isRequired: true, converter: Convert.ToInt32),
-                HashedIpAddress = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "HashedIpAddress", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
-                Reason = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Reason", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
-                BannedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "BannedAt", isRequired: true, converter: Convert.ToDateTime),
-                ExpiresAt = row.Table.Columns.Contains("ExpiresAt") && row["ExpiresAt"] != DBNull.Value && DateTime.TryParse(row["ExpiresAt"].ToString(), out DateTime parsed) ? parsed : null,
-                BannedByUserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "BannedByUserId", isRequired: true, converter: Convert.ToInt32),
-                IsActive = row.Table.Columns.Contains("ExpiresAt") && (row["ExpiresAt"] == DBNull.Value || (DateTime.TryParse(row["ExpiresAt"].ToString(), out DateTime parsed2) && parsed2 > DateTime.UtcNow)),
-                Properties = new Dictionary<string, string>()
+                Id = row.GetValueOrThrow<int>(columnName: "Id_IpBan"),
+                HashedIpAddress = row.GetValueOrThrow<string>(columnName: "HashedIpAddress"),
+                Reason = row.GetAsNullableString(columnName: "Reason"),
+                BannedAt = row.GetValueOrThrow<DateTime>(columnName: "BannedAt"),
+                BannedByAccountId = row.GetValueOrThrow<int>(columnName: "BannedByAccountId"),
             };
         }
 

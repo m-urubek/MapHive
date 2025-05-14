@@ -12,21 +12,13 @@ namespace MapHive.Services
 
         private HttpContext HttpContext => _httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
 
-        public void EnsureAuthenticated()
-        {
-            if (!IsAuthenticated)
-            {
-                throw new PublicWarningException("Not authenticated");
-            }
-        }
-
-        public int UserIdRequired
+        public int AccountIdRequired
         {
             get
             {
                 EnsureAuthenticated();
-                Claim? userIdClaim = HttpContext.User.FindFirst(type: ClaimTypes.NameIdentifier);
-                return userIdClaim != null && int.TryParse(s: userIdClaim.Value, result: out int userId) ? userId : throw new Exception("Unable to retreive user claims");
+                Claim? accountIdClaim = HttpContext.User.FindFirst(type: ClaimTypes.NameIdentifier);
+                return accountIdClaim != null && int.TryParse(s: accountIdClaim.Value, result: out int accountId) ? accountId : throw new Exception("Unable to retreive user claims");
             }
         }
 
@@ -51,5 +43,21 @@ namespace MapHive.Services
         }
 
         public bool IsAuthenticatedAndAdmin => IsAuthenticated && IsAdminRequired;
+
+        public void EnsureAuthenticated()
+        {
+            if (!IsAuthenticated)
+            {
+                throw new PublicWarningException("Not authenticated");
+            }
+        }
+
+        public void EnsureAuthenticatedAndAdmin()
+        {
+            if (!IsAuthenticatedAndAdmin)
+            {
+                throw new PublicErrorException("Not authorized");
+            }
+        }
     }
 }

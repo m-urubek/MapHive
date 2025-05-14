@@ -25,8 +25,8 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserIdRequired;
-                _ = await _reviewService.CreateReviewAsync(model: reviewViewModel, userId: userId);
+                int accountId = _userContextService.AccountIdRequired;
+                _ = await _reviewService.CreateReviewAsync(model: reviewViewModel, accountId: accountId);
                 return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
             return View(model: reviewViewModel);
@@ -36,8 +36,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id)
         {
-            int userId = _userContextService.UserIdRequired;
-            ReviewViewModel model = await _reviewService.GetEditModelAsync(reviewId: id, userId: userId);
+            int accountId = _userContextService.AccountIdRequired;
+            ReviewViewModel model = await _reviewService.GetEditModelAsync(reviewId: id, accountId: accountId);
             return View(model: model);
         }
 
@@ -49,8 +49,8 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserIdRequired;
-                await _reviewService.EditReviewAsync(id: id, model: reviewViewModel, userId: userId);
+                int accountId = _userContextService.AccountIdRequired;
+                await _reviewService.EditReviewAsync(id: id, model: reviewViewModel, accountId: accountId);
                 return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
             }
             return View(model: reviewViewModel);
@@ -62,8 +62,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            int userId = _userContextService.UserIdRequired;
-            int locationId = await _reviewService.DeleteReviewAsync(id: id, userId: userId);
+            int accountId = _userContextService.AccountIdRequired;
+            int locationId = await _reviewService.DeleteReviewAsync(id: id, accountId: accountId);
             return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
         }
     }

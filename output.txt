@@ -21,7 +21,7 @@
 @MapHive/Controllers/HomeController.cs
 @MapHive/Controllers/MapController.cs
 @MapHive/Controllers/ReviewController.cs
-@MapHive/Data/SqlUpdates/AddUserIdToMapLocations.sql
+@MapHive/Data/SqlUpdates/AddAccountIdToMapLocations.sql
 @MapHive/Data/SqlUpdates/ReviewsAndDiscussions.sql
 @MapHive/Middleware/ErrorHandlingMiddleware.cs
 @MapHive/Middleware/ErrorHandlingMiddlewareExtensions.cs

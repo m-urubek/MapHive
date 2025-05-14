@@ -5,12 +5,12 @@ namespace MapHive.Repositories
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
+    using MapHive.Utilities.Extensions;
 
-    public class ReviewRepository(ISqlClientSingleton sqlClientSingleton, IUserRepository userRepository, ILogManagerService logManagerService) : IReviewRepository
+    public class ReviewRepository(ISqlClientSingleton sqlClientSingleton, IAccountsRepository userRepository, ILogManagerService logManagerService) : IReviewRepository
     {
         private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
-        private readonly IUserRepository _userRepository = userRepository;
+        private readonly IAccountsRepository _userRepository = userRepository;
         private readonly ILogManagerService _logManagerService = logManagerService;
 
         public async Task<List<ReviewGet>?> GetReviewsByLocationIdAsync(int locationId)
@@ -18,7 +18,7 @@ namespace MapHive.Repositories
             string query = @"
                 SELECT r.*, u.Username
                 FROM Reviews r
-                LEFT JOIN Users u ON r.UserId = u.Id_User
+                LEFT JOIN Users u ON r.AccountId = u.Id_Account
                 WHERE r.LocationId = @LocationId
                 ORDER BY r.CreatedAt DESC";
 
@@ -31,7 +31,7 @@ namespace MapHive.Repositories
                 ReviewGet rg = MapRowToReviewGet(row: row);
                 string? username = row.Table.Columns.Contains(name: "Username") && row["Username"] != DBNull.Value
                                      ? row["Username"].ToString()
-                                     : await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
+                                     : await _userRepository.GetUsernameByIdAsync(accountId: rg.AccountId);
                 rg.AuthorUsername = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
                 reviews.Add(item: rg);
             }
@@ -51,7 +51,7 @@ namespace MapHive.Repositories
             }
 
             ReviewGet rg = MapRowToReviewGet(row: result.Rows[0]);
-            string username = await _userRepository.GetUsernameByIdAsync(userId: rg.UserId);
+            string username = await _userRepository.GetUsernameByIdAsync(accountId: rg.AccountId);
             rg.AuthorUsername = rg.IsAnonymous ? "Anonymous" : (username ?? "Unknown UserLogin");
 
             return rg;
@@ -61,12 +61,12 @@ namespace MapHive.Repositories
         {
             DateTime now = DateTime.UtcNow;
             string query = @"
-                INSERT INTO Reviews (LocationId, UserId, Rating, ReviewText, IsAnonymous, CreatedAt, UpdatedAt)
-                VALUES (@LocationId, @UserId, @Rating, @ReviewText, @IsAnonymous, @CreatedAt, @UpdatedAt);";
+                INSERT INTO Reviews (LocationId, AccountId, Rating, ReviewText, IsAnonymous, CreatedAt, UpdatedAt)
+                VALUES (@LocationId, @AccountId, @Rating, @ReviewText, @IsAnonymous, @CreatedAt, @UpdatedAt);";
 
             SQLiteParameter[] parameters = [
                 new("@LocationId", review.LocationId),
-                new("@UserId", review.UserId),
+                new("@AccountId", review.AccountId),
                 new("@Rating", review.Rating),
                 new("@ReviewText", review.ReviewText),
                 new("@IsAnonymous", review.IsAnonymous),
@@ -75,13 +75,13 @@ namespace MapHive.Repositories
             ];
 
             int reviewId = await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
-            string username = await _userRepository.GetUsernameByIdAsync(userId: review.UserId);
+            string username = await _userRepository.GetUsernameByIdAsync(accountId: review.AccountId);
 
             return new ReviewGet
             {
                 Id = reviewId,
                 LocationId = review.LocationId,
-                UserId = review.UserId,
+                AccountId = review.AccountId,
                 Rating = review.Rating,
                 ReviewText = review.ReviewText,
                 IsAnonymous = review.IsAnonymous,
@@ -100,7 +100,7 @@ namespace MapHive.Repositories
                     ReviewText = @ReviewText,
                     IsAnonymous = @IsAnonymous,
                     UpdatedAt = @UpdatedAt
-                WHERE Id_Reviews = @Id_Log AND UserId = @UserId";
+                WHERE Id_Reviews = @Id_Log AND AccountId = @AccountId";
 
             SQLiteParameter[] parameters = [
                 new("@Id_Log", review.Id),
@@ -108,7 +108,7 @@ namespace MapHive.Repositories
                 new("@ReviewText", review.ReviewText),
                 new("@IsAnonymous", review.IsAnonymous),
                 new("@UpdatedAt", now),
-                new("@UserId", review.UserId)
+                new("@AccountId", review.AccountId)
             ];
 
             int rowsAffected = await _sqlClientSingleton.UpdateAsync(query: query, parameters: parameters);
@@ -149,11 +149,11 @@ namespace MapHive.Repositories
                  : Convert.ToInt32(value: result.Rows[0]["ReviewCount"]);
         }
 
-        public async Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
+        public async Task<bool> HasUserReviewedLocationAsync(int accountId, int locationId)
         {
-            string query = "SELECT 1 FROM Reviews WHERE UserId = @UserId AND LocationId = @LocationId LIMIT 1"; // More efficient query
+            string query = "SELECT 1 FROM Reviews WHERE AccountId = @AccountId AND LocationId = @LocationId LIMIT 1"; // More efficient query
             SQLiteParameter[] parameters = [
-                new("@UserId", userId),
+                new("@AccountId", accountId),
                 new("@LocationId", locationId)
             ];
             // Use injected _sqlClientSingleton
@@ -164,18 +164,17 @@ namespace MapHive.Repositories
 
         private ReviewGet MapRowToReviewGet(DataRow row)
         {
-            const string table = "Reviews";
             return new ReviewGet
             {
-                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Reviews", isRequired: true, converter: Convert.ToInt32),
-                LocationId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "LocationId", isRequired: true, converter: Convert.ToInt32),
-                UserId = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UserId", isRequired: true, converter: Convert.ToInt32),
-                Rating = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Rating", isRequired: true, converter: Convert.ToInt32),
-                ReviewText = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "ReviewText", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
-                IsAnonymous = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "IsAnonymous", isRequired: true, converter: Convert.ToBoolean),
-                CreatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "CreatedAt", isRequired: true, converter: Convert.ToDateTime),
-                UpdatedAt = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "UpdatedAt", isRequired: true, converter: Convert.ToDateTime),
-                AuthorUsername = string.Empty // will be set after mapping
+                Id = row.GetValueOrThrow<int>(columnName: "Id_Reviews"),
+                LocationId = row.GetValueOrThrow<int>(columnName: "LocationId"),
+                AccountId = row.GetValueOrThrow<int>(columnName: "AccountId"),
+                Rating = row.GetValueOrThrow<int>(columnName: "Rating"),
+                ReviewText = row.GetValueOrThrow<string>(columnName: "ReviewText"),
+                IsAnonymous = row.GetValueOrThrow<bool>(columnName: "IsAnonymous"),
+                CreatedAt = row.GetValueOrThrow<DateTime>(columnName: "CreatedAt"),
+                UpdatedAt = row.GetValueOrThrow<DateTime>(columnName: "UpdatedAt"),
+                AuthorUsername = string.Empty // todo use join with users table
             };
         }
     }

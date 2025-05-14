@@ -2,9 +2,9 @@ namespace MapHive.Models.RepositoryModels
 {
     using MapHive.Models.Enums;
 
-    public class UserTierUpdate
+    public class AccountTierUpdate
     {
-        public int UserId { get; set; }
-        public UserTier Tier { get; set; }
+        public int AccountId { get; set; }
+        public AccountTier Tier { get; set; }
     }
 }

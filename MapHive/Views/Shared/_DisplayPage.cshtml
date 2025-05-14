@@ -9,7 +9,7 @@
             <div class="display-value">
                 @if (ViewBag.IsUsersTable && item.Key.Equals("Username", StringComparison.OrdinalIgnoreCase))
                 {
-                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@item.Value" asp-route-viewPublic="@(User.Identity?.Name == item.Value ? "true" : null)">@item.Value</a>
+                    <a asp-controller="Account" asp-action="PublicProfileByName" asp-route-username="@item.Value" asp-route-viewPublic="@(User.Identity?.Name == item.Value ? "true" : null)">@item.Value</a>
                 }
                 else
                 {

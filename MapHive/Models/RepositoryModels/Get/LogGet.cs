@@ -10,7 +10,7 @@ namespace MapHive.Models.RepositoryModels
         public required string Message { get; set; }
         public string? Source { get; set; }
         public string? Exception { get; set; }
-        public int? UserId { get; set; }
+        public int? AccountId { get; set; }
         public string? RequestPath { get; set; }
         public string? AdditionalData { get; set; }
     }

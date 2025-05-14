@@ -10,7 +10,7 @@ namespace MapHive.Singletons
             Exception? exception = null,
             string? source = null,
             string? additionalData = null,
-            int? userId = null,
+            int? accountId = null,
             string? requestPath = null);
     }
 }

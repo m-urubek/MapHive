@@ -37,8 +37,8 @@ namespace MapHive.Repositories
 
         public async Task<int> CreateLogRowAsync(LogCreate logCreate)
         {
-            const string query = "INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, UserId, RequestPath, AdditionalData)"
-                                             + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @UserId, @RequestPath, @AdditionalData);";
+            const string query = "INSERT INTO Logs (Timestamp, SeverityId, Message, Source, Exception, AccountId, RequestPath, AdditionalData)"
+                                             + " VALUES (@Timestamp, @SeverityId, @Message, @Source, @Exception, @AccountId, @RequestPath, @AdditionalData);";
             SQLiteParameter[] parameters =
             [
                         new("@Timestamp", logCreate.Timestamp.ToString(format: "o")),
@@ -46,7 +46,7 @@ namespace MapHive.Repositories
                         new("@Message", logCreate.Message),
                         new("@Source", logCreate.Source as object ?? DBNull.Value),
                         new("@Exception", logCreate.Exception?.ToString() as object ?? DBNull.Value),
-                        new("@UserId", logCreate.UserId as object ?? DBNull.Value),
+                        new("@AccountId", logCreate.AccountId as object ?? DBNull.Value),
                         new("@RequestPath", logCreate.RequestPath as object ?? DBNull.Value),
                         new("@AdditionalData", logCreate.AdditionalData as object ?? DBNull.Value)
             ];

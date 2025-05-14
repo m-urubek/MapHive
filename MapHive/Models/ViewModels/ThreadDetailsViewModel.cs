@@ -4,14 +4,16 @@ namespace MapHive.Models.ViewModels
 
     public class ThreadDetailsViewModel
     {
-        public int Id { get; set; }
-        public int LocationId { get; set; }
+        public required int Id { get; set; }
+        public required int LocationId { get; set; }
         public required string ThreadName { get; set; }
-        public bool IsReviewThread { get; set; }
+        public required bool IsReviewThread { get; set; }
         public int? ReviewId { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
         public required string AuthorUsername { get; set; }
-        public List<ThreadMessageGet> Messages { get; set; } = new List<ThreadMessageGet>();
+        public required int AuthorId { get; set; }
+        public required List<ThreadMessageGet> Messages { get; set; }
+        public required bool IsAnonymous { get; set; }
 
         // Navigation properties
         public required MapLocationGet Location { get; set; }

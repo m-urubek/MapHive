@@ -2,7 +2,7 @@ namespace MapHive.Models.RepositoryModels
 {
     using System.ComponentModel.DataAnnotations;
 
-    public class ReviewGet
+    public class ReviewGet //todo create view model
     {
         [Key]
         public required int Id { get; set; }
@@ -11,7 +11,7 @@ namespace MapHive.Models.RepositoryModels
         public required int LocationId { get; set; }
 
         [Required]
-        public required int UserId { get; set; }
+        public required int AccountId { get; set; }  //TODO shouldnt get to FE when anonymous
 
         [Required]
         [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
@@ -27,6 +27,6 @@ namespace MapHive.Models.RepositoryModels
 
         public required DateTime UpdatedAt { get; set; }
 
-        public required string AuthorUsername { get; set; } = string.Empty;
+        public required string AuthorUsername { get; set; }
     }
 }

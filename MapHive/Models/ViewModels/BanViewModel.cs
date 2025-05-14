@@ -6,15 +6,17 @@ namespace MapHive.Models.ViewModels
     public class BanViewModel
     {
         [Required]
-        public BanType BanType { get; set; }
+        public required BanType BanType { get; set; }
 
-        [Required]
         [StringLength(500)]
-        public string Reason { get; set; } = string.Empty;
+        public string? Reason { get; set; }
 
-        public bool IsPermanent { get; set; } = true;
+        public required bool IsPermanent { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Duration must be at least 1 day")]
         public int? BanDurationDays { get; set; }
+
+        [Required]
+        public required int AccountId { get; set; }
     }
 }

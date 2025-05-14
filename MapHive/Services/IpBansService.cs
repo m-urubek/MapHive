@@ -6,45 +6,21 @@ namespace MapHive.Services
     using MapHive.Repositories;
 
     public class IpBansService(
-        IIpBansRepository ipBansRepository) : IIpBansService
+        IIpBansRepository ipBansRepository,
+        IUserContextService userContextService) : IIpBansService
     {
         private readonly IIpBansRepository _ipBansRepository = ipBansRepository;
+        private readonly IUserContextService _userContextService = userContextService;
 
-        public Task<bool> IsIpBannedAsync(string hashedIpAddress)
+        public Task<int> BanIpAddressAsync(string hashedIpAddress, bool isPermanent, int? durationInDays, string? reason)
         {
-            return _ipBansRepository.IsIpBannedAsync(hashedIpAddress);
-        }
-
-        public Task<int> CreateIpBanAsync(IpBanCreate ipBan)
-        {
-            return _ipBansRepository.CreateIpBanAsync(ipBan);
-        }
-
-        public Task<bool> RemoveIpBanAsync(int banId)
-        {
-            return _ipBansRepository.RemoveIpBanAsync(banId);
-        }
-
-        public Task<IpBanGet?> GetActiveIpBanByIpAddressAsync(string hashedIpAddress)
-        {
-            return _ipBansRepository.GetActiveIpBanByIpAddressAsync(hashedIpAddress);
-        }
-
-        public Task<IEnumerable<IpBanGet>> GetAllActiveIpBansAsync()
-        {
-            return _ipBansRepository.GetAllActiveIpBansAsync();
-        }
-
-        public Task<IEnumerable<IpBanGet>> GetAllIpBansAsync(
-            string searchTerm = "",
-            int page = 1,
-            int pageSize = 20,
-            string sortColumnName = "",
-            string sortDirection = "asc")
-        {
-            return _ipBansRepository.GetAllIpBansAsync(
-                        searchTerm: searchTerm, page: page, pageSize: pageSize,
-                        sortColumnName: sortColumnName, sortDirection: sortDirection);
+            return _ipBansRepository.CreateIpBanAsync(new IpBanCreate(){
+                HashedIpAddress = hashedIpAddress,
+                BannedByAccountId = _userContextService.AccountIdRequired,
+                BannedAt = DateTime.UtcNow,
+                ExpiresAt = isPermanent ? null : DateTime.UtcNow.AddDays(durationInDays ?? 0),
+                Reason = reason
+            });
         }
     }
 }

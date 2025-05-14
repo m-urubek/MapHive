@@ -19,7 +19,9 @@ namespace MapHive.Services
             string? source = null,
             string? additionalData = null)
         {
-            return await _logManagerSingleton.LogAsync(severity: severity, message: message, exception: exception, source: source, additionalData: additionalData, userId: _userContextService.UserIdRequired, requestPath: _requestContextService.RequestPath);
+            int? accountId = _userContextService.IsAuthenticated ? _userContextService.AccountIdRequired : null;
+            string requestPath = _requestContextService.IsInRequest ? _requestContextService.RequestPath : "not in request";
+            return await _logManagerSingleton.LogAsync(severity: severity, message: message, exception: exception, source: source, additionalData: additionalData, accountId: accountId, requestPath: requestPath);
         }
     }
 }

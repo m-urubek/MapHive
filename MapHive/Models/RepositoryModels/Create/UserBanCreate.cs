@@ -2,14 +2,12 @@ namespace MapHive.Models.RepositoryModels
 {
     using MapHive.Models.Enums;
 
-    public class UserBanGetCreate
+    public class AccountBanCreate
     {
-        public int? UserId { get; set; }
-        public string? HashedIpAddress { get; set; }
-        public int BannedByUserId { get; set; }
-        public string Reason { get; set; } = string.Empty;
-        public BanType BanType { get; set; }
-        public DateTime BannedAt { get; set; } = DateTime.UtcNow;
+        public required int AccountId { get; set; }
+        public required int BannedByAccountId { get; set; }
+        public string? Reason { get; set; }
+        public required DateTime BannedAt { get; set; }
         public DateTime? ExpiresAt { get; set; }
     }
 }

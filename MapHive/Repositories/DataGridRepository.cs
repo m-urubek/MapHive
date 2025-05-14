@@ -7,7 +7,7 @@ namespace MapHive.Repositories
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
+    using MapHive.Utilities.Extensions;
 
     public partial class DataGridRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IDataGridRepository
     {
@@ -181,17 +181,7 @@ namespace MapHive.Repositories
             foreach (DataRow dataRow in dataTable.Rows)
             {
                 // Assign RowId using mapping extension
-                //if (!string.IsNullOrEmpty(idColumnName) && dataTable.Columns.Contains(name: idColumnName))
-                int rowId = dataRow.GetValueOrDefault(
-                    _logManagerService,
-                     tableName: tableName,
-                      columnName: idColumnName,
-                       isRequired: true,
-                        converter: v =>
-                {
-                    _ = int.TryParse(v.ToString(), out int idValue);
-                    return idValue;
-                }, defaultValue: 0);
+                int rowId = dataRow.GetValueOrThrow<int>(columnName: idColumnName);
 
                 Dictionary<string, DataGridCellGet> cellsByColumnNames = new();
                 foreach (DataGridColumnGet column in columns)
@@ -199,7 +189,7 @@ namespace MapHive.Repositories
                     string columnName = column.InternalName;
                     if (dataTable.Columns.Contains(name: columnName))
                     {
-                        string cellContent = dataRow.GetValueOrDefault(_logManagerService, tableName: tableName, columnName: columnName, isRequired: false, converter: v => v.ToString()!, defaultValue: string.Empty);
+                        string cellContent = dataRow.ToNullableString(columnName: columnName) ?? string.Empty;
                         cellsByColumnNames.Add(columnName, new DataGridCellGet { Content = cellContent });
                     }
                     else

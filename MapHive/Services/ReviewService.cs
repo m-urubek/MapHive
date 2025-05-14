@@ -32,35 +32,36 @@ namespace MapHive.Services
             };
         }
 
-        public async Task<ReviewGet> CreateReviewAsync(ReviewViewModel model, int userId)
+        public async Task<ReviewGet> CreateReviewAsync(ReviewViewModel model, int accountId)
         {
-            if (await _reviewRepository.HasUserReviewedLocationAsync(userId: userId, locationId: model.LocationId))
+            if (await _reviewRepository.HasUserReviewedLocationAsync(accountId: accountId, locationId: model.LocationId))
             {
                 throw new OrangeUserException("You have already reviewed this location.");
             }
 
             ReviewCreate reviewDto = _mapper.Map<ReviewCreate>(source: model);
-            reviewDto.UserId = userId;
+            reviewDto.AccountId = accountId;
             ReviewGet createdReview = await _reviewRepository.AddReviewAsync(review: reviewDto);
 
             ReviewThreadCreate threadDto = new()
             {
                 ReviewId = createdReview.Id,
                 LocationId = model.LocationId,
-                UserId = userId,
+                AccountId = accountId,
                 Username = string.Empty,
-                ReviewTitle = model.LocationName
+                ReviewTitle = model.LocationName,
+                IsAnonymous = model.IsAnonymous
             };
             _ = await _discussionRepository.CreateReviewThreadAsync(threadCreate: threadDto);
 
             return createdReview;
         }
 
-        public async Task<ReviewViewModel> GetEditModelAsync(int reviewId, int userId)
+        public async Task<ReviewViewModel> GetEditModelAsync(int reviewId, int accountId)
         {
             ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: reviewId)
                 ?? throw new KeyNotFoundException($"Review {reviewId} not found");
-            if (review.UserId != userId)
+            if (review.AccountId != accountId)
             {
                 throw new UnauthorizedAccessException();
             }
@@ -71,18 +72,18 @@ namespace MapHive.Services
             return model;
         }
 
-        public async Task EditReviewAsync(int id, ReviewViewModel model, int userId)
+        public async Task EditReviewAsync(int id, ReviewViewModel model, int accountId)
         {
             ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: id)
                 ?? throw new KeyNotFoundException($"Review {id} not found");
-            if (review.UserId != userId)
+            if (review.AccountId != accountId)
             {
                 throw new UnauthorizedAccessException();
             }
 
             ReviewUpdate updateDto = _mapper.Map<ReviewUpdate>(source: model);
             updateDto.Id = id;
-            updateDto.UserId = userId;
+            updateDto.AccountId = accountId;
             updateDto.LocationId = review.LocationId;
 
             if (!await _reviewRepository.UpdateReviewAsync(review: updateDto))
@@ -91,11 +92,11 @@ namespace MapHive.Services
             }
         }
 
-        public async Task<int> DeleteReviewAsync(int id, int userId)
+        public async Task<int> DeleteReviewAsync(int id, int accountId)
         {
             ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: id)
                 ?? throw new KeyNotFoundException($"Review {id} not found");
-            if (!_userContextService.IsAdminRequired && review.UserId != userId)
+            if (!_userContextService.IsAdminRequired && review.AccountId != accountId)
             {
                 throw new UnauthorizedAccessException();
             }

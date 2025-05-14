@@ -4,7 +4,8 @@ namespace MapHive.Services
 
     public interface IProfileService
     {
-        Task<PrivateProfileViewModel> GetPrivateProfileAsync(int userId);
+        Task<PrivateProfileViewModel> GetPrivateProfileAsync();
         Task<PublicProfileViewModel> GetPublicProfileAsync(string username);
+        Task<PublicProfileViewModel> GetPublicProfileAsync(int accountId);
     }
 }

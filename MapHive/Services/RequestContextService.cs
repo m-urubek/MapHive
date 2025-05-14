@@ -1,6 +1,7 @@
 namespace MapHive.Services
 {
     using MapHive.Models.Exceptions;
+    using MapHive.Utilities;
 
     /// <summary>
     /// Implementation of IUserContextService providing user details from HttpContext.
@@ -11,10 +12,21 @@ namespace MapHive.Services
 
         public string RequestPath => _httpContextAccessor.HttpContext?.Request.Path.ToString() ?? throw new Exception("Not in request");
 
-        public string IpAddress =>
-            (_httpContextAccessor.HttpContext ?? throw new Exception("Not in request"))
-                .Connection.RemoteIpAddress?.ToString()
-            ?? throw new PublicWarningException("Unable to retrieve IP address");
+        private string? _hashedIpAddress;
+        public string HashedIpAddress
+        {
+            get
+            {
+                if (_hashedIpAddress is null)
+                {
+                    string ipAddress = (_httpContextAccessor.HttpContext ?? throw new Exception("Not in request"))
+                        .Connection.RemoteIpAddress?.ToString()
+                    ?? throw new PublicWarningException("Unable to retrieve IP address");
+                    _hashedIpAddress = HashingUtility.HashIpAddress(ipAddress: ipAddress);
+                }
+                return _hashedIpAddress;
+            }
+        }
 
         public bool IsRequestAjax => _httpContextAccessor.HttpContext?.Request.Headers.XRequestedWith.ToString() == "XMLHttpRequest";
 

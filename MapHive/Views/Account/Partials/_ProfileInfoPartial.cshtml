@@ -1,5 +1,5 @@
 @using MapHive.Models.Enums
-@model MapHive.Models.ViewModels.BaseProfileViewModel
+@model MapHive.Models.ViewModels.IBaseProfileViewModel
 @{
     // Determine if this is the current user's private profile
     bool isPrivateProfile = User.Identity?.Name == Model.Username && Context.Request.Path.Value?.Contains("/PrivateProfile") == true;
@@ -11,7 +11,7 @@
             <h2 class="card-title">Profile Information</h2>
             @if (isPrivateProfile)
             {
-                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="true" class="btn btn-light btn-sm">
+                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@Model.AccountId" asp-route-viewPublic="true" class="btn btn-light btn-sm">
                     <i class="bi bi-eye"></i> Show Public Profile
                 </a>
             }
@@ -37,8 +37,8 @@
                 @{
                     string tierClass = Model.Tier switch
                     {
-                        UserTier.Admin => "bg-danger",
-                        UserTier.Trusted => "bg-success",
+                        AccountTier.Admin => "bg-danger",
+                        AccountTier.Trusted => "bg-success",
                         _ => "bg-warning text-dark"
                     };
                 }

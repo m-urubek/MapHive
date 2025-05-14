@@ -6,14 +6,15 @@ namespace MapHive.Controllers
     using MapHive.Services;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using MapHive.Repositories;
 
     [Authorize]
     public class IpBansController(
         IDataGridService dataGridService,
-        IIpBansService ipBansService) : Controller
+        IIpBansRepository ipBansRepository) : Controller
     {
         private readonly IDataGridService _dataGridService = dataGridService;
-        private readonly IIpBansService _ipBansService = ipBansService;
+        private readonly IIpBansRepository _ipBansRepository = ipBansRepository;
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
@@ -34,7 +35,7 @@ namespace MapHive.Controllers
         [Authorize(Roles = "Admin,2")]
         public async Task<IActionResult> Remove(int id)
         {
-            bool success = await _ipBansService.RemoveIpBanAsync(banId: id);
+            bool success = await _ipBansRepository.RemoveIpBanAsync(banId: id);
             if (success)
             {
                 TempData["SuccessMessage"] = "IP ban removed successfully.";

@@ -7,13 +7,16 @@ namespace MapHive.Controllers
     using MapHive.Services;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using MapHive.Repositories;
 
     [Authorize]
-    public class AdminController(IAdminService adminService, IMapper mapper, IDataGridService dataGridService) : Controller
+    public class AdminController(IAdminService adminService, IMapper mapper, IDataGridService dataGridService, IUserContextService userContextService, IAccountBansRepository accountBansRepository) : Controller
     {
         private readonly IAdminService _adminService = adminService;
         private readonly IMapper _mapper = mapper;
         private readonly IDataGridService _dataGridService = dataGridService;
+        private readonly IUserContextService _userContextService = userContextService;
+        private readonly IAccountBansRepository _accountBansRepository = accountBansRepository;
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
@@ -91,18 +94,18 @@ namespace MapHive.Controllers
 
         #endregion
 
-        #region Users Management
+        #region Accounts Management
 
         [HttpGet]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Users()
+        public async Task<IActionResult> Accounts()
         {
             DataGridViewModel viewModel = new()
             {
-                Title = "Manage Users",
-                TableName = "Users",
+                Title = "Manage Accounts",
+                TableName = "Accounts",
                 ColumnNames = new List<string>(),
-                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Users")
+                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Accounts")
             };
             return View("_DataGrid", viewModel);
         }
@@ -110,10 +113,45 @@ namespace MapHive.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> UpdateUserTier(int userId, UserTier userTier)
+        public async Task<IActionResult> UpdateAccountTier(int accountId, AccountTier AccountTier)
         {
-            await _adminService.UpdateUserTierAsync(userId: userId, tier: userTier);
-            return RedirectToAction(actionName: "Users");
+            await _adminService.UpdateAccountTierAsync(accountId: accountId, tier: AccountTier);
+            return RedirectToAction(actionName: "Accounts");
+        }
+        #endregion
+        #region Bans
+        /// <summary>
+        /// Unbans the specified user account.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> UnbanAccount(int id)
+        {
+            _userContextService.EnsureAuthenticatedAndAdmin();
+            bool success = await _accountBansRepository.RemoveAccountBanAsync(banId: id);
+            if (success)
+            {
+                TempData["SuccessMessage"] = "User account unbanned successfully.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Failed to unban user account.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,2")]
+        public async Task<IActionResult> Ban(BanViewModel banViewModel)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model: banViewModel);
+            }
+            _ = await _adminService.BanAsync(banViewModel: banViewModel);
+            return RedirectToAction(actionName: "PublicProfileById", controllerName: "Account", routeValues: new { accountId = banViewModel.AccountId });
         }
 
         #endregion
@@ -217,7 +255,7 @@ namespace MapHive.Controllers
             {
                 Title = "System Logs",
                 TableName = "Logs",
-                ColumnNames = new List<string> { "Id_Log", "Timestamp", "SeverityId", "Message", "UserId", "RequestPath", "Source", "AdditionalData" },
+                ColumnNames = new List<string> { "Id_Log", "Timestamp", "SeverityId", "Message", "AccountId", "RequestPath", "Source", "AdditionalData" },
                 Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Logs")
             };
             return View("_DataGrid", viewModel);

@@ -8,7 +8,7 @@ namespace MapHive.Services
         /// <summary>
         /// Gets the current authenticated user's ID, or null if not authenticated.
         /// </summary>
-        int UserIdRequired { get; }
+        int AccountIdRequired { get; }
 
         /// <summary>
         /// Gets the current authenticated user's username, or null if not authenticated.
@@ -28,5 +28,7 @@ namespace MapHive.Services
         bool IsAuthenticatedAndAdmin { get; }
 
         void EnsureAuthenticated();
+        
+        void EnsureAuthenticatedAndAdmin();
     }
 }

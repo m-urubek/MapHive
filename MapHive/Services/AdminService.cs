@@ -1,25 +1,38 @@
 namespace MapHive.Services
 {
     using System.Data;
+    using AutoMapper;
     using MapHive.Models.Enums;
+    using MapHive.Models.Exceptions;
     using MapHive.Models.RepositoryModels;
     using MapHive.Models.ViewModels;
     using MapHive.Repositories;
     using MapHive.Singletons;
+    using MapHive.Utilities;
 
     public class AdminService(
         IMapLocationRepository mapLocationRepository,
-        ISqlClientSingleton sqlClient,
+        IUserContextService userContextService,
+        IRequestContextService requestContextService,
         IConfigurationService configSingleton,
-        IUserRepository userRepository) : IAdminService
+        ISqlClientSingleton sqlClientSingleton,
+        IAccountBansService accountBansService,
+        IIpBansService ipBansService,
+        IAccountsRepository accountRepository,
+        IMapper mapper) : IAdminService
     {
         private readonly IMapLocationRepository _mapLocationRepository = mapLocationRepository;
-        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClient;
+        private readonly IUserContextService _userContextService = userContextService;
+        private readonly IMapper _mapper = mapper;
+        private readonly IRequestContextService _requestContextService = requestContextService;
         private readonly IConfigurationService _configSingleton = configSingleton;
-        private readonly IUserRepository _userRepository = userRepository;
+        private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+        private readonly IAccountBansService _accountBansService = accountBansService;
+        private readonly IIpBansService _ipBansService = ipBansService;
+        private readonly IAccountsRepository _accountsRepository = accountRepository;
         private static readonly char[] separator = ['\n', '\r'];
 
-        // Category management
+        // CategoryName management
         public Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
         {
             return _mapLocationRepository.GetAllCategoriesAsync();
@@ -45,9 +58,9 @@ namespace MapHive.Services
             return Task.Run(function: () => _mapLocationRepository.DeleteCategoryAsync(id: id));
         }
 
-        public Task UpdateUserTierAsync(int userId, UserTier tier)
+        public Task UpdateAccountTierAsync(int accountId, AccountTier tier)
         {
-            return _userRepository.UpdateUserTierAsync(tierDto: new UserTierUpdate { UserId = userId, Tier = tier });
+            return _accountsRepository.UpdateAccountTierAsync(tierDto: new AccountTierUpdate { AccountId = accountId, Tier = tier });
         }
 
         // SQL execution
@@ -128,103 +141,47 @@ namespace MapHive.Services
             return _configSingleton.DeleteConfigurationItemAsync(key: key);
         }
 
-        public async Task<BanDetailViewModel> GetBanDetailsAsync(int id)
-        {
-            UserBanGet? ban = await _userRepository.GetActiveBanByUserIdAsync(userId: id) ?? throw new KeyNotFoundException($"Ban {id} not found");
-            string bannedUsername = ban.Properties.TryGetValue(key: "BannedUsername", value: out string? userVal)
-                ? userVal
-                : ban.UserId.HasValue ? await _userRepository.GetUsernameByIdAsync(userId: ban.UserId.Value) : string.Empty;
-            string bannedByUsername = ban.Properties.TryGetValue(key: "BannedByUsername", value: out string? adminVal)
-                ? adminVal
-                : await _userRepository.GetUsernameByIdAsync(userId: ban.BannedByUserId);
-            return new BanDetailViewModel
-            {
-                Ban = ban,
-                BannedUsername = bannedUsername,
-                BannedByUsername = bannedByUsername
-            };
-        }
-
-        public Task<bool> RemoveBanAsync(int id)
-        {
-            return _userRepository.UnbanUserAsync(banId: id);
-        }
-
         /// <summary>
         /// Gets data for rendering the Ban User page from Profiles.
         /// </summary>
-        public async Task<BanUserPageViewModel> GetBanUserPageViewModelAsync(int adminId, string username)
+        public async Task<BanUserPageViewModel> GetBanUserPageViewModelAsync(int accountId)
         {
-            // Ensure caller is admin
-            UserGet? admin = await _userRepository.GetUserByIdAsync(id: adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
-            {
-                throw new UnauthorizedAccessException("Only administrators can access ban functionality.");
-            }
-
+            _userContextService.EnsureAuthenticatedAndAdmin();
             // Get user to ban
-            UserGet? user = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new KeyNotFoundException($"User '{username}' not found.");
-
-            // Determine registration IP
-            string? registrationIp = user.IpAddressHistory?
-                .Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault() ?? "N/A";
+            AccountGet? user = await _accountsRepository.GetAccountByIdOrThrowAsync(id: accountId);
 
             return new BanUserPageViewModel
             {
                 Username = user.Username,
-                UserId = user.Id,
-                UserTier = user.Tier,
-                RegistrationIp = registrationIp
+                AccountId = user.Id,
+                AccountTier = user.Tier
             };
         }
 
-        /// <summary>
-        /// Applies a ban for the specified user or IP as an admin.
-        /// </summary>
-        public async Task<bool> BanUserAsync(int adminId, string username, BanViewModel model)
+        public async Task<int> BanAsync(BanViewModel banViewModel)
         {
-            // Ensure caller is admin
-            UserGet? admin = await _userRepository.GetUserByIdAsync(id: adminId);
-            if (admin == null || admin.Tier != UserTier.Admin)
-            {
-                throw new UnauthorizedAccessException("Only administrators can perform bans.");
-            }
+            AccountGet accountGet = await _accountsRepository.GetAccountByIdOrThrowAsync(id: banViewModel.AccountId);
+            if (accountGet.Tier == AccountTier.Admin)
+                throw new PublicErrorException("You cannot ban an admin account.");
 
-            // Get target user
-            UserGet? user = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new KeyNotFoundException($"User '{username}' not found.");
-
-            // Build ban DTO
-            UserBanGetCreate banDto = new()
+            if (banViewModel.BanType == BanType.Account)
             {
-                BannedByUserId = adminId,
-                Reason = model.Reason,
-                BanType = model.BanType,
-                BannedAt = DateTime.UtcNow
-            };
-            if (!model.IsPermanent && model.BanDurationDays.HasValue)
-            {
-                banDto.ExpiresAt = DateTime.UtcNow.AddDays(value: model.BanDurationDays.Value);
+                return await _accountBansService.BanAccountAsync(
+                    accountId: banViewModel.AccountId,
+                    isPermanent: banViewModel.IsPermanent,
+                    durationInDays: banViewModel.BanDurationDays,
+                    reason: banViewModel.Reason
+                );
             }
-            if (model.BanType == BanType.Account)
+            else
             {
-                banDto.UserId = user.Id;
+                return await _ipBansService.BanIpAddressAsync(
+                    hashedIpAddress: accountGet.IpAddressHistory.Split(separator: Environment.NewLine, options: StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? throw new Exception("Unable to read last login IP of an account from database"),
+                    isPermanent: banViewModel.IsPermanent,
+                    durationInDays: banViewModel.BanDurationDays,
+                    reason: banViewModel.Reason
+                );
             }
-            else // IP ban
-            {
-                string? registrationIp = user.IpAddressHistory?
-                    .Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault();
-                if (string.IsNullOrEmpty(value: registrationIp))
-                {
-                    throw new InvalidOperationException("Cannot determine registration IP for IP ban.");
-                }
-
-                banDto.HashedIpAddress = registrationIp;
-            }
-
-            int banId = await _userRepository.BanUserAsync(banDto: banDto);
-            return banId > 0;
         }
     }
 }

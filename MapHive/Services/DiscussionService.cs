@@ -46,33 +46,33 @@ namespace MapHive.Services
             };
         }
 
-        public Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadViewModel model, int userId)
+        public Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadViewModel model, int accountId)
         {
             DiscussionThreadCreate dto = _mapper.Map<DiscussionThreadCreate>(source: model);
-            dto.UserId = userId;
+            dto.AccountId = accountId;
             dto.IsReviewThread = false;
             dto.ReviewId = null;
             return _discussionRepository.CreateDiscussionThreadAsync(thread: dto, initialMessage: model.InitialMessage);
         }
 
-        public Task<ThreadMessageGet> AddMessageAsync(ThreadMessageViewModel model, int userId)
+        public Task<ThreadMessageGet> AddMessageAsync(ThreadMessageViewModel model, int accountId)
         {
             ThreadMessageCreate dto = _mapper.Map<ThreadMessageCreate>(source: model);
-            dto.UserId = userId;
+            dto.AccountId = accountId;
             dto.IsInitialMessage = false;
             return _discussionRepository.AddMessageAsync(message: dto);
         }
 
-        public async Task DeleteMessageAsync(int messageId, int userId)
+        public async Task DeleteMessageAsync(int messageId, int accountId)
         {
             ThreadMessageGet message = await _discussionRepository.GetMessageByIdAsync(id: messageId)
                 ?? throw new KeyNotFoundException($"Message {messageId} not found");
-            if (!_userContextService.IsAdminRequired && message.UserId != userId)
+            if (!_userContextService.IsAdminRequired && message.AccountId != accountId)
             {
                 throw new UnauthorizedAccessException();
             }
 
-            _ = await _discussionRepository.DeleteMessageAsync(id: messageId, deletedByUserId: userId);
+            _ = await _discussionRepository.DeleteMessageAsync(id: messageId, deletedByAccountId: accountId);
         }
 
         public async Task<int> DeleteThreadAsync(int threadId)

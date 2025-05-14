@@ -2,6 +2,8 @@ namespace MapHive.Services
 {
     using MapHive.Models;
     using MapHive.Models.BusinessModels;
+    using MapHive.Models.RepositoryModels;
+    using MapHive.Models.ViewModels;
 
     public interface IAccountService
     {
@@ -14,11 +16,14 @@ namespace MapHive.Services
         /// <summary>
         /// Changes the username for the given user.
         /// </summary>
-        Task ChangeUsernameAsync(int userId, string newUsername);
+        Task ChangeUsernameAsync(int accountId, string newUsername);
 
         /// <summary>
         /// Changes the password for the given user.
         /// </summary>
-        Task ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+        Task ChangePasswordAsync(int accountId, string currentPassword, string newPassword);
+
+        Task<BanViewModel?> GetActiveBanViewModelAsync(int accountId);
+
     }
 }

@@ -19,15 +19,16 @@ namespace MapHive.Models.BusinessModels
             _ = CreateMap<ReviewViewModel, ReviewUpdate>();
             _ = CreateMap<DiscussionThreadViewModel, DiscussionThreadCreate>();
             _ = CreateMap<ThreadMessageViewModel, ThreadMessageCreate>();
-            // Category mapping
+            // CategoryName mapping
             _ = CreateMap<CategoryGet, CategoryUpdate>();
 
-            _ = CreateMap<UserGet, UserLogin>();
+            _ = CreateMap<AccountGet, UserLogin>();
             _ = CreateMap<UserLogin, UserUpdate>();
-            _ = CreateMap<UserGet, UserUpdate>();
-            _ = CreateMap<UserGet, UserLogin>();
+            _ = CreateMap<AccountGet, UserUpdate>();
+            _ = CreateMap<AccountGet, UserLogin>();
 
             _ = CreateMap<DataGridGet, DataGridViewModel>();
+            _ = CreateMap<MapLocationGet, MapLocationUpdate>();
         }
     }
 }

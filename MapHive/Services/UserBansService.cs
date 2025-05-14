@@ -5,46 +5,22 @@ namespace MapHive.Services
     using MapHive.Models.RepositoryModels;
     using MapHive.Repositories;
 
-    public class UserBansService(
-        IUserBansRepository userBansRepository) : IUserBansService
+    public class AccountBansService(
+        IAccountBansRepository accountBansRepository,
+        IUserContextService userContextService) : IAccountBansService
     {
-        private readonly IUserBansRepository _userBansRepository = userBansRepository;
+        private readonly IAccountBansRepository _accountBansRepository = accountBansRepository;
+        private readonly IUserContextService _userContextService = userContextService;
 
-        public Task<int> BanUserAsync(UserBanGetCreate banDto)
+        public Task<int> BanAccountAsync(int accountId, bool isPermanent, int? durationInDays, string? reason)
         {
-            return _userBansRepository.BanUserAsync(banDto);
-        }
-
-        public Task<bool> RemoveUserBanAsync(int banId)
-        {
-            return _userBansRepository.RemoveUserBanAsync(banId);
-        }
-
-        public Task<UserBanGet?> GetActiveBanByUserIdAsync(int userId)
-        {
-            return _userBansRepository.GetActiveBanByUserIdAsync(userId);
-        }
-
-        public Task<UserBanGet?> GetActiveBanByIpAddressAsync(string hashedIpAddress)
-        {
-            return _userBansRepository.GetActiveBanByIpAddressAsync(hashedIpAddress);
-        }
-
-        public Task<IEnumerable<UserBanGet>> GetAllActiveBansAsync()
-        {
-            return _userBansRepository.GetAllActiveBansAsync();
-        }
-
-        public Task<IEnumerable<UserBanGet>> GetAllBansAsync(
-            string searchTerm = "",
-            int page = 1,
-            int pageSize = 20,
-            string sortColumnName = "",
-            string sortDirection = "asc")
-        {
-            return _userBansRepository.GetAllBansAsync(
-                        searchTerm: searchTerm, page: page, pageSize: pageSize,
-                        sortColumnName: sortColumnName, sortDirection: sortDirection);
+            return _accountBansRepository.BanAccountAsync(new AccountBanCreate(){
+                AccountId = accountId,
+                BannedByAccountId = _userContextService.AccountIdRequired,
+                BannedAt = DateTime.UtcNow,
+                ExpiresAt = isPermanent ? null : DateTime.UtcNow.AddDays(durationInDays ?? 0),
+                Reason = reason
+            });
         }
     }
 }

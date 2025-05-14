@@ -10,13 +10,13 @@ namespace MapHive.Repositories
         Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadCreate thread, string initialMessage);
         Task<DiscussionThreadGet> CreateReviewThreadAsync(ReviewThreadCreate threadCreate);
         Task<bool> DeleteThreadAsync(int id);
-        Task<List<DiscussionThreadGet>> GetThreadsByUserIdAsync(int userId);
+        Task<List<DiscussionThreadGet>> GetThreadsByAccountIdAsync(int accountId);
 
         // Message operations
         Task<List<ThreadMessageGet>> GetMessagesByThreadIdAsync(int threadId);
         Task<ThreadMessageGet?> GetMessageByIdAsync(int id);
         Task<ThreadMessageGet> AddMessageAsync(ThreadMessageCreate message);
-        Task<bool> DeleteMessageAsync(int id, int deletedByUserId);
+        Task<bool> DeleteMessageAsync(int id, int deletedByAccountId);
         Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage);
     }
 }

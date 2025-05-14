@@ -36,8 +36,8 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserIdRequired;
-                Models.RepositoryModels.DiscussionThreadGet created = await _discussionService.CreateDiscussionThreadAsync(model: discussionThreadViewModel, userId: userId);
+                int accountId = _userContextService.AccountIdRequired;
+                Models.RepositoryModels.DiscussionThreadGet created = await _discussionService.CreateDiscussionThreadAsync(model: discussionThreadViewModel, accountId: accountId);
                 return RedirectToAction(actionName: "Thread", routeValues: new { id = created.Id });
             }
 
@@ -53,8 +53,8 @@ namespace MapHive.Controllers
         {
             if (ModelState.IsValid)
             {
-                int userId = _userContextService.UserIdRequired;
-                _ = await _discussionService.AddMessageAsync(model: threadMessageViewModel, userId: userId);
+                int accountId = _userContextService.AccountIdRequired;
+                _ = await _discussionService.AddMessageAsync(model: threadMessageViewModel, accountId: accountId);
                 return RedirectToAction(actionName: "Thread", routeValues: new { id = threadMessageViewModel.ThreadId });
             }
 
@@ -68,8 +68,8 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteMessage(int id)
         {
-            int userId = _userContextService.UserIdRequired;
-            await _discussionService.DeleteMessageAsync(messageId: id, userId: userId);
+            int accountId = _userContextService.AccountIdRequired;
+            await _discussionService.DeleteMessageAsync(messageId: id, accountId: accountId);
             // After deletion, threadId is not directly available; service ensures message thread exists before deletion
             // Redirect back to thread (client may need to know threadId separately)
             return RedirectToAction(actionName: "Thread", routeValues: new { id });

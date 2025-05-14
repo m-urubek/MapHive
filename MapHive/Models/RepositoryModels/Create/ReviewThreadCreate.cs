@@ -5,18 +5,21 @@ namespace MapHive.Models.RepositoryModels
     public class ReviewThreadCreate
     {
         [Required]
-        public int ReviewId { get; set; }
+        public required int ReviewId { get; set; }
 
         [Required]
-        public int LocationId { get; set; }
+        public required int LocationId { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public required int AccountId { get; set; }
 
         [Required]
-        public string Username { get; set; } = string.Empty;
+        public required string Username { get; set; }
 
         [Required]
-        public string ReviewTitle { get; set; } = string.Empty;
+        public required string ReviewTitle { get; set; }
+
+        [Required]
+        public required bool IsAnonymous { get; set; }
     }
 }

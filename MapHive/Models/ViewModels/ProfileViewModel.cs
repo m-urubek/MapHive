@@ -5,21 +5,19 @@ namespace MapHive.Models.ViewModels
     using MapHive.Models.RepositoryModels;
 
     // Base profile view model with shared properties
-    public class BaseProfileViewModel
+    public abstract class IBaseProfileViewModel
     {
-        public string Username { get; set; } = string.Empty;
-        public UserTier Tier { get; set; }
-        public DateTime RegistrationDate { get; set; }
-
-        // UserLogin's locations
-        public IEnumerable<MapLocationGet> UserLocations { get; set; } = new List<MapLocationGet>();
-
-        // UserLogin's threads
-        public IEnumerable<DiscussionThreadGet> UserThreads { get; set; } = new List<DiscussionThreadGet>();
+        public required string Username { get; set; }
+        public required int AccountId { get; set; }
+        public required AccountTier Tier { get; set; }
+        public required DateTime RegistrationDate { get; set; }
+        public required IEnumerable<MapLocationGet> UserLocations { get; set; }
+        public required IEnumerable<DiscussionThreadGet> UserThreads { get; set; }
+        public BanViewModel? CurrentBan { get; set; }
     }
 
     // Private profile - for the logged in user viewing their own profile
-    public class PrivateProfileViewModel : BaseProfileViewModel
+    public class PrivateProfileViewModel : IBaseProfileViewModel
     {
         // For changing username
         public ChangeUsernameViewModel ChangeUsernameViewModel { get; set; } = new ChangeUsernameViewModel();
@@ -29,22 +27,9 @@ namespace MapHive.Models.ViewModels
     }
 
     // Public profile - for viewing another user's profile
-    public class PublicProfileViewModel : BaseProfileViewModel
+    public class PublicProfileViewModel : IBaseProfileViewModel
     {
-        // UserLogin ID of the profile owner
-        public int UserId { get; set; }
-
-        // Ban information (if the user is banned)
-        public UserBanGet? CurrentBan { get; set; }
-
-        // For admins to ban the user
-        public bool IsAdmin { get; set; }
-    }
-
-    // For backward compatibility
-    public class ProfileViewModel : PrivateProfileViewModel
-    {
-        // This class inherits all properties from PrivateProfileViewModel
+        
     }
 
     public class ChangeUsernameViewModel

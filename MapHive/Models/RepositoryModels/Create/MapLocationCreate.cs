@@ -30,7 +30,7 @@ namespace MapHive.Models.RepositoryModels
         [StringLength(50, ErrorMessage = "Phone number cannot be longer than 50 characters")]
         public required string PhoneNumber { get; set; }
 
-        public required int UserId { get; set; }
+        public required int AccountId { get; set; }
 
         public required bool IsAnonymous { get; set; } = false;
 

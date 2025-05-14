@@ -4,8 +4,8 @@ namespace MapHive.Models.RepositoryModels
 
     public class CategoryCreate
     {
-        [Required(ErrorMessage = "Category name is required")]
-        [StringLength(50, MinimumLength = 2, ErrorMessage = "Category name must be between 2 and 50 characters")]
+        [Required(ErrorMessage = "CategoryName name is required")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "CategoryName name must be between 2 and 50 characters")]
         public required string Name { get; set; }
 
         [StringLength(200, ErrorMessage = "Description cannot exceed 200 characters")]

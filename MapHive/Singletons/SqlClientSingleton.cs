@@ -398,11 +398,11 @@ namespace MapHive.Singletons
             string adminPassword = "admin"; // Plain text password
             string hashedPassword = MapHive.Utilities.HashingUtility.HashPassword(password: adminPassword);
             DateTime registrationDate = DateTime.UtcNow;
-            int adminTier = (int)UserTier.Admin; // Assuming UserTier is an enum and Admin maps to an int
+            int adminTier = (int)AccountTier.Admin; // Assuming AccountTier is an enum and Admin maps to an int
 
             // Insert admin user
             string insertAdminQuery = @"
-                INSERT INTO Users (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
+                INSERT into Accounts (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory)
                 VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory);
             ";
             SQLiteParameter[] adminParams =

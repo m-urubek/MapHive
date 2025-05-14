@@ -49,7 +49,7 @@ namespace MapHive.Services
                 TableName = tableName,
                 ItemId = id,
                 Data = data,
-                IsUsersTable = tableName.Equals(value: "Users", comparisonType: StringComparison.OrdinalIgnoreCase)
+                IsUsersTable = tableName.Equals(value: "Accounts", comparisonType: StringComparison.OrdinalIgnoreCase)
             };
             if (vm.IsUsersTable && data.TryGetValue(key: "Username", value: out string? username))
             {

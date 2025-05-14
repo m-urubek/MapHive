@@ -5,7 +5,7 @@ namespace MapHive.Repositories
     using MapHive.Models.RepositoryModels;
     using MapHive.Services;
     using MapHive.Singletons;
-    using MapHive.Utilities;
+    using MapHive.Utilities.Extensions;
 
     public class ConfigurationRepository(ISqlClientSingleton sqlClientSingleton, ILogManagerService logManagerService) : IConfigurationRepository
     {
@@ -86,13 +86,12 @@ namespace MapHive.Repositories
 
         private ConfigurationItem MapDataRowToConfigurationItem(DataRow row)
         {
-            const string table = "Configuration";
             return new ConfigurationItem
             {
-                Id = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Id_Configuration", isRequired: true, converter: Convert.ToInt32),
-                Key = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Key", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
-                Value = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Value", isRequired: true, converter: v => v.ToString()!, defaultValue: string.Empty),
-                Description = row.GetValueOrDefault(_logManagerService, tableName: table, columnName: "Description", isRequired: false, converter: v => v.ToString()!, defaultValue: default)
+                Id = row.GetValueOrThrow<int>(columnName: "Id_Configuration"),
+                Key = row.GetValueOrThrow<string>(columnName: "Key"),
+                Value = row.GetValueOrThrow<string>(columnName: "Value"),
+                Description = row.GetAsNullableString(columnName: "Description")
             };
         }
     }

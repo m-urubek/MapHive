@@ -16,7 +16,7 @@ namespace MapHive.Models.RepositoryModels
         public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
 
         [Required(ErrorMessage = "UserLogin tier is required")]
-        public UserTier Tier { get; set; }
+        public AccountTier Tier { get; set; }
 
         public string IpAddressHistory { get; set; } = string.Empty;
     }

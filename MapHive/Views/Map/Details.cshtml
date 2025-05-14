@@ -1,4 +1,5 @@
 @model MapHive.Models.ViewModels.MapLocationViewModel
+@using MapHive.Models.Exceptions
 @using MapHive.Models.RepositoryModels
 @using System.Data
 
@@ -25,14 +26,9 @@
 
                         <dt class="col-sm-4">Category</dt>
                         <dd class="col-sm-8">
-    using System.Data;
-                            @if (Model.MapLocationGet.Category != null)
+                            @if (Model.MapLocationGet.CategoryName != null)
                             {
-                                <span>@Model.MapLocationGet.Category.Name</span>
-                                @if (!string.IsNullOrEmpty(Model.MapLocationGet.Category.Icon))
-                                {
-                                    <i class="@Model.MapLocationGet.Category.Icon ms-1"></i>
-                                }
+                                <span>@Model.MapLocationGet.CategoryName</span>
                             }
                             else
                             {
@@ -75,7 +71,7 @@
                             }
                             else
                             {
-                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
+                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@(Model.AuthorId ?? throw new PublicErrorException("Author id is null"))" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
                             }
                         </dd>
 
@@ -112,8 +108,7 @@
                     </dl>
                 </div>
                 <div class="card-footer">
-                    @if (User.Identity?.IsAuthenticated == true &&
-                          (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.MapLocationGet.UserId.ToString()))
+                    @if (Model.CanEdit)
                     {
                         <a asp-action="Edit" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-warning">Edit</a>
                         <a asp-action="Delete" asp-route-id="@Model.MapLocationGet.Id" class="btn btn-danger">Delete</a>
@@ -176,7 +171,7 @@
                                         else
                                         {
                                             <span class="fw-bold">
-                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@review.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == review.AuthorUsername ? "true" : null)">@review.AuthorUsername</a>
+                                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-accountId="@review.AccountId" asp-route-viewPublic="@(User.Identity?.Name == review.AuthorUsername ? "true" : null)">@review.AuthorUsername</a>
                                             </span>
                                         }
                                         <span class="text-muted ms-2">@review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
@@ -214,7 +209,7 @@
 
                                     <div>
                                         @if (User.Identity?.IsAuthenticated == true &&
-                                       (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == review.UserId.ToString()))
+                                       (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == review.AccountId.ToString()))
                                         {
                                             <a asp-controller="Review" asp-action="Edit" asp-route-id="@review.Id" class="btn btn-sm btn-outline-warning me-2">
                                                 <i class="fas fa-edit"></i> Edit

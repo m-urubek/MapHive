@@ -11,6 +11,6 @@ namespace MapHive.Repositories
         Task<bool> DeleteReviewAsync(int id);
         Task<double> GetAverageRatingForLocationAsync(int locationId);
         Task<int> GetReviewCountForLocationAsync(int locationId);
-        Task<bool> HasUserReviewedLocationAsync(int userId, int locationId);
+        Task<bool> HasUserReviewedLocationAsync(int accountId, int locationId);
     }
 }

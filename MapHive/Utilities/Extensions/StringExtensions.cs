@@ -1,0 +1,4 @@
+namespace MapHive.Utilities.Extensions
+{
+
+}

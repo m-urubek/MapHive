@@ -38,13 +38,12 @@ namespace MapHive.Models.RepositoryModels
 
         public required DateTime UpdatedAt { get; set; }
 
-        public required int UserId { get; set; }
+        public required int AccountId { get; set; }
 
         public required bool IsAnonymous { get; set; } = false;
 
         public required int CategoryId { get; set; }
 
-        [JsonIgnore]
-        public CategoryGet? Category { get; set; } //todo use join properly
+        public required string CategoryName { get; set; } //todo use join properly
     }
 }

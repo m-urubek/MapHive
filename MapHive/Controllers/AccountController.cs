@@ -150,110 +150,26 @@ namespace MapHive.Controllers
             return RedirectToAction(actionName: "Index", controllerName: "Home");
         }
 
-        [HttpGet]
-        [Authorize]
-        public IActionResult Profile()
-        {
-            return !_userContextService.IsAuthenticated
-                ? throw new PublicErrorException(message: "User is not authenticated.")
-                : (IActionResult)RedirectToAction(actionName: "PrivateProfile");
-        }
-
-        [HttpGet]
+        [HttpGet("MyProfile")]
         [Authorize]
         public async Task<IActionResult> PrivateProfile()
         {
-            if (!_userContextService.IsAuthenticated)
-                throw new PublicErrorException(message: "User is not authenticated.");
-            int userId = _userContextService.UserIdRequired;
-            PrivateProfileViewModel? viewModel = await _profileService.GetPrivateProfileAsync(userId: userId);
+            PrivateProfileViewModel? viewModel = await _profileService.GetPrivateProfileAsync();
             return viewModel == null ? RedirectToAction(actionName: "Login") : View(model: viewModel);
         }
 
-        [HttpGet]
-        public async Task<IActionResult> PublicProfile(string username)
+        [HttpGet("Profile/{username}")]
+        public async Task<IActionResult> PublicProfileByName(string username)
         {
-            PublicProfileViewModel? viewModel = await _profileService.GetPublicProfileAsync(username: username);
-            return viewModel == null ? RedirectToAction(actionName: "Index", controllerName: "Home") : View(model: viewModel);
+            PublicProfileViewModel viewModel = await _profileService.GetPublicProfileAsync(username: username);
+            return View(viewName: "PublicProfile", model: viewModel);
         }
 
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> BanUser(string username)
+        [HttpGet("Profile/Id/{accountId:int}")]
+        public async Task<IActionResult> PublicProfileById(int accountId)
         {
-            if (!_userContextService.IsAuthenticated)
-                throw new PublicErrorException(message: "User is not authenticated.");
-
-            try
-            {
-                BanUserPageViewModel vm = await _adminService.GetBanUserPageViewModelAsync(adminId: _userContextService.UserIdRequired, username: username);
-                return View(model: vm);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> ProcessBan(string username, BanViewModel banViewModel)
-        {
-            if (!_userContextService.IsAuthenticated)
-                throw new PublicErrorException(message: "User is not authenticated.");
-
-            try
-            {
-                bool success = await _adminService.BanUserAsync(adminId: _userContextService.UserIdRequired, username: username, model: banViewModel);
-                if (success)
-                {
-                    TempData["SuccessMessage"] = banViewModel.BanType == BanType.Account
-                        ? $"User {username} has been banned successfully." // using username
-                        : "IP address ban applied successfully.";
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = "Failed to ban user. Please try again.";
-                }
-                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> UnbanUser(int banId, string username)
-        {
-            try
-            {
-                bool success = await _adminService.RemoveBanAsync(id: banId);
-                if (success)
-                {
-                    TempData["SuccessMessage"] = "Ban has been removed successfully.";
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = "Failed to remove ban. Please try again.";
-                }
-                return RedirectToAction(actionName: "PublicProfile", routeValues: new { username });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
+            PublicProfileViewModel viewModel = await _profileService.GetPublicProfileAsync(accountId: accountId);
+            return View(viewName: "PublicProfile", model: viewModel);
         }
 
         [HttpPost]
@@ -261,16 +177,15 @@ namespace MapHive.Controllers
         [Authorize]
         public async Task<IActionResult> ChangeUsername(ChangeUsernameViewModel changeUsernameViewModel)
         {
-
             if (!ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync();
                 profileVm.ChangeUsernameViewModel = changeUsernameViewModel;
                 return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            int userId = _userContextService.UserIdRequired;
-            if (userId == 0)
+            int accountId = _userContextService.AccountIdRequired;
+            if (accountId == 0)
             {
                 return RedirectToAction(actionName: "Login");
             }
@@ -278,17 +193,17 @@ namespace MapHive.Controllers
             try
             {
                 // Delegate change to service
-                await _accountService.ChangeUsernameAsync(userId: userId, newUsername: changeUsernameViewModel.NewUsername);
+                await _accountService.ChangeUsernameAsync(accountId: accountId, newUsername: changeUsernameViewModel.NewUsername);
 
                 // Reissue authentication cookie with new username
-                string tierValue = User.FindFirst(type: "UserTier")?.Value ?? "0";
+                string tierValue = User.FindFirst(type: "AccountTier")?.Value ?? "0";
                 List<Claim> claims = new()
                 {
-                    new Claim(type: ClaimTypes.NameIdentifier, value: userId.ToString()),
+                    new Claim(type: ClaimTypes.NameIdentifier, value: accountId.ToString()),
                     new Claim(type: ClaimTypes.Name, value: changeUsernameViewModel.NewUsername),
-                    new Claim(type: "UserTier", value: tierValue)
+                    new Claim(type: "AccountTier", value: tierValue)
                 };
-                AddAdminRoleClaim(claims: claims, tier: (UserTier)int.Parse(s: tierValue));
+                AddAdminRoleClaim(claims: claims, tier: (AccountTier)int.Parse(s: tierValue));
 
                 ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 ClaimsPrincipal principal = new(identity);
@@ -305,7 +220,7 @@ namespace MapHive.Controllers
             catch (UserFriendlyExceptionBase ex)
             {
                 ModelState.AddModelError(key: "ChangeUsernameViewModel.NewUsername", errorMessage: ex.Message);
-                PrivateProfileViewModel? profileOnError = await _profileService.GetPrivateProfileAsync(userId: userId);
+                PrivateProfileViewModel? profileOnError = await _profileService.GetPrivateProfileAsync();
                 profileOnError.ChangeUsernameViewModel = changeUsernameViewModel;
                 return View(viewName: "PrivateProfile", model: profileOnError);
             }
@@ -321,13 +236,13 @@ namespace MapHive.Controllers
 
             if (!ModelState.IsValid)
             {
-                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync(userId: _userContextService.UserIdRequired);
+                PrivateProfileViewModel? profileVm = await _profileService.GetPrivateProfileAsync();
                 profileVm.ChangePasswordViewModel = changePasswordViewModel;
                 return View(viewName: "PrivateProfile", model: profileVm);
             }
 
-            int userId = _userContextService.UserIdRequired;
-            if (userId == 0)
+            int accountId = _userContextService.AccountIdRequired;
+            if (accountId == 0)
             {
                 return RedirectToAction(actionName: "Login");
             }
@@ -335,7 +250,7 @@ namespace MapHive.Controllers
             try
             {
                 // Delegate change to service
-                await _accountService.ChangePasswordAsync(userId: userId, currentPassword: changePasswordViewModel.CurrentPassword, newPassword: changePasswordViewModel.NewPassword);
+                await _accountService.ChangePasswordAsync(accountId: accountId, currentPassword: changePasswordViewModel.CurrentPassword, newPassword: changePasswordViewModel.NewPassword);
 
                 TempData["SuccessMessage"] = "Password changed successfully";
                 return RedirectToAction(actionName: "PrivateProfile");
@@ -343,7 +258,7 @@ namespace MapHive.Controllers
             catch (UserFriendlyExceptionBase ex)
             {
                 ModelState.AddModelError(key: "CurrentPassword", errorMessage: ex.Message);
-                return View(viewName: "PrivateProfile", model: await _profileService.GetPrivateProfileAsync(userId: userId));
+                return View(viewName: "PrivateProfile", model: await _profileService.GetPrivateProfileAsync());
             }
         }
 
@@ -353,9 +268,9 @@ namespace MapHive.Controllers
             return View();
         }
 
-        private static void AddAdminRoleClaim(List<Claim> claims, UserTier tier)
+        private static void AddAdminRoleClaim(List<Claim> claims, AccountTier tier)
         {
-            if (tier == UserTier.Admin)
+            if (tier == AccountTier.Admin)
             {
                 claims.Add(item: new Claim(type: ClaimTypes.Role, value: "Admin"));
             }

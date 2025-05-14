@@ -6,11 +6,6 @@ namespace MapHive.Services
 
     public interface IIpBansService
     {
-        Task<bool> IsIpBannedAsync(string hashedIpAddress);
-        Task<int> CreateIpBanAsync(IpBanCreate ipBan);
-        Task<bool> RemoveIpBanAsync(int banId);
-        Task<IpBanGet?> GetActiveIpBanByIpAddressAsync(string hashedIpAddress);
-        Task<IEnumerable<IpBanGet>> GetAllActiveIpBansAsync();
-        Task<IEnumerable<IpBanGet>> GetAllIpBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortColumnName = "", string sortDirection = "asc");
+        Task<int> BanIpAddressAsync(string hashedIpAddress, bool isPermanent, int? durationInDays, string? reason);
     }
 }
