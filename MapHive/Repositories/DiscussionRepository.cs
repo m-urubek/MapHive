@@ -1,390 +1,234 @@
-using MapHive.Models;
-using MapHive.Singletons;
+namespace MapHive.Repositories;
+
 using System.Data;
 using System.Data.SQLite;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Exceptions;
+using MapHive.Models.PageModels;
+using MapHive.Singletons;
 
-namespace MapHive.Repositories
+public class DiscussionRepository(
+    ISqlClientSingleton _sqlClientSingleton) : IDiscussionRepository
 {
-    public class DiscussionRepository : IDiscussionRepository
+    public async Task<ThreadDisplayPageModel> GetThreadByIdOrThrowAsync(int id)
     {
-        public async Task<IEnumerable<DiscussionThread>> GetDiscussionThreadsByLocationIdAsync(int locationId)
+        return await GetThreadByKeyValueOrThrowAsync(key: "Id_DiscussionThreads", value: id.ToString());
+    }
+
+    public async Task<ThreadDisplayPageModel> GetThreadByReviewIdOrThrowAsync(int reviewId)
+    {
+        return await GetThreadByKeyValueOrThrowAsync(key: "ReviewId", value: reviewId.ToString());
+    }
+
+    public async Task<ThreadDisplayPageModel> GetThreadByKeyValueOrThrowAsync(string key, string value)
+    {
+        string query = $"""
+            SELECT dt.*, r.Rating, u.Username, ml.Name
+            FROM DiscussionThreads dt
+            LEFT JOIN Reviews r ON dt.ReviewId = r.Id_Reviews
+            LEFT JOIN Accounts u ON dt.AuthorId = u.Id_Accounts
+            LEFT JOIN MapLocations ml ON dt.LocationId = ml.Id_MapLocations
+            WHERE dt.{key} = @value
+            """;
+        SQLiteParameter[] parameters = [new("@value", value)];
+        DataTable dt = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+        return dt.Rows.Count == 0
+            ? throw new PublicErrorException($"Thread with '{key}' = '{value}' not found")
+            : await MapRowToThreadDisplay(row: dt.Rows[0]);
+    }
+
+    public async Task<int> CreateDiscussionThreadAsync(
+        int locationId,
+        int accountId,
+        string threadName,
+        int? reviewId,
+        bool isAnonymous
+    )
+    {
+        DateTime now = DateTime.UtcNow;
+        string threadQuery = "INSERT INTO DiscussionThreads (LocationId, AuthorId, ThreadName, ReviewId, IsAnonymous, CreatedAt) VALUES (@LocationId, @AuthorId, @ThreadName, @ReviewId, @IsAnonymous, @CreatedAt);";
+        SQLiteParameter[] threadParams =
+        [
+            new("@LocationId", locationId),
+            new("@AuthorId", accountId),
+            new("@ThreadName", threadName),
+            new("@ReviewId", reviewId),
+            new("@IsAnonymous", isAnonymous),
+            new("@CreatedAt", now)
+        ];
+        return await _sqlClientSingleton.InsertAsync(query: threadQuery, parameters: threadParams);
+    }
+
+    public async Task DeleteThreadOrThrowAsync(int id)
+    {
+        SQLiteParameter[] parameters = [new("@ThreadId", id)];
+        int rowsAffectedCount = await _sqlClientSingleton.DeleteAsync(query: "DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @ThreadId", parameters: parameters);
+        if (rowsAffectedCount == 0)
+            throw new PublicErrorException($"Thread with id {id} not found");
+    }
+
+    public async Task<List<ThreadInitialMessageDbModel>> GetInitialMessageThreadsByLocationIdAsync(int locationId)
+    {
+        return await GetInitialMessageThreadsByKeyValueAsync(key: "LocationId", value: locationId.ToString());
+    }
+
+    public async Task<List<ThreadInitialMessageDbModel>> GetInitialMessageThreadsByAccountIdAsync(int accountId)
+    {
+        return await GetInitialMessageThreadsByKeyValueAsync(key: "AuthorId", value: accountId.ToString());
+    }
+
+    private async Task<List<ThreadInitialMessageDbModel>> GetInitialMessageThreadsByKeyValueAsync(string key, string value)
+    {
+        List<ThreadInitialMessageDbModel> list = new();
+        string query = $"""
+            SELECT
+                dt.*, 
+                u.Username, 
+                COUNT(tm.Id_ThreadMessages) AS MessagesCount, 
+                ml.Name, 
+                initial_message.MessageText AS InitialMessageText,
+                initial_message.DeletedAt as InitialMessageDeletedAt,
+                initial_message.DeletedByAccountId as InitialMessageDeletedByAccountId,
+                u2.Username as InitialMessageDeletedByUsername
+            FROM DiscussionThreads dt
+            LEFT JOIN Accounts u ON dt.AuthorId = u.Id_Accounts
+            LEFT JOIN ThreadMessages tm ON dt.Id_DiscussionThreads = tm.ThreadId
+            LEFT JOIN MapLocations ml ON dt.LocationId = ml.Id_MapLocations
+            LEFT JOIN ThreadMessages initial_message ON 
+                dt.Id_DiscussionThreads = initial_message.ThreadId AND 
+                initial_message.IsInitialMessage = 1
+            LEFT JOIN Accounts u2 ON initial_message.DeletedByAccountId = u2.Id_Accounts
+            WHERE dt.{key} = @value
+            GROUP BY dt.Id_DiscussionThreads
+            ORDER BY dt.CreatedAt DESC
+            """;
+        SQLiteParameter[] parameters = [new("@value", value)];
+        DataTable dt = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+        foreach (DataRow row in dt.Rows)
+            list.Add(item: MapRowToThreadInitialMessage(row: row));
+        return list;
+    }
+
+    public async Task<List<ThreadMessageExtended>> GetMessagesByThreadIdAsync(int threadId)
+    {
+        List<ThreadMessageExtended> list = new();
+        string query = """
+            SELECT tm.*, u.Username AS AuthorUsername, u2.Username AS DeletedByUsername
+            FROM ThreadMessages tm
+            LEFT JOIN Accounts u ON tm.AuthorId = u.Id_Accounts
+            LEFT JOIN Accounts u2 ON tm.DeletedByAccountId = u2.Id_Accounts
+            WHERE ThreadId = @ThreadId ORDER BY CreatedAt
+            """;
+        SQLiteParameter[] parameters = [new("@ThreadId", threadId)];
+        DataTable dt = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+        foreach (DataRow row in dt.Rows)
+            list.Add(item: MapRowToMessageGet(row: row));
+
+        return list;
+    }
+
+    public async Task<ThreadMessageExtended> GetMessageByIdOrThrowAsync(int id)
+    {
+        string query = """
+            SELECT tm.*, u.Username AS AuthorUsername, u2.Username AS DeletedByUsername
+            FROM ThreadMessages tm
+            LEFT JOIN Accounts u ON tm.AuthorId = u.Id_Accounts
+            LEFT JOIN Accounts u2 ON tm.DeletedByAccountId = u2.Id_Accounts
+            WHERE Id_ThreadMessages = @Id
+            """;
+        SQLiteParameter[] parameters = [new("@Id", id)];
+        DataTable dt = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+        return dt.Rows.Count == 0
+            ? throw new PublicErrorException($"Message with id {id} not found")
+            : MapRowToMessageGet(row: dt.Rows[0]);
+    }
+
+    public async Task<int> CreateMessageAsync(
+        int threadId,
+        int authorId,
+        string messageText,
+        bool isInitialMessage
+    )
+    {
+        DateTime now = DateTime.UtcNow;
+        string query = "INSERT INTO ThreadMessages (ThreadId, AuthorId, MessageText, IsInitialMessage, CreatedAt) VALUES (@ThreadId, @AuthorId, @MessageText, @IsInitialMessage, @CreatedAt); SELECT last_insert_rowid();";
+        SQLiteParameter[] parameters =
+        [
+            new("@ThreadId", threadId),
+            new("@AuthorId", authorId),
+            new("@MessageText", messageText),
+            new("@IsInitialMessage", isInitialMessage),
+            new("@CreatedAt", now)
+        ];
+        return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
+    }
+
+    public async Task DeleteMessageOrThrowAsync(int id, int deletedByAccountId)
+    {
+        _ = await _sqlClientSingleton.UpdateOrThrowAsync(query: "UPDATE ThreadMessages SET DeletedByAccountId=@DeletedByAccountId, DeletedAt=@DeletedAt WHERE Id_ThreadMessages=@Id", parameters: [new("@DeletedByAccountId", deletedByAccountId), new("@DeletedAt", DateTime.UtcNow), new("@Id", id)]);
+    }
+
+    public async Task ConvertReviewThreadToDiscussionOrThrowAsync(int threadId)
+    {
+        string query = "UPDATE DiscussionThreads SET ReviewId=null WHERE Id_DiscussionThreads=@ThreadId";
+        _ = await _sqlClientSingleton.UpdateOrThrowAsync(query: query, parameters: [new("@ThreadId", threadId)]);
+    }
+
+    private static ThreadInitialMessageDbModel MapRowToThreadInitialMessage(DataRow row)
+    {
+        return new ThreadInitialMessageDbModel
         {
-            string query = @"
-                SELECT * FROM DiscussionThreads 
-                WHERE LocationId = @LocationId AND IsReviewThread = 0
-                ORDER BY CreatedAt DESC";
+            Id = row.GetValueThrowNotPresentOrNull<int>(columnName: "Id_DiscussionThreads"),
+            LocationId = row.GetValueThrowNotPresentOrNull<int>(columnName: "LocationId"),
+            AuthorId = row.GetValueThrowNotPresentOrNull<int>(columnName: "AuthorId"),
+            ThreadName = row.GetValueThrowNotPresentOrNull<string>(columnName: "ThreadName"),
+            CreatedAt = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "CreatedAt"),
+            ReviewId = row.GetValueThrowNotPresent<int?>(columnName: "ReviewId"),
+            AuthorUsername = row.GetValueThrowNotPresentOrNull<string>(columnName: "Username"),
+            IsAnonymous = row.GetValueThrowNotPresentOrNull<bool>(columnName: "IsAnonymous"),
+            MessagesCount = row.GetValueThrowNotPresentOrNull<int>(columnName: "MessagesCount"),
+            InitialMessageText = row.GetValueThrowNotPresentOrNull<string>(columnName: "InitialMessageText"),
+            InitialMessageDeletedAt = row.GetValueThrowNotPresent<DateTime?>(columnName: "InitialMessageDeletedAt"),
+            InitialMessageDeletedByAccountId = row.GetValueThrowNotPresent<int?>(columnName: "InitialMessageDeletedByAccountId"),
+            InitialMessageDeletedByUsername = row.GetValueThrowNotPresent<string?>(columnName: "InitialMessageDeletedByUsername")
+        };
+    }
 
-            SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            List<DiscussionThread> threads = new();
-            foreach (DataRow row in result.Rows)
-            {
-                DiscussionThread thread = this.MapRowToThread(row);
-
-                // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-                thread.AuthorName = username;
-
-                // Get initial message
-                thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-
-                threads.Add(thread);
-            }
-
-            return threads;
-        }
-
-        public async Task<IEnumerable<DiscussionThread>> GetAllDiscussionThreadsByLocationIdAsync(int locationId)
+    private async Task<ThreadDisplayPageModel> MapRowToThreadDisplay(
+        DataRow row
+    )
+    {
+        int id = row.GetValueThrowNotPresentOrNull<int>(columnName: "Id_DiscussionThreads");
+        return new ThreadDisplayPageModel
         {
-            string query = @"
-                SELECT * FROM DiscussionThreads 
-                WHERE LocationId = @LocationId
-                ORDER BY CreatedAt DESC";
+            Id = id,
+            LocationId = row.GetValueThrowNotPresentOrNull<int>(columnName: "LocationId"),
+            AuthorId = row.GetValueThrowNotPresentOrNull<int>(columnName: "AuthorId"),
+            ThreadName = row.GetValueThrowNotPresentOrNull<string>(columnName: "ThreadName"),
+            CreatedAt = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "CreatedAt"),
+            ReviewId = row.GetValueThrowNotPresent<int?>(columnName: "ReviewId"),
+            AuthorUsername = row.GetValueThrowNotPresentOrNull<string>(columnName: "Username"),
+            IsAnonymous = row.GetValueThrowNotPresentOrNull<bool>(columnName: "IsAnonymous"),
+            Messages = [.. await GetMessagesByThreadIdAsync(threadId: id)],
+            LocationName = row.GetValueThrowNotPresentOrNull<string>(columnName: "Name"),
+            Rating = row.GetValueThrowNotPresent<int?>(columnName: "Rating")
+        };
+    }
 
-            SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            List<DiscussionThread> threads = new();
-            foreach (DataRow row in result.Rows)
-            {
-                DiscussionThread thread = this.MapRowToThread(row);
-
-                // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-                thread.AuthorName = username;
-
-                // Get messages
-                thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-
-                threads.Add(thread);
-            }
-
-            return threads;
-        }
-
-        public async Task<DiscussionThread?> GetThreadByIdAsync(int id)
+    private static ThreadMessageExtended MapRowToMessageGet(DataRow row)
+    {
+        return new ThreadMessageExtended
         {
-            string query = "SELECT * FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count == 0)
-            {
-                return null;
-            }
-
-            DiscussionThread thread = this.MapRowToThread(result.Rows[0]);
-
-            // Get author name
-            int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-            thread.AuthorName = username;
-
-            // Get messages
-            thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-
-            return thread;
-        }
-
-        public async Task<DiscussionThread> CreateDiscussionThreadAsync(DiscussionThread thread, string initialMessage)
-        {
-            try
-            {
-                // Insert the thread
-                string threadQuery = @"
-                    INSERT INTO DiscussionThreads (LocationId, UserId, ThreadName, IsReviewThread, ReviewId, CreatedAt)
-                    VALUES (@LocationId, @UserId, @ThreadName, @IsReviewThread, @ReviewId, @CreatedAt)";
-
-                SQLiteParameter[] threadParameters = new SQLiteParameter[]
-                {
-                    new("@LocationId", thread.LocationId),
-                    new("@UserId", thread.UserId),
-                    new("@ThreadName", thread.ThreadName),
-                    new("@IsReviewThread", thread.IsReviewThread),
-                    new("@ReviewId", thread.ReviewId as object ?? DBNull.Value),
-                    new("@CreatedAt", thread.CreatedAt)
-                };
-
-                int threadId = await MainClient.SqlClient.InsertAsync(threadQuery, threadParameters);
-                thread.Id = threadId;
-
-                // Insert the initial message
-                string messageQuery = @"
-                    INSERT INTO ThreadMessages (ThreadId, UserId, MessageText, IsInitialMessage, IsDeleted, CreatedAt)
-                    VALUES (@ThreadId, @UserId, @MessageText, @IsInitialMessage, @IsDeleted, @CreatedAt)";
-
-                SQLiteParameter[] messageParameters = new SQLiteParameter[]
-                {
-                    new("@ThreadId", threadId),
-                    new("@UserId", thread.UserId),
-                    new("@MessageText", initialMessage),
-                    new("@IsInitialMessage", true),
-                    new("@IsDeleted", false),
-                    new("@CreatedAt", DateTime.UtcNow)
-                };
-
-                int messageId = await MainClient.SqlClient.InsertAsync(messageQuery, messageParameters);
-
-                // Load messages
-                thread.Messages = (await this.GetMessagesByThreadIdAsync(threadId)).ToList();
-
-                // Get author name
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(thread.UserId);
-                thread.AuthorName = username;
-
-                return thread;
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-        public async Task<DiscussionThread> CreateReviewThreadAsync(int reviewId, string reviewTitle, int locationId)
-        {
-            DiscussionThread thread = new()
-            {
-                LocationId = locationId,
-                UserId = CurrentRequest.UserId ?? throw new Exception("User ID is not set"),
-                ThreadName = $"Discussion for {CurrentRequest.Username}'s review of {reviewId} {reviewTitle}",
-                IsReviewThread = true,
-                ReviewId = reviewId,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            string query = @"
-                INSERT INTO DiscussionThreads (LocationId, UserId, ThreadName, IsReviewThread, ReviewId, CreatedAt)
-                VALUES (@LocationId, @UserId, @ThreadName, @IsReviewThread, @ReviewId, @CreatedAt);
-                SELECT last_insert_rowid();";
-
-            SQLiteParameter[] parameters = {
-                new("@LocationId", thread.LocationId),
-                new("@UserId", thread.UserId),
-                new("@ThreadName", thread.ThreadName),
-                new("@IsReviewThread", thread.IsReviewThread),
-                new("@ReviewId", thread.ReviewId),
-                new("@CreatedAt", thread.CreatedAt)
-            };
-
-            int threadId = await MainClient.SqlClient.InsertAsync(query, parameters);
-            thread.Id = threadId;
-
-            // Get author name
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(thread.UserId);
-            thread.AuthorName = username;
-
-            return thread;
-        }
-
-        public async Task<bool> DeleteThreadAsync(int id)
-        {
-            string query = "DELETE FROM DiscussionThreads WHERE Id_DiscussionThreads = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
-
-            int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        public async Task<IEnumerable<DiscussionThread>> GetThreadsByUserIdAsync(int userId)
-        {
-            // Get threads created by the user or where the user has posted messages
-            string query = @"
-                SELECT DISTINCT dt.* FROM DiscussionThreads dt
-                LEFT JOIN ThreadMessages tm ON dt.Id_DiscussionThreads = tm.ThreadId
-                WHERE dt.UserId = @UserId OR tm.UserId = @UserId
-                ORDER BY dt.CreatedAt DESC";
-
-            SQLiteParameter[] parameters = { new("@UserId", userId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            List<DiscussionThread> threads = new();
-            foreach (DataRow row in result.Rows)
-            {
-                DiscussionThread thread = this.MapRowToThread(row);
-
-                // Get author name
-                int authorId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(authorId);
-                thread.AuthorName = username;
-
-                // Get messages
-                thread.Messages = (await this.GetMessagesByThreadIdAsync(thread.Id)).ToList();
-
-                threads.Add(thread);
-            }
-
-            return threads;
-        }
-
-        public async Task<IEnumerable<ThreadMessage>> GetMessagesByThreadIdAsync(int threadId)
-        {
-            string query = @"
-                SELECT * FROM ThreadMessages 
-                WHERE ThreadId = @ThreadId
-                ORDER BY CreatedAt ASC";
-
-            SQLiteParameter[] parameters = { new("@ThreadId", threadId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            List<ThreadMessage> messages = new();
-            foreach (DataRow row in result.Rows)
-            {
-                ThreadMessage message = this.MapRowToMessage(row);
-
-                // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-                message.AuthorName = username;
-
-                // Get deleted by username if applicable
-                if (message.IsDeleted && message.DeletedByUserId.HasValue)
-                {
-                    message.DeletedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
-                }
-
-                messages.Add(message);
-            }
-
-            return messages;
-        }
-
-        public async Task<ThreadMessage?> GetMessageByIdAsync(int id)
-        {
-            string query = "SELECT * FROM ThreadMessages WHERE Id_ThreadMessages = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count == 0)
-            {
-                return null;
-            }
-
-            ThreadMessage message = this.MapRowToMessage(result.Rows[0]);
-
-            // Get author name
-            int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-            message.AuthorName = username;
-
-            // Get deleted by username if applicable
-            if (message.IsDeleted && message.DeletedByUserId.HasValue)
-            {
-                message.DeletedByUsername = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.DeletedByUserId.Value);
-            }
-
-            return message;
-        }
-
-        public async Task<ThreadMessage> AddMessageAsync(ThreadMessage message)
-        {
-            string query = @"
-                INSERT INTO ThreadMessages (ThreadId, UserId, MessageText, IsInitialMessage, IsDeleted, CreatedAt)
-                VALUES (@ThreadId, @UserId, @MessageText, @IsInitialMessage, @IsDeleted, @CreatedAt);
-                SELECT last_insert_rowid();";
-
-            SQLiteParameter[] parameters = {
-                new("@ThreadId", message.ThreadId),
-                new("@UserId", message.UserId),
-                new("@MessageText", message.MessageText),
-                new("@IsInitialMessage", message.IsInitialMessage),
-                new("@IsDeleted", message.IsDeleted),
-                new("@CreatedAt", message.CreatedAt)
-            };
-
-            int messageId = await MainClient.SqlClient.InsertAsync(query, parameters);
-            message.Id = messageId;
-
-            // Get author name
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(message.UserId);
-            message.AuthorName = username;
-
-            return message;
-        }
-
-        public async Task<bool> DeleteMessageAsync(int id, int deletedByUserId)
-        {
-            string query = @"
-                UPDATE ThreadMessages 
-                SET IsDeleted = 1, DeletedByUserId = @DeletedByUserId
-                WHERE Id_ThreadMessages = @Id";
-
-            SQLiteParameter[] parameters = {
-                new("@Id", id),
-                new("@DeletedByUserId", deletedByUserId)
-            };
-
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        public async Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage)
-        {
-            string query = @"
-                UPDATE DiscussionThreads
-                SET IsReviewThread = 0
-                WHERE Id_DiscussionThreads = @Id";
-
-            SQLiteParameter[] parameters = { new("@Id", threadId) };
-
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
-
-            if (rowsAffected > 0)
-            {
-                // Get the thread
-                DiscussionThread? thread = await this.GetThreadByIdAsync(threadId);
-                if (thread == null)
-                {
-                    return false;
-                }
-
-                // Add initial message
-                ThreadMessage message = new()
-                {
-                    ThreadId = threadId,
-                    UserId = thread.UserId,
-                    MessageText = initialMessage,
-                    IsInitialMessage = true,
-                    IsDeleted = false,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _ = await this.AddMessageAsync(message);
-                return true;
-            }
-
-            return false;
-        }
-
-        private DiscussionThread MapRowToThread(DataRow row)
-        {
-            return new DiscussionThread
-            {
-                Id = Convert.ToInt32(row["Id_DiscussionThreads"]),
-                LocationId = Convert.ToInt32(row["LocationId"]),
-                UserId = Convert.ToInt32(row["UserId"]),
-                ThreadName = row["ThreadName"].ToString() ?? string.Empty,
-                IsReviewThread = Convert.ToBoolean(row["IsReviewThread"]),
-                ReviewId = row["ReviewId"] == DBNull.Value ? null : Convert.ToInt32(row["ReviewId"]),
-                CreatedAt = Convert.ToDateTime(row["CreatedAt"])
-            };
-        }
-
-        private ThreadMessage MapRowToMessage(DataRow row)
-        {
-            return new ThreadMessage
-            {
-                Id = Convert.ToInt32(row["Id_ThreadMessages"]),
-                ThreadId = Convert.ToInt32(row["ThreadId"]),
-                UserId = Convert.ToInt32(row["UserId"]),
-                MessageText = row["MessageText"].ToString() ?? string.Empty,
-                IsInitialMessage = Convert.ToBoolean(row["IsInitialMessage"]),
-                IsDeleted = Convert.ToBoolean(row["IsDeleted"]),
-                DeletedByUserId = row["DeletedByUserId"] == DBNull.Value ? null : Convert.ToInt32(row["DeletedByUserId"]),
-                CreatedAt = Convert.ToDateTime(row["CreatedAt"])
-            };
-        }
+            Id = row.GetValueThrowNotPresentOrNull<int>(columnName: "Id_ThreadMessages"),
+            ThreadId = row.GetValueThrowNotPresentOrNull<int>(columnName: "ThreadId"),
+            AuthorId = row.GetValueThrowNotPresentOrNull<int>(columnName: "AuthorId"),
+            MessageText = row.GetValueThrowNotPresentOrNull<string>(columnName: "MessageText"),
+            IsInitialMessage = row.GetValueThrowNotPresentOrNull<bool>(columnName: "IsInitialMessage"),
+            CreatedAt = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "CreatedAt"),
+            DeletedAt = row.GetValueThrowNotPresent<DateTime?>(columnName: "DeletedAt"),
+            AuthorUsername = row.GetValueThrowNotPresentOrNull<string>(columnName: "AuthorUsername"),
+            DeletedByAccountId = row.GetValueThrowNotPresent<int?>(columnName: "DeletedByAccountId"),
+            DeletedByUsername = row.GetValueThrowNotPresent<string?>(columnName: "DeletedByUsername")
+        };
     }
 }

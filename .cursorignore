@@ -1,0 +1,34 @@
+# Temporary folders and files to ignore
+.git/
+.vs/
+.vscode/
+.cursor/
+-p/
+
+# Build outputs
+**/bin/
+**/obj/
+**/build/
+**/dist/
+**/node_modules/
+
+# Libraries
+**/wwwroot/lib/
+@lib
+
+# Temporary database files
+**/*.db-shm
+**/*.db-wal
+**/*.db
+
+# Documentation and notes
+poznamky.docx
+~$znamky.docx
+
+# Log files
+**/*.log
+
+# Cache folders
+**/.cache/ 
+
+CommonAnalyzers/*

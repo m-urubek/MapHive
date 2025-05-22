@@ -1,171 +1,170 @@
-using MapHive.Models;
-using MapHive.Singletons;
+namespace MapHive.Repositories;
+
 using System.Data;
 using System.Data.SQLite;
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Exceptions;
+using MapHive.Services;
+using MapHive.Singletons;
 
-namespace MapHive.Repositories
+public class ReviewRepository(
+    ISqlClientSingleton sqlClientSingleton,
+    IAccountsRepository userRepository,
+    ILogManagerService logManagerService) : IReviewRepository
 {
-    public class ReviewRepository : IReviewRepository
+    private readonly ISqlClientSingleton _sqlClientSingleton = sqlClientSingleton;
+    private readonly IAccountsRepository _userRepository = userRepository;
+    private readonly ILogManagerService _logManagerService = logManagerService;
+
+    public async Task<List<ReviewExtended>?> GetReviewsByLocationIdAsync(int locationId)
     {
-        public async Task<IEnumerable<Review>> GetReviewsByLocationIdAsync(int locationId)
+        string query = @"
+                SELECT r.*, u.Username, tm.MessageText
+                FROM Reviews r
+                LEFT JOIN Accounts u ON r.AuthorId = u.Id_Accounts
+                LEFT JOIN DiscussionThreads t ON r.Id_Reviews = t.ReviewId
+                LEFT JOIN ThreadMessages tm ON t.Id_DiscussionThreads = tm.ThreadId
+                WHERE r.LocationId = @LocationId AND tm.IsInitialMessage = 1
+                ORDER BY r.CreatedAt DESC";
+
+        SQLiteParameter[] parameters = [new("@LocationId", locationId)];
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+
+        List<ReviewExtended> reviews = new();
+        foreach (DataRow row in result.Rows)
         {
-            string query = @"
-                SELECT * FROM Reviews 
-                WHERE LocationId = @LocationId
-                ORDER BY CreatedAt DESC";
+            ReviewExtended review = MapRowToReviewGet(row: row);
+            reviews.Add(item: review);
+        }
+        return reviews;
+    }
 
-            SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
+    public async Task<ReviewExtended> GetReviewByIdOrThrowAsync(int id)
+    {
+        string query = @"
+                SELECT r.*, u.Username, tm.MessageText
+                FROM Reviews r
+                LEFT JOIN Accounts u ON r.AuthorId = u.Id_Accounts
+                LEFT JOIN DiscussionThreads t ON r.Id_Reviews = t.ReviewId
+                LEFT JOIN ThreadMessages tm ON t.Id_DiscussionThreads = tm.ThreadId
+                WHERE r.Id_Reviews = @id AND tm.IsInitialMessage = 1
+                ORDER BY r.CreatedAt DESC";
+        SQLiteParameter[] parameters = [new("@id", id)];
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
-            List<Review> reviews = new();
-            foreach (DataRow row in result.Rows)
+        if (result.Rows.Count == 0)
+            throw new PublicWarningException($"Review {id} not found");
+
+        ReviewExtended rg = MapRowToReviewGet(row: result.Rows[0]);
+        return rg;
+    }
+
+    public async Task<int> CreateReviewAsync(
+        int locationId,
+        int accountId,
+        int rating,
+        bool isAnonymous
+    )
+    {
+        DateTime now = DateTime.UtcNow;
+        string query = @"
+                INSERT INTO Reviews (LocationId, AuthorId, Rating, IsAnonymous, CreatedAt, UpdatedAt)
+                VALUES (@LocationId, @AuthorId, @Rating, @IsAnonymous, @CreatedAt, @UpdatedAt);";
+
+        SQLiteParameter[] parameters = [
+            new("@LocationId", locationId),
+            new("@AuthorId", accountId),
+            new("@Rating", rating),
+            new("@IsAnonymous", isAnonymous),
+            new("@CreatedAt", now),
+            new("@UpdatedAt", now)
+        ];
+
+        return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
+    }
+
+    public async Task UpdateReviewOrThrowAsync(
+        int id,
+        DynamicValue<int> rating,
+        DynamicValue<string> reviewText,
+        DynamicValue<bool> isAnonymous
+    )
+    {
+        await _sqlClientSingleton.UpdateFromUpdateValuesOrThrowAsync(
+            tableName: "Reviews",
+            pkColumnName: "Id_Reviews",
+            pkValue: id,
+            updateValuesByColumnNames: new Dictionary<string, DynamicValue<object?>>
             {
-                Review review = this.MapRowToReview(row);
+                ["Rating"] = rating.AsGeneric(),
+                ["ReviewText"] = reviewText.AsGeneric(),
+                ["IsAnonymous"] = isAnonymous.AsGeneric(),
+                ["UpdatedAt"] = DynamicValue<object?>.Set(DateTime.UtcNow)
+            });
+    }
 
-                // Get author name
-                int userId = Convert.ToInt32(row["UserId"]);
-                string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-                review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
+    public async Task DeleteReviewOrThrowAsync(int id)
+    {
+        // Consider adding user ID check if only owners can delete
+        string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id_Logs";
+        SQLiteParameter[] parameters = [new("@Id_Logs", id)];
+        // Use injected _sqlClientSingleton
+        int rowsAffected = await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
+        if (rowsAffected == 0)
+            throw new PublicWarningException($"Review {id} not found");
+    }
 
-                reviews.Add(review);
-            }
+    public async Task<double> GetAverageRatingForLocationAsync(int locationId)
+    {
+        string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
+        SQLiteParameter[] parameters = [new("@LocationId", locationId)];
+        // Use injected _sqlClientSingleton
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
 
-            return reviews;
-        }
+        return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
+            ? 0.0 // Return double
+            : Convert.ToDouble(value: result.Rows[0]["AverageRating"]);
+    }
 
-        public async Task<Review?> GetReviewByIdAsync(int id)
+    public async Task<int> GetReviewCountForLocationAsync(int locationId)
+    {
+        string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
+        SQLiteParameter[] parameters = [new("@LocationId", locationId)];
+        // Use injected _sqlClientSingleton
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+
+        return result.Rows.Count == 0 || result.Rows[0]["ReviewCount"] == DBNull.Value
+             ? 0
+             : Convert.ToInt32(value: result.Rows[0]["ReviewCount"]);
+    }
+
+    public async Task<bool> HasUserReviewedLocationAsync(int accountId, int locationId)
+    {
+        string query = "SELECT 1 FROM Reviews WHERE AuthorId = @AuthorId AND LocationId = @LocationId LIMIT 1"; // More efficient query
+        SQLiteParameter[] parameters = [
+            new("@AuthorId", accountId),
+            new("@LocationId", locationId)
+        ];
+        // Use injected _sqlClientSingleton
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+
+        return result.Rows.Count > 0; // Check if any row was returned
+    }
+
+    private static ReviewExtended MapRowToReviewGet(DataRow row)
+    {
+        return new ReviewExtended
         {
-            string query = "SELECT * FROM Reviews WHERE Id_Reviews = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count == 0)
-            {
-                return null;
-            }
-
-            Review review = this.MapRowToReview(result.Rows[0]);
-
-            // Get author name
-            int userId = Convert.ToInt32(result.Rows[0]["UserId"]);
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(userId);
-            review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-
-            return review;
-        }
-
-        public async Task<Review> AddReviewAsync(Review review)
-        {
-            string query = @"
-                INSERT INTO Reviews (LocationId, UserId, Rating, ReviewText, IsAnonymous, CreatedAt, UpdatedAt)
-                VALUES (@LocationId, @UserId, @Rating, @ReviewText, @IsAnonymous, @CreatedAt, @UpdatedAt)";
-
-            SQLiteParameter[] parameters = {
-                new("@LocationId", review.LocationId),
-                new("@UserId", review.UserId),
-                new("@Rating", review.Rating),
-                new("@ReviewText", review.ReviewText),
-                new("@IsAnonymous", review.IsAnonymous),
-                new("@CreatedAt", review.CreatedAt),
-                new("@UpdatedAt", review.UpdatedAt)
-            };
-
-            int reviewId = await MainClient.SqlClient.InsertAsync(query, parameters);
-            review.Id = reviewId;
-
-            // Get author name
-            string username = await CurrentRequest.UserRepository.GetUsernameByIdAsync(review.UserId);
-            review.AuthorName = review.IsAnonymous ? "Anonymous" : username;
-
-            return review;
-        }
-
-        public async Task<bool> UpdateReviewAsync(Review review)
-        {
-            string query = @"
-                UPDATE Reviews 
-                SET Rating = @Rating, 
-                    ReviewText = @ReviewText, 
-                    IsAnonymous = @IsAnonymous,
-                    UpdatedAt = @UpdatedAt
-                WHERE Id_Reviews = @Id AND UserId = @UserId";
-
-            SQLiteParameter[] parameters = {
-                new("@Id", review.Id),
-                new("@Rating", review.Rating),
-                new("@ReviewText", review.ReviewText),
-                new("@IsAnonymous", review.IsAnonymous),
-                new("@UpdatedAt", DateTime.UtcNow),
-                new("@UserId", review.UserId)
-            };
-
-            int rowsAffected = await MainClient.SqlClient.UpdateAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        public async Task<bool> DeleteReviewAsync(int id)
-        {
-            string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
-            SQLiteParameter[] parameters = { new("@Id", id) };
-
-            int rowsAffected = await MainClient.SqlClient.DeleteAsync(query, parameters);
-            return rowsAffected > 0;
-        }
-
-        public async Task<double> GetAverageRatingForLocationAsync(int locationId)
-        {
-            string query = "SELECT AVG(Rating) AS AverageRating FROM Reviews WHERE LocationId = @LocationId";
-            SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            return result.Rows.Count == 0 || result.Rows[0]["AverageRating"] == DBNull.Value
-                ? 0
-                : Convert.ToDouble(result.Rows[0]["AverageRating"]);
-        }
-
-        public async Task<int> GetReviewCountForLocationAsync(int locationId)
-        {
-            string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE LocationId = @LocationId";
-            SQLiteParameter[] parameters = { new("@LocationId", locationId) };
-
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            return result.Rows.Count == 0 ? 0 : Convert.ToInt32(result.Rows[0]["ReviewCount"]);
-        }
-
-        public async Task<bool> HasUserReviewedLocationAsync(int userId, int locationId)
-        {
-            string query = "SELECT COUNT(*) AS ReviewCount FROM Reviews WHERE UserId = @UserId AND LocationId = @LocationId";
-            SQLiteParameter[] parameters = {
-                new("@UserId", userId),
-                new("@LocationId", locationId)
-            };
-
-            DataTable result = await MainClient.SqlClient.SelectAsync(query, parameters);
-
-            if (result.Rows.Count == 0)
-            {
-                return false;
-            }
-
-            int count = Convert.ToInt32(result.Rows[0]["ReviewCount"]);
-            return count > 0;
-        }
-
-        private Review MapRowToReview(DataRow row)
-        {
-            return new Review
-            {
-                Id = Convert.ToInt32(row["Id_Reviews"]),
-                LocationId = Convert.ToInt32(row["LocationId"]),
-                UserId = Convert.ToInt32(row["UserId"]),
-                Rating = Convert.ToInt32(row["Rating"]),
-                ReviewText = row["ReviewText"].ToString() ?? string.Empty,
-                IsAnonymous = Convert.ToBoolean(row["IsAnonymous"]),
-                CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                UpdatedAt = Convert.ToDateTime(row["UpdatedAt"])
-            };
-        }
+            Id = row.GetValueThrowNotPresentOrNull<int>(columnName: "Id_Reviews"),
+            LocationId = row.GetValueThrowNotPresentOrNull<int>(columnName: "LocationId"),
+            AccountId = row.GetValueThrowNotPresentOrNull<int>(columnName: "AuthorId"),
+            Rating = row.GetValueThrowNotPresentOrNull<int>(columnName: "Rating"),
+            IsAnonymous = row.GetValueThrowNotPresentOrNull<bool>(columnName: "IsAnonymous"),
+            CreatedAt = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "CreatedAt"),
+            UpdatedAt = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "UpdatedAt"),
+            AuthorUsername = row.GetValueThrowNotPresentOrNull<string>(columnName: "Username"),
+            ReviewText = row.GetValueThrowNotPresentOrNull<string>(columnName: "MessageText"),
+        };
     }
 }

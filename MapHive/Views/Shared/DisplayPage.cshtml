@@ -1,0 +1,72 @@
+@model MapHive.Models.PageModels.DisplayItemPageModel
+
+@{
+    ViewData["Title"] = ViewContext.RouteData.Values["tableName"] + "Details";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>@ViewContext.RouteData.Values["tableName"]</h3>
+                    <h5>Item ID: @ViewContext.IdOrThrow()</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.Data.Count > 0)
+                    {
+                        <div class="display-page-container">
+                            @foreach (var item in Model.Data)
+                            {
+                                <div class="display-item">
+                                    <div class="display-title">@item.Key</div>
+                                    <hr class="display-separator" />
+                                    <div class="display-value">
+                                        @if (item.Key.Equals("Username", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <a asp-controller="Account" asp-action="PublicProfileByName" asp-route-username="@item.Value" >@item.Value</a>
+                                        }
+                                        else
+                                        {
+                                            @item.Value
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            No data found for this item.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .display-page-container { margin: 20px 0; }
+    .display-item {
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .display-title {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--link-color);
+    }
+    .display-separator {
+        margin: 8px 0;
+        border-color: #444;
+    }
+    .display-value {
+        word-break: break-word;
+    }
+</style> 

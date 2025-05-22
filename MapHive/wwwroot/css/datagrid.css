@@ -1,0 +1,381 @@
+.search-row {
+  border-bottom: 1px solid #edebe9;
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.search-cell {
+  padding: 0 12px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid #8a8886;
+  border-radius: 2px;
+  font-size: 12px;
+  height: 28px;
+}
+
+  .search-input:focus {
+      border-color: #0078d4;
+      outline: none;
+  }
+
+.search-button {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  background-color: #f3f2f1;
+  border: 1px solid #8a8886;
+  border-radius: 2px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+  .search-button:hover {
+      background-color: #e1dfdd;
+  }
+
+  .search-button.active {
+      background-color: #0078d4;
+      color: white;
+      border-color: #0078d4;
+  }
+
+.ms-Grid {
+  display: -ms-grid;
+  display: grid;
+}
+
+.ms-DetailsList {
+  display: block;
+  position: relative;
+  width: 100%;      /* span full width of parent */
+}
+
+.detailslist-container {
+  height: auto;         /* let container grow with content */
+  overflow: visible;    /* use page scrollbar */
+  width: 100%;          /* span full width */
+  max-width: none;      /* no max width cap */
+  margin-bottom: 20px;
+  box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108);
+  position: relative;
+  opacity: 0; /* Start invisible */
+  transition: opacity 0.15s ease-in; /* Smooth fade-in */
+}
+
+  .detailslist-container.ready {
+      opacity: 1; /* Will be added once layout is ready */
+  }
+
+.ms-DetailsHeader {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+  .ms-DetailsHeader .ms-DetailsRow {
+      height: auto;
+      min-height: 42px;
+  }
+
+.ms-DetailsRow {
+  border-bottom: 1px solid #edebe9;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer; /* Make rows appear clickable */
+}
+
+  .ms-DetailsRow:hover {
+      background-color: #f3f2f1;
+  }
+
+.ms-DetailsRow-cell {
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.control-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ms-DetailsHeader-cell {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 12px;
+  min-height: 42px;
+  min-width: 0;
+}
+
+  .ms-DetailsHeader-cell:hover {
+      background-color: #f3f2f1;
+  }
+
+.ms-DetailsHeader .ms-DetailsRow:hover {
+  background-color: transparent;
+}
+
+.col-resizer {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  height: 100%;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.col-resizer-inner {
+  background-color: #ffffff;
+  width: 2px;
+  margin-left: 3px;
+  margin-right: 3px;
+  height: 100%;
+}
+
+.sort-icon {
+  margin-left: 4px;
+  font-size: 10px;
+  display: inline-block;
+}
+
+/* Badge styles */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.badge-active, .badge-admin {
+  background-color: #d13438;
+  color: white;
+}
+
+.badge-expired, .badge-normal {
+  background-color: #797775;
+  color: white;
+}
+
+.badge-trusted {
+  background-color: #107c10;
+  color: white;
+}
+
+/* Link styles */
+.grid-link {
+  color: #0078d4;
+  text-decoration: none;
+}
+
+  .grid-link:hover {
+      text-decoration: underline;
+  }
+
+/* Loading styles */
+.detailslist-container.loading {
+  opacity: 0.7;
+  position: relative;
+}
+
+.detailslist-container.loading {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+}
+
+.grid-spinner {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  width: 4rem;
+  height: 4rem;
+}
+
+.detailslist-container.loading .grid-spinner {
+  display: block;
+}
+
+
+/* Dark mode overrides for Fabric UI DataGrid */
+.dark-mode .ms-DetailsList {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+.dark-mode .ms-DetailsHeader,
+.dark-mode .ms-DetailsList-headerWrapper { /* Common wrapper for header */
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+/* Override default hover on header wrapper so it stays at page background */
+.dark-mode .ms-DetailsHeader:hover,
+.dark-mode .ms-DetailsList-headerWrapper:hover {
+  background-color: var(--bg-color) !important;
+}
+
+/* Also ensure header row hover doesn't override */
+.dark-mode .ms-DetailsHeader-row:hover {
+  background-color: var(--bg-color) !important;
+}
+
+/* Reset cells to page background on row hover */
+.dark-mode .ms-DetailsHeader-row:hover .ms-DetailsHeader-cell {
+  background-color: var(--bg-color) !important;
+}
+
+.dark-mode .ms-DetailsHeader-cellName, /* Header cell text */
+.dark-mode .ms-DetailsHeader-filterChevron, /* Header filter icon */
+.dark-mode .ms-Link { /* Links within header/cells if any */
+  color: var(--text-color) !important;
+}
+
+.dark-mode .ms-DetailsRow {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.dark-mode .ms-DetailsRow:hover {
+  background-color: #2b2b2b !important; /* Hover color for rows */
+}
+
+.dark-mode .ms-DetailsRow-cell {
+  color: var(--text-color) !important;
+}
+
+/* Filter input fields in the header */
+.dark-mode .ms-DetailsHeader-cell input[type="text"],
+.dark-mode .ms-DetailsHeader-cell .ms-TextField-field,
+.dark-mode .ms-SearchBox-field,
+.dark-mode input[type="text"].ms-TextField-field {
+  background-color: var(--bg-color) !important; /* Use page background for inputs */
+  color: var(--text-color) !important;
+  border: 1px solid #555 !important;
+  border-radius: 0.2rem; /* Optional: slightly rounded corners */
+}
+
+/* Ensure placeholder text is also visible */
+.dark-mode .ms-DetailsHeader-cell input[type="text"]::placeholder {
+  color: #aaa !important;
+}
+
+.dark-mode .ms-DetailsHeader-cell button.ms-Button, /* Targeting buttons directly in header cells */
+.dark-mode .ms-SearchBox-iconContainer button.ms-Button {
+    background-color: #4f4f4f !important; /* Darker button background */
+    color: var(--text-color) !important;
+    border: 1px solid #555 !important;
+}
+.dark-mode .ms-DetailsHeader-cell button.ms-Button .ms-Button-icon,
+.dark-mode .ms-SearchBox-iconContainer button.ms-Button .ms-Button-icon,
+.dark-mode .ms-DetailsHeader-cell button.ms-Button i, /* If using <i> for icons */
+.dark-mode .ms-SearchBox-iconContainer button.ms-Button i {
+    color: var(--text-color) !important;
+}
+
+/* Pagination specific overrides */
+.dark-mode .ms-FocusZone > .ms-Button.ms-Button--icon, /* Catches First, Prev, Next, Last */
+.dark-mode .ms-FocusZone > button.ms-Button { /* General buttons in pagination */
+  background-color: #3a3a3a !important;
+  color: var(--text-color) !important;
+  border: 1px solid #555 !important;
+}
+
+.dark-mode .ms-FocusZone > .ms-Button.ms-Button--icon:hover:not(:disabled),
+.dark-mode .ms-FocusZone > button.ms-Button:hover:not(:disabled) {
+  background-color: #4f4f4f !important;
+}
+
+/* Active pagination button */
+.dark-mode .ms-FocusZone > .ms-Button.ms-Button--primary,
+.dark-mode .ms-FocusZone > button.ms-Button[class*="is-checked"], /* Common Fabric pattern for active/selected */
+.dark-mode .ms-FocusZone > button.ms-Button[aria-checked="true"] {
+  background-color: var(--link-color) !important; /* Uses the updated --link-color */
+  color: #ffffff !important; /* Explicit white for best contrast on link color */
+  border-color: var(--link-color) !important;
+}
+
+/* Disabled pagination buttons */
+.dark-mode .ms-FocusZone > .ms-Button.ms-Button--icon:disabled,
+.dark-mode .ms-FocusZone > button.ms-Button:disabled {
+  background-color: #2b2b2b !important;
+  color: #6c757d !important;
+  border-color: #444 !important;
+}
+
+/* Pagination (assuming similar ms- prefixed classes) */
+.dark-mode .ms-Pagination-container, /* Fictional - adjust if you find the real class */
+.dark-mode .pagination-container, /* A common generic class sometimes used */
+.dark-mode .search-row { 
+  background-color: var(--bg-color) !important;
+}
+
+.dark-mode .ms-Pagination .ms-Button,
+.dark-mode .pagination .page-item .page-link { /* Bootstrap pagination for comparison */
+  background-color: #3c3c3c !important;
+  color: var(--text-color) !important;
+  border: 1px solid #555 !important;
+}
+
+.dark-mode .ms-Pagination .ms-Button.is-disabled,
+.dark-mode .pagination .page-item.disabled .page-link {
+  background-color: #2b2b2b !important;
+  color: #6c757d !important; /* Muted text for disabled */
+}
+
+.dark-mode .ms-Pagination .ms-Button:not(.is-disabled):hover,
+.dark-mode .pagination .page-item:not(.disabled) .page-link:hover {
+  background-color: #4f4f4f !important;
+}
+
+.dark-mode .ms-Pagination .ms-Button.ms-Button--primary, /* Active page button */
+.dark-mode .pagination .page-item.active .page-link {
+  background-color: var(--link-color) !important;
+  color: #fff !important; /* White text on primary color */
+  border-color: var(--link-color) !important;
+}
+
+/* Dark mode header column separators for DetailsList */
+.dark-mode .ms-DetailsList-cell {
+  border-right: 1px solid #444 !important;
+}
+.dark-mode .ms-DetailsList-cell:last-child {
+  border-right: none !important;
+}
+
+.dark-mode .col-resizer-inner {
+  background-color: #838383;
+}
+
+.dark-mode .ms-DetailsHeader-cell:hover,
+.dark-mode .ms-DetailsHeader-cell:focus {
+  background-color: #2b2b2b !important;
+} 

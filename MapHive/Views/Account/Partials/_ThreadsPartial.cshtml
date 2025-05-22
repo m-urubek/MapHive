@@ -1,4 +1,7 @@
-@model MapHive.Models.BaseProfileViewModel
+@model MapHive.Models.PageModels.IBaseProfilePageModel
+@using System.Linq
+@using MapHive.Models.Data.DbTableModels
+@using System.Data
 @{
     // Default title if not provided
     string title = ViewData["ThreadsTitle"] as string ?? "My Threads";
@@ -14,29 +17,111 @@
             <ul class="nav nav-tabs" id="userThreadTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="user-discussions-tab" data-bs-toggle="tab" data-bs-target="#user-discussions" type="button" role="tab" aria-controls="user-discussions" aria-selected="true">
-                        Discussions (@Model.UserThreads.Count(t => !t.IsReviewThread))
+                        Discussions (@Model.UserThreads.Count(t => !t.ReviewId.HasValue))
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="user-reviews-tab" data-bs-toggle="tab" data-bs-target="#user-reviews" type="button" role="tab" aria-controls="user-reviews" aria-selected="false">
-                        Review Discussions (@Model.UserThreads.Count(t => t.IsReviewThread))
+                        Reviews (@Model.UserThreads.Count(t => t.ReviewId.HasValue))
                     </button>
                 </li>
             </ul>
             
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="userThreadTabsContent">
                 <div class="tab-pane fade show active" id="user-discussions" role="tabpanel" aria-labelledby="user-discussions-tab">
-                    @{
-                        ViewData["IsReviewThread"] = false;
+                    @{ 
+                        var discussionThreads = Model.UserThreads.Where(t => !t.ReviewId.HasValue).ToList();
                     }
-                    <partial name="_ThreadListPartial" model="Model.UserThreads" />
+                    @if (discussionThreads.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var thread in discussionThreads)
+                            {
+                                <div class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">
+                                            <a asp-controller="Discussion" asp-action="Thread" asp-route-id="@thread.Id">
+                                                @thread.ThreadName
+                                            </a>
+                                        </h5>
+                                        <small>@thread.CreatedAt.ToString("g")</small>
+                                    </div>
+                                    @if (thread.InitialMessageDeletedAt.HasValue)
+                                    {
+                                        @if (thread.InitialMessageDeletedByUsername == thread.AuthorUsername)
+                                        {
+                                            <p class="mb-1 text-muted fst-italic">User @thread.AuthorUsername deleted their message </p>
+                                        }
+                                        else
+                                        {
+                                            <p class="mb-1 text-muted fst-italic">Admin @thread.InitialMessageDeletedByUsername deleted this message</p>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-1">
+                                            @(thread.InitialMessageText.Length > 100 ? thread.InitialMessageText.Substring(0, 100) + "..." : thread.InitialMessageText)
+                                        </p>
+                                    }
+                                    <small class="text-muted">@thread.MessagesCount @((thread.MessagesCount == 1) ? "message" : "messages")</small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            No discussions found.
+                        </div>
+                    }
                 </div>
                 
                 <div class="tab-pane fade" id="user-reviews" role="tabpanel" aria-labelledby="user-reviews-tab">
-                    @{
-                        ViewData["IsReviewThread"] = true;
+                    @{ 
+                        var reviewThreads = Model.UserThreads.Where(t => t.ReviewId.HasValue).ToList();
                     }
-                    <partial name="_ThreadListPartial" model="Model.UserThreads" />
+                    @if (reviewThreads.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var thread in reviewThreads)
+                            {
+                                <div class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">
+                                            <a asp-controller="Discussion" asp-action="Thread" asp-route-id="@thread.Id">
+                                                @thread.ThreadName
+                                            </a>
+                                        </h5>
+                                        <small>@thread.CreatedAt.ToString("g")</small>
+                                    </div>
+                                    @if (thread.InitialMessageDeletedAt.HasValue)
+                                    {
+                                        @if (thread.InitialMessageDeletedByUsername == thread.AuthorUsername)
+                                        {
+                                            <p class="mb-1 text-muted fst-italic">User @thread.AuthorUsername deleted their message at @((thread.InitialMessageDeletedAt ?? throw new NoNullAllowedException(nameof(thread.InitialMessageDeletedAt))).ToString("g"))</p>
+                                        }
+                                        else
+                                        {
+                                            <p class="mb-1 text-muted fst-italic">Admin @thread.InitialMessageDeletedByUsername deleted this message</p>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-1">
+                                            @(thread.InitialMessageText.Length > 100 ? thread.InitialMessageText.Substring(0, 100) + "..." : thread.InitialMessageText)
+                                        </p>
+                                    }
+                                    <small class="text-muted">@thread.MessagesCount @((thread.MessagesCount == 1) ? "message" : "messages")</small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            No reviews found.
+                        </div>
+                    }
                 </div>
             </div>
         }
@@ -50,7 +135,7 @@
                     }
                     else
                     {
-                        <span><a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="@(User.Identity?.Name == Model.Username ? "true" : null)" class="alert-link">@Model.Username</a> hasn't participated in any discussions yet.</span>
+                        <span><a asp-controller="Account" asp-action="PublicProfileById" class="alert-link">@Model.Username</a> hasn't participated in any discussions yet.</span>
                     }
                 </p>
             </div>

@@ -1,4 +1,4 @@
-@model MapHive.Models.ViewModels.ReviewViewModel
+@model MapHive.Models.PageModels.ReviewUpdatePageModel
 
 @{
     ViewData["Title"] = "Edit Review";
@@ -13,9 +13,7 @@
                 </div>
                 <div class="card-body">
                     <form asp-action="Edit" method="post">
-                        <input type="hidden" asp-for="LocationId" />
                         <input type="hidden" asp-for="LocationName" />
-                        
                         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                         
                         <div class="mb-3">
@@ -44,10 +42,10 @@
                             <input asp-for="IsAnonymous" class="form-check-input" type="checkbox" />
                             <label asp-for="IsAnonymous" class="form-check-label">Post anonymously</label>
                         </div>
-                        
-                        <div class="d-flex justify-content-between">
-                            <a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Update Review</button>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <a asp-controller="Review" asp-action="Edit" asp-route-id="@ViewContext.IdOrThrow()" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>

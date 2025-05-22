@@ -1,5 +1,6 @@
 html {
   font-size: 14px;
+  transition: background-color 0.5s, color 0.5s;
 }
 
 @media (min-width: 768px) {
@@ -19,4 +20,146 @@ html {
 
 body {
   margin-bottom: 60px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+body.loaded {
+  opacity: 1;
+}
+
+/* Dark mode theme variables */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --link-color: #0d6efd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #121212;
+    --text-color: #e4e4e4;
+    --link-color: #0a58ca;
+  }
+}
+
+.dark-mode {
+  --bg-color: #121212;
+  --text-color: #e4e4e4;
+  --link-color: #0a58ca;
+}
+
+a {
+  color: var(--link-color);
+}
+
+a:hover {
+  color: var(--link-color);
+}
+
+/* Dark mode component overrides */
+.dark-mode .navbar-light.bg-white {
+  background-color: var(--bg-color) !important;
+  border-color: #444 !important;
+}
+.dark-mode .navbar .nav-link,
+.dark-mode .navbar .navbar-brand {
+  color: var(--text-color) !important;
+}
+
+.dark-mode .card {
+  background-color: var(--bg-color) !important;
+  border: 1px solid #444 !important;
+}
+.dark-mode .card-header {
+  background-color: var(--link-color) !important;
+  color: var(--text-color) !important;
+  border-bottom: 1px solid #444 !important;
+}
+.dark-mode .card-body {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+.dark-mode .table {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+.dark-mode .table th,
+.dark-mode .table td {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-color: #444 !important;
+}
+.dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #1e1e1e !important;
+}
+
+/* Dark mode overrides for list groups (threads) */
+.dark-mode .list-group-item {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-color: #444 !important;
+}
+
+.dark-mode .list-group-item-action:hover,
+.dark-mode .list-group-item-action:focus,
+.dark-mode .list-group-item-action.active {
+    background-color: #2b2b2b !important;
+    color: var(--text-color) !important;
+}
+
+/* Light mode override (force light theme over system preference) */
+.light-mode {
+  --bg-color: #ffffff !important;
+  --text-color: #000000 !important;
+  --link-color: #0d6efd !important;
+}
+
+/* Page fade-in transition to smooth theme loading */
+body {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+body.loaded {
+  opacity: 1;
+}
+
+/* Dark mode form control overrides */
+.dark-mode .form-control,
+.dark-mode .form-select {
+  background-color: #2b2b2b !important;
+  color: var(--text-color) !important;
+  border-color: #444 !important;
+}
+
+.dark-mode .form-control::placeholder {
+  color: #aaa !important;
+}
+
+/* Dark mode overrides for Leaflet popups */
+
+/* Dark mode overrides for Bootstrap dropdown menus */
+.dark-mode .dropdown-menu {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid #444 !important;
+}
+.dark-mode .dropdown-item {
+  color: var(--text-color) !important;
+}
+.dark-mode .dropdown-item:hover,
+.dark-mode .dropdown-item:focus {
+  background-color: #2b2b2b !important;
+  color: var(--text-color) !important;
+}
+.dark-mode .dropdown-divider {
+  border-color: #444 !important;
+}
+
+.dark-mode .dropdown-item.text-danger {
+  color: #dc3545 !important;
 }

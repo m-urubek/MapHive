@@ -1,4 +1,5 @@
-@model MapHive.Models.MapLocation
+@using MapHive.Models.PageModels
+@model LocationUpdatePageModel
 
 @{
     ViewData["Title"] = "Edit Location";
@@ -11,8 +12,6 @@
         <div class="col-md-6">
             <form asp-action="Edit" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                <input type="hidden" asp-for="Id" />
-                <input type="hidden" asp-for="CreatedAt" />
                 
                 <div class="form-group mb-3">
                     <label asp-for="Name" class="control-label"></label>
@@ -24,6 +23,24 @@
                     <label asp-for="Description" class="control-label"></label>
                     <textarea asp-for="Description" class="form-control" rows="3"></textarea>
                     <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label asp-for="CategoryId" class="control-label">Category</label>
+                    <select asp-for="CategoryId" class="form-select">
+                        <option value="">-- Select Category --</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            if (Model.CategoryId == category.Id)
+                            {
+                                <option value="@category.Id" selected>@category.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
                 </div>
                 
                 <div class="row mb-3">
@@ -87,9 +104,10 @@
 </div>
 
 @section Styles {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
-          crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+    <link rel="stylesheet" href="~/css/map-dark.css" asp-append-version="true" />
     <style>
         #map {
             border-radius: 5px;
@@ -109,11 +127,31 @@
             // Initialize the map
             var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
             
-            // Add the OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-            }).addTo(map);
+            // Add tiles based on current theme (authenticated fetch or localStorage)
+            const isAuthenticated = document.body.dataset.authenticated === 'true';
+            const darkUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@@2x.png';
+            const lightUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            const darkAttrib = '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+            const lightAttrib = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+            const loadTiles = enabled => {
+                const url = enabled ? darkUrl : lightUrl;
+                const attrib = enabled ? darkAttrib : lightAttrib;
+                L.tileLayer(url, { maxZoom: 19, attribution: attrib }).addTo(map);
+            };
+            if (isAuthenticated) {
+                fetch('/Account/GetDarkModePreference', { credentials: 'same-origin' })
+                    .then(res => res.json())
+                    .then(data => loadTiles(data.enabled))
+                    .catch(() => loadTiles(false));
+            } else {
+                const themeDark = document.documentElement.classList.contains('dark-mode');
+                loadTiles(themeDark);
+            }
+            
+            // React to theme changes via custom event
+            document.documentElement.addEventListener('themeChanged', function(e) {
+                loadTiles(e.detail.dark);
+            });
             
             // Create a marker variable and initialize it with the model's coordinates
             var marker = L.marker([@Model.Latitude, @Model.Longitude]).addTo(map);

@@ -1,185 +1,88 @@
-using MapHive.Models;
-using MapHive.Models.ViewModels;
-using MapHive.Singletons;
+namespace MapHive.Controllers;
+
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+using MapHive.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
-namespace MapHive.Controllers
+public class DiscussionController(
+    IDiscussionService _discussionService,
+    IUserContextService _userContextService,
+    IDiscussionRepository _discussionRepository
+) : Controller
 {
-    public class DiscussionController : Controller
+
+    [HttpGet("Discussion/Thread/{id:int:required}")]
+    public async Task<IActionResult> Thread(int id)
     {
-        // GET: Discussion/Thread/5
-        public async Task<IActionResult> Thread(int id)
+        ThreadDisplayPageModel pageModel = await _discussionService.GetThreadDisplayPageModelAsync(threadId: id);
+        return View(model: pageModel);
+    }
+
+    [HttpGet("Discussion/Create/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Create(int id)
+    {
+        ThreadCreatePageModel model = await _discussionService.GetThreadCreatePageModelAsync(locationId: id);
+        return View(model: model);
+    }
+
+    // POST: Discussion/Create
+    [HttpPost("Discussion/Create/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Create(int id, ThreadCreatePageModel discussionThreadPageModel)
+    {
+        if (!ModelState.IsValid)
+            return View(model: discussionThreadPageModel);
+
+        int createdThreadId = await _discussionService.CreateDiscussionThreadAsync(
+            locationId: id,
+            threadName: discussionThreadPageModel.ThreadName!,
+            reviewId: null,
+            isAnonymous: false,
+            initialMessage: discussionThreadPageModel.InitialMessage!
+            );
+        return RedirectToAction(actionName: "Thread", routeValues: new { id = createdThreadId });
+    }
+
+    // POST: /AddMessage
+    [HttpPost("Discussion/AddMessage/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> AddMessage(int id, ThreadMessagePageModel threadMessagePageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(id);
-            if (thread == null)
-            {
-                return this.NotFound();
-            }
-
-            // If it's a review thread, get the review
-            if (thread.IsReviewThread && thread.ReviewId.HasValue)
-            {
-                thread.Review = await CurrentRequest.ReviewRepository.GetReviewByIdAsync(thread.ReviewId.Value);
-            }
-
-            // Get the location
-            thread.Location = await CurrentRequest.MapRepository.GetLocationByIdAsync(thread.LocationId);
-
-            // Create a view model for adding a new message
-            ThreadMessageViewModel messageViewModel = new()
-            {
-                ThreadId = thread.Id,
-                ThreadName = thread.ThreadName,
-                MessageText = string.Empty
-            };
-
-            this.ViewBag.MessageViewModel = messageViewModel;
-
-            return this.View(thread);
+            return PartialView(viewName: "_ReplyFormPartial", model: threadMessagePageModel);
         }
 
-        // GET: Discussion/Create/5 (5 is the location ID)
-        [Authorize]
-        public async Task<IActionResult> Create(int id)
-        {
-            // Check if location exists
-            MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return this.NotFound();
-            }
+        _ = await _discussionRepository.CreateMessageAsync(
+            threadId: id,
+            authorId: _userContextService.AccountIdOrThrow,
+            messageText: threadMessagePageModel.MessageText!,
+            isInitialMessage: false
+        );
+        return RedirectToAction(actionName: "Thread", routeValues: new { id });
+    }
 
-            DiscussionThreadViewModel model = new()
-            {
-                LocationId = id,
-                LocationName = location.Name,
-                ThreadName = string.Empty,
-                InitialMessage = string.Empty
-            };
+    // POST: Discussion/DeleteMessage/5
+    [HttpPost("Discussion/DeleteMessage/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> DeleteMessage(int id)
+    {
+        await _discussionService.DeleteMessageAsync(messageId: id);
+        return this.ReddirectToReferer();
+    }
 
-            return this.View(model);
-        }
-
-        // POST: Discussion/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Create(DiscussionThreadViewModel model)
-        {
-            if (this.ModelState.IsValid)
-            {
-                // Check if location exists
-                MapLocation? location = await CurrentRequest.MapRepository.GetLocationByIdAsync(model.LocationId);
-                if (location == null)
-                {
-                    return this.NotFound();
-                }
-
-                // Create the thread
-                DiscussionThread thread = new()
-                {
-                    LocationId = model.LocationId,
-                    UserId = this.GetCurrentUserId(),
-                    ThreadName = model.ThreadName,
-                    IsReviewThread = false,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                thread = await CurrentRequest.DiscussionRepository.CreateDiscussionThreadAsync(thread, model.InitialMessage);
-
-                return this.RedirectToAction("Thread", new { id = thread.Id });
-            }
-
-            // If we got this far, something failed, redisplay form
-            return this.View(model);
-        }
-
-        // POST: Discussion/AddMessage
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> AddMessage(ThreadMessageViewModel model)
-        {
-            if (this.ModelState.IsValid)
-            {
-                // Check if thread exists
-                DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(model.ThreadId);
-                if (thread == null)
-                {
-                    return this.NotFound();
-                }
-
-                // Create the message
-                ThreadMessage message = new()
-                {
-                    ThreadId = model.ThreadId,
-                    UserId = this.GetCurrentUserId(),
-                    MessageText = model.MessageText,
-                    IsInitialMessage = false,
-                    IsDeleted = false,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _ = await CurrentRequest.DiscussionRepository.AddMessageAsync(message);
-
-                return this.RedirectToAction("Thread", new { id = model.ThreadId });
-            }
-
-            // If we got this far, something failed, redirect back to the thread
-            return this.RedirectToAction("Thread", new { id = model.ThreadId });
-        }
-
-        // POST: Discussion/DeleteMessage/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> DeleteMessage(int id)
-        {
-            ThreadMessage? message = await CurrentRequest.DiscussionRepository.GetMessageByIdAsync(id);
-            if (message == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the message author or admin to delete
-            int userId = this.GetCurrentUserId();
-            bool isAdmin = this.User.IsInRole("Admin");
-            if (!isAdmin && message.UserId != userId)
-            {
-                return this.Forbid();
-            }
-
-            _ = await CurrentRequest.DiscussionRepository.DeleteMessageAsync(id, userId);
-
-            return this.RedirectToAction("Thread", new { id = message.ThreadId });
-        }
-
-        // POST: Discussion/DeleteThread/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteThread(int id)
-        {
-            DiscussionThread? thread = await CurrentRequest.DiscussionRepository.GetThreadByIdAsync(id);
-            if (thread == null)
-            {
-                return this.NotFound();
-            }
-
-            int locationId = thread.LocationId;
-            _ = await CurrentRequest.DiscussionRepository.DeleteThreadAsync(id);
-
-            return this.RedirectToAction("Details", "Map", new { id = locationId });
-        }
-
-        private int GetCurrentUserId()
-        {
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id)
-                ? throw new Exception("User ID not found or is invalid")
-                : id;
-        }
+    [HttpPost("Discussion/Delete/{id:int:required}/{locationId:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteThread(int id, int locationId)
+    {
+        await _discussionRepository.DeleteThreadOrThrowAsync(id);
+        return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
     }
 }

@@ -1,0 +1,29 @@
+/* Dark mode overrides for Leaflet popups */
+.dark-mode .leaflet-popup-content-wrapper {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid #444 !important;
+}
+.dark-mode .leaflet-popup-tip-container .leaflet-popup-tip {
+  background-color: var(--bg-color) !important;
+}
+.dark-mode .leaflet-popup-content a {
+  color: var(--link-color) !important;
+}
+
+.dark-mode .leaflet-control-attribution {
+  color: rgb(77, 77, 77) !important;
+  background-color: rgba(0, 0, 0, 0.466) !important;
+}
+.dark-mode .leaflet-control-attribution a {
+  color: rgb(77, 77, 77) !important;
+}
+.dark-mode .leaflet-control-attribution a:hover {
+  color: rgb(77, 77, 77) !important;
+}
+.dark-mode .leaflet-control-attribution a:visited {
+  color: rgb(77, 77, 77) !important;
+}
+.dark-mode .leaflet-control-attribution a:active {
+  color: rgb(77, 77, 77) !important;
+}

@@ -1,208 +1,127 @@
-using MapHive.Models;
-using MapHive.Models.Exceptions;
-using MapHive.Singletons;
+namespace MapHive.Controllers;
+
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+using MapHive.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
-namespace MapHive.Controllers
+public class MapController(
+    IMapLocationService _mapService,
+    IUserContextService _userContextService,
+    IMapLocationRepository _mapRepository) : Controller
 {
-    public class MapController : Controller
+    public async Task<IActionResult> Index()
     {
-        // GET: Map
-        public async Task<IActionResult> Index()
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetAllLocationsAsync();
+        return View(model: locations);
+    }
+
+    [HttpGet("Map/Add")]
+    [Authorize]
+    public async Task<IActionResult> Add()
+    {
+        LocationUpdatePageModel vm = await _mapService.GetAddLocationPagePageModelAsync();
+        return View(model: vm);
+    }
+
+    // POST: Map/Add
+    [HttpPost("Map/Add")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Add(LocationUpdatePageModel addLocationPageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
-            return this.View(locations);
+            return View(model: addLocationPageModel);
         }
+        int locationId = await _mapRepository.CreateLocationAsync(
+            name: addLocationPageModel.Name!,
+            description: addLocationPageModel.Description,
+            latitude: addLocationPageModel.Latitude!.Value,
+            longitude: addLocationPageModel.Longitude!.Value,
+            address: addLocationPageModel.Address,
+            website: addLocationPageModel.Website,
+            phoneNumber: addLocationPageModel.PhoneNumber,
+            isAnonymous: addLocationPageModel.IsAnonymous,
+            categoryId: addLocationPageModel.CategoryId!.Value,
+            ownerId: _userContextService.AccountIdOrThrow
+        );
+        return RedirectToAction(actionName: nameof(Details), new { id = locationId });
+    }
 
-        // GET: Map/Add
-        [Authorize] // Only authenticated users can access this action
-        public IActionResult Add()
+    [HttpGet("Map/Edit/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id)
+    {
+        LocationUpdatePageModel vm = await _mapService.GetLocationUpdatePageModelAsync(id: id);
+        return View(model: vm);
+    }
+
+    [HttpPost("Map/Edit/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id, LocationUpdatePageModel locationUpdatePageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            return this.View();
+            return View(model: locationUpdatePageModel);
         }
+        await _mapService.UpdateLocationOrThrowAsync(id: id, locationUpdatePageModel: locationUpdatePageModel);
+        return RedirectToAction(actionName: nameof(Details), new { id });
+    }
 
-        // POST: Map/Add
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize] // Only authenticated users can create places
-        public async Task<IActionResult> Add(MapLocation location)
+    [HttpGet("Map/Delete/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
         {
-            if (this.ModelState.IsValid)
-            {
-                // Set the current user as the creator
-                string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id))
-                {
-                    throw new OrangeUserException("User ID not found in claims");
-                }
-                location.UserId = id;
-
-                _ = await CurrentRequest.MapRepository.AddLocationAsync(location);
-                return this.RedirectToAction(nameof(Index));
-            }
-            return this.View(location);
+            LocationExtended location = await _mapService.GetLocationByIdOrThrowAsync(id: id);
+            return View(model: location);
         }
-
-        // GET: Map/Edit/5
-        [Authorize]
-        public async Task<IActionResult> Edit(int id)
+        catch (KeyNotFoundException)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the creator or admin to edit
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            return !isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId)
-                ? this.Forbid()
-                : this.View(location);
+            return NotFound();
         }
+    }
 
-        // POST: Map/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Edit(int id, MapLocation location)
+    [HttpPost("Map/Delete/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        try
         {
-            if (id != location.Id)
-            {
-                return this.NotFound();
-            }
-
-            MapLocation existingLocation = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (existingLocation == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the creator or admin to edit
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || existingLocation.UserId != currentUserId))
-            {
-                return this.Forbid();
-            }
-
-            if (this.ModelState.IsValid)
-            {
-                _ = await CurrentRequest.MapRepository.UpdateLocationAsync(location);
-                return this.RedirectToAction(nameof(Index));
-            }
-            return this.View(location);
+            _ = await _mapService.DeleteLocationAsync(id: id);
+            return RedirectToAction(actionName: nameof(Index));
         }
-
-        // GET: Map/Delete/5
-        [Authorize]
-        public async Task<IActionResult> Delete(int id)
+        catch (KeyNotFoundException)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the creator or admin to delete
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            return !isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId)
-                ? this.Forbid()
-                : this.View(location);
+            return NotFound();
         }
+    }
 
-        // POST: Map/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+    [HttpGet("Map/Details/{id:int:required}")]
+    public async Task<IActionResult> Details(int id)
+    {
+        try
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return this.NotFound();
-            }
-
-            // Only allow the creator or admin to delete
-            string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            bool isAdmin = this.User.IsInRole("Admin");
-
-            if (!isAdmin && (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int currentUserId) || location.UserId != currentUserId))
-            {
-                return this.Forbid();
-            }
-
-            _ = await CurrentRequest.MapRepository.DeleteLocationAsync(id);
-            return this.RedirectToAction(nameof(Index));
+            // Retrieve all details via service
+            LocationDisplayPageModel pageModel = await _mapService.GetLocationDetailsAsync(id: id);
+            return View(model: pageModel);
         }
-
-        // GET: Map/Details/5
-        public async Task<IActionResult> Details(int id)
+        catch (KeyNotFoundException)
         {
-            MapLocation location = await CurrentRequest.MapRepository.GetLocationByIdAsync(id);
-            if (location == null)
-            {
-                return this.NotFound();
-            }
-
-            // Get the author's username if not anonymous
-            if (!location.IsAnonymous)
-            {
-                // We'll need the username for display, so use ViewBag to pass it
-                User? user = CurrentRequest.UserRepository.GetUserById(location.UserId);
-                this.ViewBag.AuthorUsername = user?.Username ?? "Unknown";
-            }
-            else
-            {
-                this.ViewBag.AuthorUsername = "Anonymous";
-            }
-
-            // Get reviews for this location
-            IEnumerable<Review> reviews = await CurrentRequest.ReviewRepository.GetReviewsByLocationIdAsync(id);
-            this.ViewBag.Reviews = reviews;
-
-            // Get average rating
-            double averageRating = await CurrentRequest.ReviewRepository.GetAverageRatingForLocationAsync(id);
-            this.ViewBag.AverageRating = averageRating;
-
-            // Get review count
-            int reviewCount = await CurrentRequest.ReviewRepository.GetReviewCountForLocationAsync(id);
-            this.ViewBag.ReviewCount = reviewCount;
-
-            // Check if the current user has already reviewed this location
-            bool hasReviewed = false;
-            if (this.User.Identity?.IsAuthenticated == true)
-            {
-                string? userId = this.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out int currentUserId))
-                {
-                    hasReviewed = await CurrentRequest.ReviewRepository.HasUserReviewedLocationAsync(currentUserId, id);
-                }
-            }
-            this.ViewBag.HasReviewed = hasReviewed;
-
-            // Get discussion threads for this location
-            IEnumerable<DiscussionThread> discussionThreads = await CurrentRequest.DiscussionRepository.GetAllDiscussionThreadsByLocationIdAsync(id);
-            this.ViewBag.DiscussionThreads = discussionThreads;
-
-            // Calculate the count of regular discussion threads (excluding review threads)
-            this.ViewBag.RegularDiscussionCount = discussionThreads.Count(t => !t.IsReviewThread);
-
-            return this.View(location);
+            return NotFound();
         }
+    }
 
-        // API endpoint to get all locations as JSON
-        [HttpGet]
-        public async Task<IActionResult> GetLocations()
-        {
-            IEnumerable<MapLocation> locations = await CurrentRequest.MapRepository.GetAllLocationsAsync();
-            return this.Json(locations);
-        }
+    [HttpGet("Map/GetLocations")]
+    public async Task<IActionResult> GetLocations()
+    {
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetAllLocationsAsync();
+        return Json(data: locations);
     }
 }

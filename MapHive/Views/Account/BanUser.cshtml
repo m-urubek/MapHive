@@ -1,59 +1,61 @@
-@model MapHive.Models.BanViewModel
-@{
-    ViewData["Title"] = $"Ban User: {ViewBag.Username}";
-}
+@using MapHive.Models.Enums
+@using MapHive.Models.PageModels
+@model BanUserUpdatePageModel
 
-<h2>@ViewData["Title"]</h2>
+<h2>Ban User: @Model.Username</h2>
 
-<p>You are about to ban user <strong>@ViewBag.Username</strong>.</p>
-<p>User Tier: <strong>@ViewBag.UserTier</strong></p>
-<!-- Display Registration IP from ViewBag -->
-<p>Registration IP: <strong>@ViewBag.RegistrationIp</strong></p>
+<p>You are about to ban user <strong>@Model.Username</strong>.</p>
+<p>User Tier: <strong>@Model.AccountTier</strong></p>
+<!-- Registration IP is no longer displayed directly -->
 
-@if (ViewBag.UserTier == UserTier.Admin)
+@if (Model.AccountTier == AccountTier.Admin)
 {
     <div class="alert alert-warning" role="alert">
         Cannot ban an administrator.
     </div>
-    <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Back to Profile</a>
+    <a asp-controller="Account"
+       asp-action="PublicProfileById"
+       asp-route-id="@(ViewContext.IdOrThrow())"
+       class="btn btn-secondary">
+        Back to Profile
+    </a>
 }
 else
 {
-    <form asp-action="ProcessBan" method="post">
-        <input type="hidden" name="userId" value="@ViewBag.UserId" />
-        <input type="hidden" name="username" value="@ViewBag.Username" />
-
+    <form asp-controller="Account"
+          asp-action="Ban"
+          asp-route-id="@(ViewContext.IdOrThrow())"
+          method="post">
+        <input type="hidden" asp-for="Username" />
+        <input type="hidden" asp-for="AccountTier" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="form-group mb-3">
-            <label asp-for="BanType" class="control-label"></label>
+            <label for="BanType" class="control-label">Ban Type</label>
             <select asp-for="BanType" class="form-control">
-                <option value="@BanType.Account">Account Ban</option>
-                <option value="@BanType.IpAddress">IP Address Ban (using Registration IP: @ViewBag.RegistrationIp)</option>
+                <option value="@MapHive.Models.Enums.BanType.Account">Account Ban</option>
+                <option value="@MapHive.Models.Enums.BanType.IpAddress">IP Address Ban</option>
             </select>
-            <span asp-validation-for="BanType" class="text-danger"></span>
         </div>
 
         <div class="form-group mb-3">
-            <label asp-for="Reason" class="control-label"></label>
+            <label for="Reason" class="control-label">Reason</label>
             <textarea asp-for="Reason" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="Reason" class="text-danger"></span>
         </div>
 
         <div class="form-check mb-3">
-            <input asp-for="IsPermanent" class="form-check-input" type="checkbox" id="isPermanentCheck" checked="checked" />
-            <label asp-for="IsPermanent" class="form-check-label" for="isPermanentCheck"></label>
+            <input class="form-check-input" type="checkbox" asp-for="IsPermanent" />
+            <label class="form-check-label" for="IsPermanent">Permanent Ban</label>
         </div>
 
         <div class="form-group mb-3" id="banDurationGroup">
-            <label asp-for="BanDurationDays" class="control-label">Ban Duration (Days)</label>
+            <label for="BanDurationDays" class="control-label">Ban Duration (Days)</label>
             <input asp-for="BanDurationDays" class="form-control" type="number" min="1" />
-            <span asp-validation-for="BanDurationDays" class="text-danger"></span>
         </div>
 
         <div class="form-group">
             <button type="submit" class="btn btn-danger">Confirm Ban</button>
-            <a asp-action="PublicProfile" asp-route-username="@ViewBag.Username" class="btn btn-secondary">Cancel</a>
+            <a asp-action="PublicProfileById" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 }

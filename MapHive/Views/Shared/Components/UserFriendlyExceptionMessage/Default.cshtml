@@ -1,0 +1,40 @@
+@using MapHive.Models.Exceptions.UserFriendlyExceptions
+@model UserFriendlyExceptionMessagePageModel
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="user-friendly-message" id="userFriendlyMessage">
+        <div class="alert @Model.AlertClass alert-dismissible fade show" role="alert">
+            <span>@Html.Raw(Model.Message)</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+    
+    <style>
+        .user-friendly-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            padding: 10px;
+        }
+        
+        .user-friendly-message .alert {
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+    
+    <script>
+        // Auto-hide the message after 15 seconds
+        setTimeout(function() {
+            const element = document.getElementById('userFriendlyMessage');
+            if (element) {
+                const alert = new bootstrap.Alert(element.querySelector('.alert'));
+                alert.close();
+            }
+        }, 15000);
+    </script>
+} 

@@ -1,77 +1,35 @@
-@model IEnumerable<MapHive.Models.MapLocation>
+@using MapHive.Models.Data.DbTableModels
+@model IEnumerable<LocationExtended>
 
 @{
     ViewData["Title"] = "Map View";
 }
 
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1 class="display-4">Explore Places</h1>
-            <p class="lead">Discover interesting locations around the world.</p>
-        </div>
-        <div class="col-md-4 text-end">
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                <a asp-action="Add" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Add New Place
-                </a>
-            }
-            else
-            {
-                <div class="alert alert-info">
-                    <a asp-area="" asp-controller="Account" asp-action="Login" class="alert-link">Log in</a> to add your own places.
-                </div>
-            }
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col">
-            <div id="map" style="width: 100%; height: 600px;"></div>
-        </div>
-    </div>
-    
-    <div class="row mt-4">
-        <div class="col">
-            <h3>Locations</h3>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Address</th>
-                        <th>Coordinates</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
-                        <tr>
-                            <td>@item.Name</td>
-                            <td>@item.Address</td>
-                            <td>@item.Latitude, @item.Longitude</td>
-                            <td>
-                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-info btn-sm">Details</a>
-                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-warning btn-sm">Edit</a>
-                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-danger btn-sm">Delete</a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+<div id="map"></div>
 
 @section Styles {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
           crossorigin=""/>
+    <link rel="stylesheet" href="~/css/map-dark.css" asp-append-version="true" />
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
         #map {
-            border-radius: 5px;
-            border: 1px solid #ccc;
+            position: fixed;
+            top: 3.5rem; /* push below navbar (approx. 56px) */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+        }
+        /* Ensure navbar and header are on top of the map */
+        header, .navbar {
+            position: relative;
+            z-index: 1000;
         }
     </style>
 }
@@ -83,12 +41,38 @@
     <script>
         // Initialize the map
         var map = L.map('map').setView([40, 0], 2);
+        map.attributionControl.setPosition('topright');
+        var baseLayer = null;
         
-        // Add the OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-        }).addTo(map);
+        // Add tiles based on current theme (authenticated fetch or localStorage)
+        const isAuthenticated = document.body.dataset.authenticated === 'true';
+        const darkUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@@2x.png';
+        const lightUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const darkAttrib = '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+        const lightAttrib = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+        const loadTiles = function(enabled) {
+            const url = enabled ? darkUrl : lightUrl;
+            const attrib = enabled ? darkAttrib : lightAttrib;
+            if (baseLayer) {
+                map.removeLayer(baseLayer);
+            }
+            baseLayer = L.tileLayer(url, { maxZoom: 19, attribution: attrib });
+            baseLayer.addTo(map);
+        };
+        if (isAuthenticated) {
+            fetch('/Account/GetDarkModePreference', { credentials: 'same-origin' })
+                .then(res => res.json())
+                .then(data => loadTiles(data.enabled))
+                .catch(() => loadTiles(false));
+        } else {
+            const themeDark = document.documentElement.classList.contains('dark-mode');
+            loadTiles(themeDark);
+        }
+        
+        // React to theme changes via custom event
+        document.documentElement.addEventListener('themeChanged', function(e) {
+            loadTiles(e.detail.dark);
+        });
         
         // Add markers for each location
         var locations = @Html.Raw(Json.Serialize(Model));
@@ -97,8 +81,8 @@
             var marker = L.marker([location.latitude, location.longitude]).addTo(map);
             
             marker.bindPopup(
-                '<strong>' + location.name + '</strong><br>' +
-                location.description + '<br>' +
+                '<strong><a href="/Map/Details/' + location.id + '">' + location.name + '</a></strong><br>' +
+                (location.description ? location.description + '<br>' : '') +
                 (location.address ? location.address + '<br>' : '') +
                 (location.website ? '<a href="' + location.website + '" target="_blank">Website</a><br>' : '') +
                 (location.phoneNumber ? 'Phone: ' + location.phoneNumber : '')

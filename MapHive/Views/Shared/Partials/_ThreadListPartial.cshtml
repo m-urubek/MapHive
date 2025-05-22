@@ -1,0 +1,76 @@
+@using System.Data
+@using MapHive.Models.Data.DbTableModels
+@using MapHive.Models.PageModels
+@model IEnumerable<ThreadInitialMessageDbModel>
+@{
+    bool isReviewsMode = ViewData["ReviewsMode"] as bool? ?? throw new NoNullAllowedException("ReviewsMode");
+    List<ThreadInitialMessageDbModel> threads = Model.Where(t => t.ReviewId.HasValue == isReviewsMode).ToList();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>@(isReviewsMode ? "Reviews" : "Discussion threads") (@threads.Count)</h4>
+</div>
+
+@if (threads.Count > 0)
+{
+    <div class="list-group">
+        @foreach (var thread in threads)
+        {
+            <div class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">
+                        <a asp-controller="Discussion" asp-action="Thread" asp-route-id="@thread.Id">
+                            @thread.ThreadName
+                        </a>
+                    </h5>
+                    <small>@thread.CreatedAt.ToString("g")</small>
+                </div>
+                @if (thread.InitialMessageDeletedAt.HasValue)
+                {
+                    if ((thread.InitialMessageDeletedByUsername 
+                     ?? throw new NoNullAllowedException(nameof(thread.InitialMessageDeletedByUsername))) 
+                     == thread.AuthorUsername)
+                    {
+                        <p class="mb-1 text-muted fst-italic">@thread.AuthorUsername deleted their message at @((thread.InitialMessageDeletedAt ?? throw new NoNullAllowedException(nameof(thread.InitialMessageDeletedAt))).ToString("g"))</p>
+                    }
+                    else
+                    {
+                        <p class="mb-1 text-muted fst-italic">@(thread.InitialMessageDeletedByUsername 
+                            ?? throw new NoNullAllowedException(nameof(thread.InitialMessageDeletedByUsername))
+                            ) deleted this message at @((thread.InitialMessageDeletedAt ?? throw new NoNullAllowedException(nameof(thread.InitialMessageDeletedAt))).ToString("g"))</p>
+                    }
+                }
+                else
+                {
+                    <p class="mb-1">
+                        @(thread.InitialMessageText.Length > 100
+                                    ? thread.InitialMessageText.Substring(0, 100) + "..."
+                                    : thread.InitialMessageText)
+                    </p>
+                }
+                <small>
+                    Started on @thread.CreatedAt.ToString("g")
+                    Started by
+                    @if (thread.AuthorId != null)
+                    {
+                        <a asp-controller="Account" asp-action="PublicProfileById"
+                            asp-route-id="@thread.AuthorId">@thread.AuthorUsername</a>
+                    }
+                    else
+                    {
+                        @thread.AuthorUsername
+                    }
+                    - @thread.CreatedAt.ToString("g")
+                    - @thread.MessagesCount @(thread.MessagesCount == 1 ? "message" : "messages") -
+                    Location: <a asp-controller="Map" asp-action="Details" asp-route-id="@thread.LocationId">View Place</a>
+                </small>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        No @(isReviewsMode ? "reviews" : "discussion threads") found.
+    </div>
+}
