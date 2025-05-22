@@ -132,7 +132,7 @@ csharp_style_prefer_readonly_struct_member = true:suggestion
 csharp_prefer_braces = when_multiline:warning
 csharp_prefer_simple_using_statement = true:warning
 csharp_prefer_system_threading_lock = true:suggestion
-csharp_style_namespace_declarations = block_scoped:warning
+csharp_style_namespace_declarations = file_scoped:warning
 csharp_style_prefer_method_group_conversion = true:warning
 csharp_style_prefer_primary_constructors = true:suggestion
 csharp_style_prefer_top_level_statements = true:warning
@@ -172,7 +172,7 @@ dotnet_diagnostic.CS8618.severity = error
 dotnet_diagnostic.IDE0059.severity = error
 dotnet_diagnostic.IDE0060.severity = error
 dotnet_diagnostic.IDE0290.severity = error
-dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0051.severity = suggestion
 dotnet_diagnostic.IDE0028.severity = none
 dotnet_diagnostic.IDE0305.severity = warning
 dotnet_diagnostic.IDE0300.severity = warning
@@ -242,6 +242,7 @@ dotnet_diagnostic.CS8819.severity = error
 dotnet_diagnostic.CS8824.severity = error
 dotnet_diagnostic.CS8825.severity = error
 dotnet_diagnostic.CS8847.severity = error
+dotnet_diagnostic.CA1822.severity = warning
 
 
 #### C# Formatting Rules ####

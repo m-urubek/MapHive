@@ -1,67 +1,77 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+
+public class ProfileService(
+    IAccountsRepository userRepository,
+    IMapLocationRepository mapRepository,
+    IDiscussionRepository discussionRepository,
+    IUserContextService userContextService,
+    IAccountBansRepository AccountBansRepository,
+    IAccountService accountService,
+    IIpBansRepository _ipBansRepository) : IProfileService
 {
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Repositories;
+    private readonly IAccountsRepository _userRepository = userRepository;
+    private readonly IMapLocationRepository _mapRepository = mapRepository;
+    private readonly IDiscussionRepository _discussionRepository = discussionRepository;
+    private readonly IUserContextService _userContextService = userContextService;
+    private readonly IAccountBansRepository _AccountBansRepository = AccountBansRepository;
+    private readonly IIpBansRepository _ipBansRepository = _ipBansRepository;
+    private readonly IAccountService _accountService = accountService;
 
-    public class ProfileService(
-        IUserRepository userRepository,
-        IMapLocationRepository mapRepository,
-        IDiscussionRepository discussionRepository,
-        IUserContextService userContextService) : IProfileService
+    private static readonly char[] separator = ['\n', '\r'];
+
+    public async Task<PrivateProfilePageModel> GetPrivateProfilePageModelAsync()
     {
-        private readonly IUserRepository _userRepository = userRepository;
-        private readonly IMapLocationRepository _mapRepository = mapRepository;
-        private readonly IDiscussionRepository _discussionRepository = discussionRepository;
-        private readonly IUserContextService _userContextService = userContextService;
-        private static readonly char[] separator = ['\n', '\r'];
+        AccountAtomic user = await _userRepository.GetAccountByIdOrThrowAsync(id: _userContextService.AccountIdOrThrow);
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetLocationsByOwnerIdAsync(accountId: _userContextService.AccountIdOrThrow);
+        IEnumerable<ThreadInitialMessageDbModel> threads = await _discussionRepository.GetInitialMessageThreadsByAccountIdAsync(accountId: _userContextService.AccountIdOrThrow);
 
-        public async Task<PrivateProfileViewModel> GetPrivateProfileAsync(int userId)
+        return new PrivateProfilePageModel
         {
-            UserGet? user = await _userRepository.GetUserByIdAsync(id: userId) ?? throw new Exception(message: $"User \"{userId}\" not found!");
-            IEnumerable<MapLocationGet> locations = await _mapRepository.GetLocationsByUserIdAsync(userId: userId);
-            IEnumerable<DiscussionThreadGet> threads = await _discussionRepository.GetThreadsByUserIdAsync(userId: userId);
+            AccountId = _userContextService.AccountIdOrThrow,
+            Username = user.Username,
+            Tier = user.Tier,
+            RegistrationDate = user.RegistrationDate,
+            UserLocations = locations,
+            UserThreads = threads,
+            ChangeUsernamePageModel = new ChangeUsernamePageModel { NewUsername = user.Username },
+            ChangePasswordPageModel = new ChangePasswordPageModel(),
+            CurrentBan = await _accountService.GetActiveBanPageModelAsync(accountId: _userContextService.AccountIdOrThrow),
+        };
+    }
 
-            return new PrivateProfileViewModel
-            {
-                Username = user.Username,
-                Tier = user.Tier,
-                RegistrationDate = user.RegistrationDate,
-                UserLocations = locations,
-                UserThreads = threads,
-                ChangeUsernameViewModel = new ChangeUsernameViewModel { NewUsername = user.Username },
-                ChangePasswordViewModel = new ChangePasswordViewModel()
-            };
-        }
+    public async Task<PublicProfilePageModel> GetPublicProfileAsync(string username)
+    {
+        AccountAtomic accountGet = await _userRepository.GetAccountByUsernameOrThrowAsync(username: username);
 
-        public async Task<PublicProfileViewModel> GetPublicProfileAsync(string username)
+        return await GetPublicProfileBaseAsync(accountGet: accountGet);
+    }
+
+    public async Task<PublicProfilePageModel> GetPublicProfileAsync(int accountId)
+    {
+        AccountAtomic accountGet = await _userRepository.GetAccountByIdOrThrowAsync(id: accountId);
+        return await GetPublicProfileBaseAsync(accountGet: accountGet);
+    }
+
+    private async Task<PublicProfilePageModel> GetPublicProfileBaseAsync(AccountAtomic accountGet)
+    {
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetLocationsByOwnerIdAsync(accountId: accountGet.Id);
+        IEnumerable<ThreadInitialMessageDbModel> threads = await _discussionRepository.GetInitialMessageThreadsByAccountIdAsync(accountId: accountGet.Id);
+
+        return new PublicProfilePageModel
         {
-            UserGet userGet = await _userRepository.GetUserByUsernameAsync(username: username) ?? throw new Exception($"User \"{username}\" not found!");
+            AccountId = accountGet.Id,
+            Username = accountGet.Username,
+            Tier = accountGet.Tier,
+            RegistrationDate = accountGet.RegistrationDate,
+            UserLocations = locations,
+            UserThreads = threads,
+            CurrentBan = await _accountService.GetActiveBanPageModelAsync(accountId: accountGet.Id),
+            SignedInUserIsAdmin = _userContextService.IsAuthenticated && _userContextService.IsAdminOrThrow,
+        };
 
-            // Check ban status
-            UserBanGet? activeBan = await _userRepository.GetActiveBanByUserIdAsync(userId: userGet.Id);
-            if (activeBan == null || !activeBan.IsActive)
-            {
-                string? registrationIp = userGet.IpAddressHistory?.Split(separator: separator, options: StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (!string.IsNullOrEmpty(value: registrationIp))
-                {
-                    activeBan = await _userRepository.GetActiveBanByIpAddressAsync(hashedIpAddress: registrationIp);
-                }
-            }
-
-            IEnumerable<MapLocationGet> locations = await _mapRepository.GetLocationsByUserIdAsync(userId: userGet.Id);
-            IEnumerable<DiscussionThreadGet> threads = await _discussionRepository.GetThreadsByUserIdAsync(userId: userGet.Id);
-
-            return new PublicProfileViewModel
-            {
-                UserId = userGet.Id,
-                Username = userGet.Username,
-                Tier = userGet.Tier,
-                RegistrationDate = userGet.RegistrationDate,
-                UserLocations = locations,
-                UserThreads = threads,
-                CurrentBan = activeBan
-            };
-        }
     }
 }

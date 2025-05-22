@@ -1,119 +1,102 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+using System.Data;
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Exceptions;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+
+public class ReviewService(
+    IReviewRepository reviewRepository,
+    IMapLocationRepository mapRepository,
+    IUserContextService userContextService,
+    IDiscussionService discussionService,
+    IDiscussionRepository discussionRepository) : IReviewService
 {
-    using AutoMapper;
-    using MapHive.Models.Exceptions;
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Repositories;
+    private readonly IReviewRepository _reviewRepository = reviewRepository;
+    private readonly IMapLocationRepository _mapRepository = mapRepository;
+    private readonly IUserContextService _userContextService = userContextService;
+    private readonly IDiscussionService _discussionService = discussionService;
+    private readonly IDiscussionRepository _discussionRepository = discussionRepository;
 
-    public class ReviewService(
-        IReviewRepository reviewRepository,
-        IMapLocationRepository mapRepository,
-        IDiscussionRepository discussionRepository,
-        IMapper mapper,
-        IUserContextService userContextService) : IReviewService
+    public async Task<int> CreateReviewAsync(int locationId, ReviewUpdatePageModel model)
     {
-        private readonly IReviewRepository _reviewRepository = reviewRepository;
-        private readonly IMapLocationRepository _mapRepository = mapRepository;
-        private readonly IDiscussionRepository _discussionRepository = discussionRepository;
-        private readonly IMapper _mapper = mapper;
-        private readonly IUserContextService _userContextService = userContextService;
+        if (await _reviewRepository.HasUserReviewedLocationAsync(accountId: _userContextService.AccountIdOrThrow, locationId: locationId))
+            throw new PublicWarningException($"User \"{_userContextService.AccountIdOrThrow}\" has already reviewed location with id \"{locationId}\".");
 
-        public async Task<ReviewViewModel> GetCreateModelAsync(int locationId)
-        {
-            MapLocationGet location = await _mapRepository.GetLocationByIdAsync(id: locationId)
-                ?? throw new KeyNotFoundException($"Location {locationId} not found");
-            return new ReviewViewModel
+        int reviewId = await _reviewRepository.CreateReviewAsync(
+            locationId: locationId,
+            accountId: _userContextService.AccountIdOrThrow,
+            rating: model.Rating ?? throw new NoNullAllowedException(nameof(model.Rating)),
+            isAnonymous: model.IsAnonymous
+        );
+
+        _ = await _discussionService.CreateDiscussionThreadAsync(
+            locationId: locationId,
+            threadName: $"{(model.IsAnonymous ? "Anonymous" : _userContextService.UsernameOrThrow + "'s")} review of {model.LocationName}",
+            reviewId: reviewId,
+            isAnonymous: model.IsAnonymous,
+            initialMessage: model.ReviewText ?? throw new PublicErrorException("Review text cannot be empty")
+        );
+
+        return reviewId;
+    }
+
+    public async Task<ReviewUpdatePageModel> GetEditModelAsync(int reviewId)
+    {
+        ReviewExtended review = await _reviewRepository.GetReviewByIdOrThrowAsync(id: reviewId);
+        return review.AccountId != _userContextService.AccountIdOrThrow && !_userContextService.IsAdminOrThrow
+            ? throw new UnauthorizedAccessException()
+            : new()
             {
-                LocationId = locationId,
-                LocationName = location.Name,
-                Rating = 0,
-                ReviewText = string.Empty
+                LocationName = (await _mapRepository.GetLocationByIdOrThrowAsync(id: review.LocationId)).Name,
+                IsAnonymous = review.IsAnonymous,
+                Rating = review.Rating,
+                ReviewText = review.ReviewText,
             };
-        }
+    }
 
-        public async Task<ReviewGet> CreateReviewAsync(ReviewViewModel model, int userId)
+    public async Task<int> EditReviewAsync(int id, ReviewUpdatePageModel model)
+    {
+        ReviewExtended review = await _reviewRepository.GetReviewByIdOrThrowAsync(id: id);
+        if (review.AccountId != _userContextService.AccountIdOrThrow)
         {
-            if (await _reviewRepository.HasUserReviewedLocationAsync(userId: userId, locationId: model.LocationId))
-            {
-                throw new OrangeUserException("You have already reviewed this location.");
-            }
-
-            ReviewCreate reviewDto = _mapper.Map<ReviewCreate>(source: model);
-            reviewDto.UserId = userId;
-            ReviewGet createdReview = await _reviewRepository.AddReviewAsync(review: reviewDto);
-
-            ReviewThreadCreate threadDto = new()
-            {
-                ReviewId = createdReview.Id,
-                LocationId = model.LocationId,
-                UserId = userId,
-                Username = string.Empty,
-                ReviewTitle = model.LocationName
-            };
-            _ = await _discussionRepository.CreateReviewThreadAsync(threadCreate: threadDto);
-
-            return createdReview;
+            throw new UnauthorizedAccessException();
         }
 
-        public async Task<ReviewViewModel> GetEditModelAsync(int reviewId, int userId)
+        await _reviewRepository.UpdateReviewOrThrowAsync(
+            id: id,
+            rating: DynamicValue<int>.Set(model.Rating ?? throw new NoNullAllowedException(nameof(model.Rating))),
+            reviewText: DynamicValue<string>.Set(model.ReviewText ?? throw new NoNullAllowedException(nameof(model.ReviewText))),
+            isAnonymous: DynamicValue<bool>.Set(model.IsAnonymous)
+        );
+        return review.LocationId;
+    }
+
+    /// <summary>Returns location id</summary>
+    public async Task<int> DeleteReviewAsync(int id)
+    {
+        ReviewExtended review = await _reviewRepository.GetReviewByIdOrThrowAsync(id: id);
+        if (!_userContextService.IsAdminOrThrow && review.AccountId != review.AccountId)
+            throw new UnauthorizedAccessException();
+
+        ThreadDisplayPageModel thread = await _discussionRepository.GetThreadByReviewIdOrThrowAsync(reviewId: review.Id);
+        if (!thread.ReviewId.HasValue)
+            throw new Exception($"Review thread \"{thread.Id}\" not found");
+        List<ThreadMessageExtended> messages = await _discussionRepository.GetMessagesByThreadIdAsync(thread.Id);
+        if (messages.Count > 1)
         {
-            ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: reviewId)
-                ?? throw new KeyNotFoundException($"Review {reviewId} not found");
-            if (review.UserId != userId)
-            {
-                throw new UnauthorizedAccessException();
-            }
-            ReviewViewModel model = _mapper.Map<ReviewViewModel>(source: review);
-            MapLocationGet location = await _mapRepository.GetLocationByIdAsync(id: review.LocationId)
-                ?? throw new KeyNotFoundException($"Location {review.LocationId} not found");
-            model.LocationName = location.Name;
-            return model;
+            await _discussionRepository.ConvertReviewThreadToDiscussionOrThrowAsync(threadId: thread.Id);
         }
-
-        public async Task EditReviewAsync(int id, ReviewViewModel model, int userId)
+        else
         {
-            ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: id)
-                ?? throw new KeyNotFoundException($"Review {id} not found");
-            if (review.UserId != userId)
-            {
-                throw new UnauthorizedAccessException();
-            }
-
-            ReviewUpdate updateDto = _mapper.Map<ReviewUpdate>(source: model);
-            updateDto.Id = id;
-            updateDto.UserId = userId;
-            updateDto.LocationId = review.LocationId;
-
-            if (!await _reviewRepository.UpdateReviewAsync(review: updateDto))
-            {
-                throw new Exception("Failed to update review.");
-            }
+            await _discussionRepository.DeleteThreadOrThrowAsync(id: thread.Id);
         }
 
-        public async Task<int> DeleteReviewAsync(int id, int userId)
-        {
-            ReviewGet review = await _reviewRepository.GetReviewByIdAsync(id: id)
-                ?? throw new KeyNotFoundException($"Review {id} not found");
-            if (!_userContextService.IsAdminRequired && review.UserId != userId)
-            {
-                throw new UnauthorizedAccessException();
-            }
+        int locationId = review.LocationId;
+        await _reviewRepository.DeleteReviewOrThrowAsync(id: id);
 
-            string reviewText = review.ReviewText;
-            int locationId = review.LocationId;
-
-            _ = await _reviewRepository.DeleteReviewAsync(id: id);
-            DiscussionThreadGet? thread = await _discussionRepository.GetThreadByIdAsync(id: review.Id);
-            if (thread != null && thread.IsReviewThread && thread.ReviewId == review.Id)
-            {
-                IEnumerable<ThreadMessageGet> messages = await _discussionRepository.GetMessagesByThreadIdAsync(threadId: thread.Id);
-                if (messages.Any())
-                {
-                    _ = await _discussionRepository.ConvertReviewThreadToDiscussionAsync(threadId: thread.Id, initialMessage: reviewText);
-                }
-            }
-            return locationId;
-        }
+        return locationId;
     }
 }

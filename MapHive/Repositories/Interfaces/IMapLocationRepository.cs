@@ -1,24 +1,38 @@
-namespace MapHive.Repositories
+namespace MapHive.Repositories;
+
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+
+public interface IMapLocationRepository
 {
-    using MapHive.Models.RepositoryModels;
-
-    public interface IMapLocationRepository
-    {
-        Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync();
-        Task<MapLocationGet?> GetLocationByIdAsync(int id);
-        Task<MapLocationGet> GetLocationByIdOrThrowAsync(int id);
-        Task<MapLocationGet> AddLocationAsync(MapLocationCreate location);
-        Task<MapLocationGet?> UpdateLocationAsync(MapLocationUpdate location);
-        Task<bool> DeleteLocationAsync(int id);
-        Task<IEnumerable<MapLocationGet>> GetLocationsByUserIdAsync(int userId);
-        Task<MapLocationGet?> GetLocationWithCategoryAsync(int id);
-        Task<MapLocationGet> GetLocationWithCategoryOrThrowAsync(int id);
-
-        // Category methods
-        Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync();
-        Task<CategoryGet?> GetCategoryByIdAsync(int id);
-        Task<CategoryGet> AddCategoryAsync(CategoryCreate category);
-        Task<CategoryGet?> UpdateCategoryAsync(CategoryUpdate category);
-        Task<bool> DeleteCategoryAsync(int id);
-    }
+    Task<IEnumerable<LocationExtended>> GetAllLocationsAsync();
+    Task<LocationExtended?> GetLocationByIdAsync(int id);
+    Task<LocationExtended> GetLocationByIdOrThrowAsync(int id);
+    Task<int> CreateLocationAsync(
+        string name,
+        string? description,
+        double latitude,
+        double longitude,
+        string? address,
+        string? website,
+        string? phoneNumber,
+        bool isAnonymous,
+        int categoryId,
+        int ownerId
+    );
+    Task UpdateLocationOrThrowAsync(
+        int id,
+        DynamicValue<string> name,
+        DynamicValue<string?> description,
+        DynamicValue<double> latitude,
+        DynamicValue<double> longitude,
+        DynamicValue<string?> address,
+        DynamicValue<string?> website,
+        DynamicValue<string?> phoneNumber,
+        DynamicValue<bool> isAnonymous,
+        DynamicValue<int> categoryId
+    );
+    Task<bool> DeleteLocationAsync(int id);
+    Task<IEnumerable<LocationExtended>> GetLocationsByOwnerIdAsync(int accountId);
+    Task<IEnumerable<CategoryAtomic>> GetAllCategoriesAsync();
 }

@@ -1,8 +1,7 @@
-namespace MapHive.Models.Enums
+namespace MapHive.Models.Enums;
+
+public enum BanType
 {
-    public enum BanType
-    {
-        Account = 0,
-        IpAddress = 1
-    }
+    Account = 0,
+    IpAddress = 1
 }

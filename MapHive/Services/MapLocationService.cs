@@ -1,157 +1,171 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Exceptions;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+
+public class MapLocationService(
+    IMapLocationRepository _mapRepository,
+    IDiscussionRepository _discussionRepository,
+    IReviewRepository _reviewRepository,
+    IUserContextService _userContextService,
+    IUsernamesService _usernamesService) : IMapLocationService
 {
-    using System.Collections.Generic;
-    using System.Linq;
-    using AutoMapper;
-    using MapHive.Models.Exceptions;
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Repositories;
 
-    public class MapLocationService(
-        IMapLocationRepository mapRepository,
-        IDiscussionRepository discussionRepository,
-        IReviewRepository reviewRepository,
-        IUserRepository userRepository,
-        IMapper mapper,
-        IUserContextService userContextService) : IMapService
+    public async Task<LocationExtended> GetLocationByIdOrThrowAsync(int id)
     {
-        private readonly IMapLocationRepository _mapRepository = mapRepository;
-        private readonly IDiscussionRepository _discussionRepository = discussionRepository;
-        private readonly IReviewRepository _reviewRepository = reviewRepository;
-        private readonly IUserRepository _userRepository = userRepository;
-        private readonly IMapper _mapper = mapper;
-        private readonly IUserContextService _userContextService = userContextService;
+        LocationExtended? location = await _mapRepository.GetLocationByIdAsync(id: id);
+        return location ?? throw new PublicErrorException($"Location {id} not found");
+    }
 
-        public Task<IEnumerable<MapLocationGet>> GetAllLocationsAsync()
+    public async Task UpdateLocationOrThrowAsync(int locationId, LocationUpdatePageModel locationUpdatePageModel)
+    {
+        LocationExtended mapLocationGet = await _mapRepository.GetLocationByIdOrThrowAsync(id: locationId);
+        EnsureUserCanEditLocation(mapLocationGet.OwnerId);
+        await _mapRepository.UpdateLocationOrThrowAsync(
+            id: locationId,
+            name: DynamicValue<string>.Set(locationUpdatePageModel.Name ?? throw new NoNullAllowedException(nameof(locationUpdatePageModel.Name))),
+            description: DynamicValue<string?>.Set(locationUpdatePageModel.Description),
+            latitude: DynamicValue<double>.Set(locationUpdatePageModel.Latitude ?? throw new NoNullAllowedException(nameof(locationUpdatePageModel.Latitude))),
+            longitude: DynamicValue<double>.Set(locationUpdatePageModel.Longitude ?? throw new NoNullAllowedException(nameof(locationUpdatePageModel.Longitude))),
+            address: DynamicValue<string?>.Set(locationUpdatePageModel.Address),
+            website: DynamicValue<string?>.Set(locationUpdatePageModel.Website),
+            phoneNumber: DynamicValue<string?>.Set(locationUpdatePageModel.PhoneNumber),
+            isAnonymous: DynamicValue<bool>.Set(locationUpdatePageModel.IsAnonymous),
+            categoryId: DynamicValue<int>.Set(locationUpdatePageModel.CategoryId ?? throw new NoNullAllowedException(nameof(locationUpdatePageModel.CategoryId)))
+        );
+    }
+
+    public async Task<bool> DeleteLocationAsync(int id)
+    {
+        LocationExtended mapLocationGet = await _mapRepository.GetLocationByIdOrThrowAsync(id: id);
+        EnsureUserCanEditLocation(mapLocationGet.OwnerId);
+        return await _mapRepository.DeleteLocationAsync(id: id);
+    }
+
+    //todo decompose
+    public async Task<LocationDisplayPageModel> GetLocationDetailsAsync(int id)
+    {
+        LocationExtended location = await _mapRepository.GetLocationByIdOrThrowAsync(id: id);
+
+        (string ownerUsername, int? ownerId) = _usernamesService.GetAnonymizedUser(
+            username: location.OwnerUsername,
+            authorId: location.OwnerId,
+            isAnonymous: location.IsAnonymous
+        );
+
+        List<ReviewExtended>? reviews = await _reviewRepository.GetReviewsByLocationIdAsync(locationId: id);
+        int reviewCount = reviews is null ? 0 : reviews.Count;
+        if (reviews != null)
         {
-            return _mapRepository.GetAllLocationsAsync();
+            foreach (ReviewExtended review in reviews)
+                (review.AuthorUsername, review.AccountId) = _usernamesService.GetAnonymizedUser(username: review.AuthorUsername, authorId: review.AccountId, isAnonymous: review.IsAnonymous);
         }
 
-        public Task<IEnumerable<CategoryGet>> GetAllCategoriesAsync()
-        {
-            return _mapRepository.GetAllCategoriesAsync();
-        }
+        // Retrieve all discussion threads (including review threads) for review section, and count non-review threads for general discussions
+        List<ThreadInitialMessageDbModel>? allThreads = await _discussionRepository.GetInitialMessageThreadsByLocationIdAsync(locationId: id);
 
-        public Task<MapLocationGet?> GetLocationByIdAsync(int id)
+        // Sanitize anonymous discussion threads for non-admin users
+        if (allThreads != null)
         {
-            return _mapRepository.GetLocationByIdAsync(id: id);
-        }
-
-        public async Task<MapLocationGet> GetLocationByIdOrThrowAsync(int id)
-        {
-            MapLocationGet? location = await GetLocationByIdAsync(id: id);
-            return location ?? throw new PublicErrorException($"Location {id} not found");
-        }
-
-        public async Task<MapLocationGet> AddLocationAsync(MapLocationCreate createDto)
-        {
-            createDto.UserId = _userContextService.UserIdRequired;
-            return await _mapRepository.AddLocationAsync(location: createDto);
-        }
-
-        public async Task<MapLocationGet?> UpdateLocationAsync(int id, MapLocationUpdate updateDto)
-        {
-            MapLocationGet mapLocationGet = await _mapRepository.GetLocationByIdOrThrowAsync(id: id);
-            EnsureUserCanEditLocation(mapLocationGet.UserId);
-            return await _mapRepository.UpdateLocationAsync(location: updateDto);
-        }
-
-        public async Task<bool> DeleteLocationAsync(int id)
-        {
-            MapLocationGet mapLocationGet = await _mapRepository.GetLocationByIdOrThrowAsync(id: id);
-            EnsureUserCanEditLocation(mapLocationGet.UserId);
-            return await _mapRepository.DeleteLocationAsync(id: id);
-        }
-
-        public async Task<MapLocationViewModel> GetLocationDetailsAsync(int id)
-        {
-            MapLocationGet location = await _mapRepository.GetLocationWithCategoryOrThrowAsync(id: id);
-            string authorUsername;
-
-            if (_userContextService.IsAuthenticatedAndAdmin)
+            foreach (ThreadInitialMessageDbModel thread in allThreads)
             {
-                UserGet user = await _userRepository.GetUserByIdOrThrowAsync(id: location.UserId);
-                authorUsername = user.Username + " (anonymous)";
+                (string threadAuthorUsername, int? threadAuthorId) = _usernamesService.GetAnonymizedUser(
+                    username: thread.AuthorUsername,
+                    authorId: thread.AuthorId,
+                    isAnonymous: thread.IsAnonymous
+                );
+                thread.AuthorUsername = threadAuthorUsername;
+                thread.AuthorId = threadAuthorId;
             }
-            else
+        }
+
+        // Determine if the current user can edit this location
+        bool canEdit = _userContextService.IsAuthenticated && (location.OwnerId == _userContextService.AccountIdOrThrow || _userContextService.IsAdminOrThrow);
+
+        return new()
+        {
+            Name = location.Name,
+            Description = location.Description,
+            Latitude = location.Latitude,
+            Longitude = location.Longitude,
+            Address = location.Address,
+            Website = location.Website,
+            PhoneNumber = location.PhoneNumber,
+            IsAnonymous = location.IsAnonymous,
+            CategoryName = location.CategoryName,
+            CreatedAt = location.CreatedAt,
+            UpdatedAt = location.UpdatedAt,
+            OwnerUsername = ownerUsername,
+            OwnerId = ownerId,
+            HasReviewed = _userContextService.IsAuthenticated && (reviews?.Select(r => r.AccountId).Contains(_userContextService.AccountIdOrThrow) ?? false),
+            RegularDiscussionCount = allThreads?.Count(d => !d.ReviewId.HasValue) ?? 0,
+            Reviews = reviews?.Select(review => new ReviewDisplayPageModel()
             {
-                if (!location.IsAnonymous)
-                {
-                    UserGet user = await _userRepository.GetUserByIdOrThrowAsync(id: location.UserId);
-                    authorUsername = user.Username;
-                }
-                else
-                {
-                    authorUsername = "Anonymous";
-                }
-            }
+                Id = review.Id,
+                IsAnonymous = review.IsAnonymous,
+                Rating = review.Rating,
+                AuthorUsername = review.AuthorUsername,
+                AuthorId = review.AccountId,
+                CreatedAt = review.CreatedAt,
+                ReviewText = review.ReviewText,
+            }).ToList(),
+            Threads = allThreads,
+            CanEdit = canEdit,
+        };
+    }
 
-            List<ReviewGet>? reviews = await _reviewRepository.GetReviewsByLocationIdAsync(locationId: id);
-            int reviewCount = reviews is null ? 0 : reviews.Count;
-
-            // Retrieve all discussion threads (including review threads) for review section, and count non-review threads for general discussions
-            List<DiscussionThreadGet>? allThreads = await _discussionRepository.GetAllDiscussionThreadsByLocationIdAsync(locationId: id);
-
-            return new()
-            {
-                MapLocationGet = location,
-                AuthorUsername = authorUsername,
-                ReviewCount = reviewCount,
-                HasReviewed = await HasCurrentUserReviewedLocationAsync(locationId: id),
-                RegularDiscussionCount = allThreads is null ? 0 : allThreads.Count(d => !d.IsReviewThread),
-                Reviews = reviews,
-                Discussions = allThreads,
-            };
-        }
-
-        public Task<MapLocationGet?> GetLocationWithCategoryAsync(int id)
+    /// <summary>
+    /// Retrieves data for the Add Location page, including categories.
+    /// </summary>
+    public async Task<LocationUpdatePageModel> GetAddLocationPagePageModelAsync()
+    {
+        return new LocationUpdatePageModel
         {
-            return _mapRepository.GetLocationWithCategoryAsync(id: id);
-        }
+            Categories = await _mapRepository.GetAllCategoriesAsync(),
+            Name = null,
+            Description = null,
+            Latitude = 50.09110453895419,
+            Longitude = 14.40161930844168,
+            Address = null,
+            Website = null,
+            PhoneNumber = null,
+            IsAnonymous = false,
+            CategoryId = null,
+        };
+    }
 
-        public async Task<bool?> HasCurrentUserReviewedLocationAsync(int locationId)
+    /// <summary>
+    /// Retrieves data for the Edit Location page, including current values and categories.
+    /// </summary>
+    public async Task<LocationUpdatePageModel> GetLocationUpdatePageModelAsync(int id)
+    {
+        LocationExtended mapLocationGet = await _mapRepository.GetLocationByIdOrThrowAsync(id: id);
+        EnsureUserCanEditLocation(mapLocationGet.OwnerId);
+        return new LocationUpdatePageModel()
         {
-            return !_userContextService.IsAuthenticated
-                ? null
-                : await _reviewRepository.HasUserReviewedLocationAsync(userId: _userContextService.UserIdRequired, locationId: locationId);
-        }
+            Categories = await _mapRepository.GetAllCategoriesAsync(),
+            Name = mapLocationGet.Name,
+            Description = mapLocationGet.Description,
+            Latitude = mapLocationGet.Latitude,
+            Longitude = mapLocationGet.Longitude,
+            Address = mapLocationGet.Address,
+            Website = mapLocationGet.Website,
+            PhoneNumber = mapLocationGet.PhoneNumber,
+            IsAnonymous = mapLocationGet.IsAnonymous,
+            CategoryId = mapLocationGet.CategoryId,
+        };
+    }
 
-        /// <summary>
-        /// Retrieves data for the Add Location page, including categories.
-        /// </summary>
-        public async Task<AddLocationPageViewModel> GetAddLocationPageViewModelAsync()
-        {
-            IEnumerable<CategoryGet> categories = await GetAllCategoriesAsync();
-            return new AddLocationPageViewModel
-            {
-                Categories = categories
-            };
-        }
-
-        /// <summary>
-        /// Retrieves data for the Edit Location page, including current values and categories.
-        /// </summary>
-        public async Task<EditLocationPageViewModel> GetEditLocationPageViewModelAsync(int id)
-        {
-            MapLocationGet? existing = await GetLocationByIdAsync(id: id) ?? throw new KeyNotFoundException($"Location {id} not found");
-            if (!_userContextService.IsAuthenticated || !_userContextService.IsAdminRequired)
-                throw new UnauthorizedAccessException("User is not allowed to edit this location");
-
-            IEnumerable<CategoryGet> categories = await GetAllCategoriesAsync();
-            MapLocationUpdate updateModel = _mapper.Map<MapLocationUpdate>(source: existing);
-            return new EditLocationPageViewModel
-            {
-                UpdateModel = updateModel,
-                Categories = categories
-            };
-        }
-
-        private void EnsureUserCanEditLocation(int locationAuthorId)
-        {
-            _userContextService.EnsureAuthenticated();
-            if (locationAuthorId != _userContextService.UserIdRequired && !_userContextService.IsAdminRequired)
-                throw new UnauthorizedAccessException("User is not allowed to update this location");
-        }
+    public void EnsureUserCanEditLocation(int locationAuthorId)
+    {
+        _userContextService.EnsureAuthenticated();
+        if (locationAuthorId != _userContextService.AccountIdOrThrow && !_userContextService.IsAdminOrThrow)
+            throw new UnauthorizedAccessException("User is not allowed to update this location");
     }
 }

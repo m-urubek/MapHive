@@ -1,4 +1,4 @@
-@model MapHive.Models.ViewModels.PrivateProfileViewModel
+@model MapHive.Models.PageModels.PrivateProfilePageModel
 @{
     ViewData["Title"] = "My Profile";
 }
@@ -38,11 +38,11 @@
 
     <div class="row">
         <div class="col-md-6 mb-4">
-            <partial name="Partials/_ChangeUsernamePartial" model="Model.ChangeUsernameViewModel" />
+            <partial name="Partials/_ChangeUsernamePartial" model="Model.ChangeUsernamePageModel" />
         </div>
 
         <div class="col-md-6 mb-4">
-            <partial name="Partials/_ChangePasswordPartial" model="Model.ChangePasswordViewModel" />
+            <partial name="Partials/_ChangePasswordPartial" model="Model.ChangePasswordPageModel" />
         </div>
     </div>
 </div>

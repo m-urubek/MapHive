@@ -1,5 +1,7 @@
-@model MapHive.Models.ViewModels.ThreadDetailsViewModel
-
+@using MapHive.Models.Data.DbTableModels
+@using MapHive.Models.PageModels
+@using System.Data
+@model ThreadDisplayPageModel
 @{
     ViewData["Title"] = Model.ThreadName;
 }
@@ -10,7 +12,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Index">Map</a></li>
-                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId">@Model.Location.Name</a></li>
+                    <li class="breadcrumb-item"><a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId">@Model.LocationName</a></li>
                     <li class="breadcrumb-item active" aria-current="page">@Model.ThreadName</li>
                 </ol>
             </nav>
@@ -20,7 +22,7 @@
                     <h3>@Model.ThreadName</h3>
                     @if (User.IsInRole("Admin"))
                     {
-                        <form asp-action="DeleteThread" asp-route-id="@Model.Id" method="post" class="d-inline">
+                        <form asp-action="DeleteThread" asp-route-id="@Model.Id" asp-route-locationId="@Model.LocationId" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this thread?');">
                                 <i class="fas fa-trash"></i> Delete Thread
                             </button>
@@ -30,40 +32,47 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <small class="text-muted">
-                            Started by 
-                            @if (Model.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                            @if (Model.IsAnonymous && !User.IsInRole("Admin"))
                             {
-                                @Model.AuthorUsername
+                                @:Started on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
                             }
                             else
                             {
-                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.AuthorUsername ? "true" : null)">@Model.AuthorUsername</a>
+                                @:Started by 
+                                @if (Model.AuthorId is null)
+                                {
+                                    @Model.AuthorUsername
+                                }
+                                else
+                                {
+                                    <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@Model.AuthorId">@Model.AuthorUsername</a>
+                                }
+                                @: on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
                             }
-                            on @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")
                         </small>
                     </div>
                     
-                    @if (Model.IsReviewThread && Model.Review != null)
+                    @if (Model.ReviewId.HasValue)
                     {
                         <div class="review-content mb-4 p-3 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div>
-                                    @if (Model.Review.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                    @if ((Model.AuthorUsername ?? throw new NoNullAllowedException(nameof(Model.AuthorUsername))).Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <span class="fw-bold">@Model.Review.AuthorUsername</span>
+                                        <span class="fw-bold">@Model.AuthorUsername</span>
                                     }
                                     else
                                     {
                                         <span class="fw-bold">
-                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Review.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.Review.AuthorUsername ? "true" : null)">@Model.Review.AuthorUsername</a>
+                                            <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@Model.AuthorId" >@Model.AuthorUsername</a>
                                         </span>
                                     }
-                                    <span class="text-muted ms-2">@Model.Review.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    <span class="text-muted ms-2">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                 </div>
                                 <div class="rating-stars">
                                     @for (int i = 1; i <= 5; i++)
                                     {
-                                        if (i <= Model.Review.Rating)
+                                        if (i <= (Model.Rating ?? throw new NoNullAllowedException(nameof(Model.Rating))))
                                         {
                                             <i class="fas fa-star text-warning"></i>
                                         }
@@ -74,28 +83,37 @@
                                     }
                                 </div>
                             </div>
-                            <p>@Model.Review.ReviewText</p>
+                            <p>@Model.InitialMessage.MessageText</p>
                         </div>
                     }
-                    else if (Model.HasInitialMessage)
+                    else
                     {
                         <div class="initial-message mb-4">
                             <div class="message-card">
-                                <div class="message-header">
-                                    @if (Model.InitialMessage.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <span class="fw-bold">@Model.InitialMessage.AuthorUsername</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="fw-bold">
-                                            <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
-                                        </span>
-                                    }
-                                    <span class="text-muted ms-2">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
-                                </div>
+                                @if (Model.IsAnonymous && !User.IsInRole("Admin"))
+                                {
+                                    <div class="message-header">
+                                        <span class="text-muted">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="message-header">
+                                        @if (Model.InitialMessage.AuthorId is null)
+                                        {
+                                            <span class="fw-bold">@Model.InitialMessage.AuthorUsername</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold">
+                                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@Model.InitialMessage.AuthorId">@Model.InitialMessage.AuthorUsername</a>
+                                            </span>
+                                        }
+                                        <span class="text-muted ms-2">@Model.InitialMessage.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                }
                                 <div class="message-body mt-2">
-                                    @if (Model.InitialMessage.IsDeleted)
+                                    @if (Model.InitialMessage.DeletedAt.HasValue)
                                     {
                                         @if (Model.InitialMessage.DeletedByUsername == Model.InitialMessage.AuthorUsername)
                                         {
@@ -106,9 +124,9 @@
                                                 }
                                                 else
                                                 {
-                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.InitialMessage.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == Model.InitialMessage.AuthorUsername ? "true" : null)">@Model.InitialMessage.AuthorUsername</a>
+                                                    <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@Model.InitialMessage.AuthorId">@Model.InitialMessage.AuthorUsername</a>
                                                 }
-                                                deleted their message</p>
+                                                deleted their message at @((Model.InitialMessage.DeletedAt ?? throw new NoNullAllowedException(nameof(Model.InitialMessage.DeletedAt))).ToString("g"))</p>
                                         }
                                         else
                                         {
@@ -120,7 +138,7 @@
                                         <p>@Model.InitialMessage.MessageText</p>
                                         
                                         @if (User.Identity?.IsAuthenticated == true && 
-                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.InitialMessage.UserId.ToString()))
+                                            (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.InitialMessage.AuthorId.ToString()))
                                         {
                                             <div class="message-actions mt-2">
                                                 <form asp-action="DeleteMessage" asp-route-id="@Model.InitialMessage.Id" method="post" class="d-inline">
@@ -146,21 +164,21 @@
                             <div class="message-card mb-3 p-3 border rounded">
                                 <div class="message-header d-flex justify-content-between">
                                     <div>
-                                        @if (message.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                        @if (message.AuthorId is null)
                                         {
                                             <span class="fw-bold">@message.AuthorUsername</span>
                                         }
                                         else
                                         {
                                             <span class="fw-bold">
-                                                <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
+                                                <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@message.AuthorId" >@message.AuthorUsername</a>
                                             </span>
                                         }
                                         <span class="text-muted ms-2">@message.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
                                     </div>
                                     
-                                    @if (!message.IsDeleted && User.Identity?.IsAuthenticated == true && 
-                                        (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == message.UserId.ToString()))
+                                    @if (!message.DeletedAt.HasValue && User.Identity?.IsAuthenticated == true && 
+                                        (User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == message.AuthorId.ToString()))
                                     {
                                         <div class="message-actions">
                                             <form asp-action="DeleteMessage" asp-route-id="@message.Id" method="post" class="d-inline">
@@ -172,20 +190,20 @@
                                     }
                                 </div>
                                 <div class="message-body mt-2">
-                                    @if (message.IsDeleted)
+                                    @if (message.DeletedAt.HasValue)
                                     {
                                         @if (message.DeletedByUsername == message.AuthorUsername)
                                         {
                                             <p class="text-muted fst-italic">User 
-                                                @if (message.AuthorUsername.Equals("Anonymous", StringComparison.OrdinalIgnoreCase))
+                                                @if (message.AuthorId is null)
                                                 {
                                                     @message.AuthorUsername
                                                 }
                                                 else
                                                 {
-                                                    <a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@message.AuthorUsername" asp-route-viewPublic="@(User.Identity?.Name == message.AuthorUsername ? "true" : null)">@message.AuthorUsername</a>
+                                                    <a asp-controller="Account" asp-action="PublicProfileById" asp-route-id="@message.AuthorId">@message.AuthorUsername</a>
                                                 }
-                                                deleted their message</p>
+                                                deleted their message at @((message.DeletedAt ?? throw new NoNullAllowedException(nameof(message.DeletedAt))).ToString("g"))</p>
                                         }
                                         else
                                         {
@@ -203,18 +221,7 @@
                     
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <div class="reply-form mt-4">
-                            <h5>Add a Reply</h5>
-                            <form asp-action="AddMessage" method="post">
-                                <input type="hidden" name="ThreadId" value="@Model.Id" />
-                                
-                                <div class="mb-3">
-                                    <textarea name="MessageText" class="form-control" rows="3" placeholder="Write your message here..." required></textarea>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary">Post Reply</button>
-                            </form>
-                        </div>
+                        <partial name="_ReplyFormPartial" model="new ThreadMessagePageModel { ThreadName = Model.ThreadName, MessageText = null }" />
                     }
                     else
                     {
@@ -225,7 +232,7 @@
                 </div>
                 <div class="card-footer">
                     <a asp-controller="Map" asp-action="Details" asp-route-id="@Model.LocationId" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to @Model.Location.Name
+                        <i class="fas fa-arrow-left"></i> Back to @Model.LocationName
                     </a>
                 </div>
             </div>

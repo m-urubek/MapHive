@@ -1,0 +1,14 @@
+@model MapHive.Models.PageModels.ThreadMessagePageModel
+
+<div class="reply-form mt-4">
+    <h5>Add a Reply</h5>
+    <form asp-controller="Discussion" asp-action="AddMessage" asp-route-id="@(ViewContext.IdOrThrow())" method="post">
+        <input type="hidden" asp-for="ThreadName" />
+        <div class="mb-3">
+            <textarea asp-for="MessageText" class="form-control" rows="3" placeholder="Write your message here..." required></textarea>
+            <span asp-validation-for="MessageText" class="text-danger"></span>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Post Reply</button>
+    </form>
+</div> 

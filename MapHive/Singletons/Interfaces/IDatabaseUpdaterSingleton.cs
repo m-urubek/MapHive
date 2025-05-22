@@ -1,7 +1,6 @@
-namespace MapHive.Singletons
+namespace MapHive.Singletons;
+
+public interface IDatabaseUpdaterSingleton
 {
-    public interface IDatabaseUpdaterSingleton
-    {
-        Task RunAsync();
-    }
+    Task RunAsync();
 }

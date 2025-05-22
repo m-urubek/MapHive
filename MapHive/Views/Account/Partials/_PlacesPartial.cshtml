@@ -1,4 +1,4 @@
-@model MapHive.Models.ViewModels.BaseProfileViewModel
+@model MapHive.Models.PageModels.IBaseProfilePageModel
 @{
     // Default title if not provided
     string title = ViewData["PlacesTitle"] as string ?? "My Places";
@@ -32,7 +32,14 @@
                         {
                             <tr>
                                 <td>@location.Name</td>
-                                <td>@(location.Description.Length > 50 ? location.Description.Substring(0, 47) + "..." : location.Description)</td>
+                                @if (location.Description != null)
+                                {
+                                    <td>@(location.Description.Length > 50 ? location.Description.Substring(0, 47) + "..." : location.Description)</td>
+                                }
+                                else
+                                {
+                                    <td>No description provided</td>
+                                }
                                 <td>@location.CreatedAt.ToString("MMM dd, yyyy")</td>
                                 <td>
                                     <div class="btn-group" role="group">
@@ -60,7 +67,7 @@
                     }
                     else
                     {
-                        <span><a asp-controller="Account" asp-action="PublicProfile" asp-route-username="@Model.Username" asp-route-viewPublic="@(User.Identity?.Name == Model.Username ? "true" : null)" class="alert-link">@Model.Username</a> hasn't added any places yet.</span>
+                        <span><a asp-controller="Account" asp-action="PublicProfileById" class="alert-link">@Model.Username</a> hasn't added any places yet.</span>
                     }
                 </p>
             </div>

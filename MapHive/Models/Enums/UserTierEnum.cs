@@ -1,9 +1,8 @@
-namespace MapHive.Models.Enums
+namespace MapHive.Models.Enums;
+
+public enum AccountTier
 {
-    public enum UserTier
-    {
-        Normal = 0,
-        Trusted = 1,
-        Admin = 2
-    }
+    Normal = 0,
+    Trusted = 1,
+    Admin = 2
 }

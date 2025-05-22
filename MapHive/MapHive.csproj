@@ -4,22 +4,20 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableDefaultPrecompressedAssets>false</EnableDefaultPrecompressedAssets>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Models\RepositoryModels\obsolete\**" />
+    <Compile Remove="Models\Data\DbTableModels\obsolete\**" />
     <Compile Remove="ViewComponents\**" />
-    <Content Remove="Models\RepositoryModels\obsolete\**" />
+    <Content Remove="Models\Data\DbTableModels\obsolete\**" />
     <Content Remove="ViewComponents\**" />
-    <EmbeddedResource Remove="Models\RepositoryModels\obsolete\**" />
+    <EmbeddedResource Remove="Models\Data\DbTableModels\obsolete\**" />
     <EmbeddedResource Remove="ViewComponents\**" />
-    <None Remove="Models\RepositoryModels\obsolete\**" />
+    <None Remove="Models\Data\DbTableModels\obsolete\**" />
     <None Remove="ViewComponents\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="maphive.db.sql" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +44,17 @@
     <None Update="maphive.db">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+    <None Update="maphive.db.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommonAnalyzers\CommonAnalyzers\CommonAnalyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Views\**\*.cshtml" />
   </ItemGroup>
 
 </Project> 

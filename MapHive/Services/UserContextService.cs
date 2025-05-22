@@ -1,55 +1,85 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+using System.Security.Claims;
+using MapHive.Models.Exceptions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+
+/// <summary>
+/// Implementation of IUserContextService providing user details from HttpContext.
+/// </summary>
+public class UserContextService(IHttpContextAccessor httpContextAccessor) : IUserContextService
 {
-    using System.Security.Claims;
-    using MapHive.Models.Exceptions;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
-    /// <summary>
-    /// Implementation of IUserContextService providing user details from HttpContext.
-    /// </summary>
-    public class UserContextService(IHttpContextAccessor httpContextAccessor) : IUserContextService
+    private HttpContext HttpContext => _httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
+
+    public int AccountIdOrThrow
     {
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-
-        private HttpContext HttpContext => _httpContextAccessor.HttpContext ?? throw new Exception("Not in request");
-
-        public void EnsureAuthenticated()
+        get
         {
-            if (!IsAuthenticated)
-            {
-                throw new PublicWarningException("Not authenticated");
-            }
+            EnsureAuthenticated();
+            Claim? accountIdClaim = HttpContext.User.FindFirst(type: ClaimTypes.NameIdentifier);
+            return accountIdClaim != null && int.TryParse(s: accountIdClaim.Value, result: out int accountId) ? accountId : throw new Exception("Unable to retreive user claims");
         }
+    }
 
-        public int UserIdRequired
+    public string UsernameOrThrow
+    {
+        get
         {
-            get
-            {
-                EnsureAuthenticated();
-                Claim? userIdClaim = HttpContext.User.FindFirst(type: ClaimTypes.NameIdentifier);
-                return userIdClaim != null && int.TryParse(s: userIdClaim.Value, result: out int userId) ? userId : throw new Exception("Unable to retreive user claims");
-            }
+            EnsureAuthenticated();
+            return HttpContext.User.Identity?.Name ?? throw new Exception("Unable to retreive HttpContext.User.Identity");
         }
+    }
 
-        public string UsernameRequired
+    public bool IsAuthenticated => HttpContext?.User?.Identity?.IsAuthenticated == true;
+
+    public bool IsAdminOrThrow
+    {
+        get
         {
-            get
-            {
-                EnsureAuthenticated();
-                return HttpContext.User.Identity?.Name ?? throw new Exception("Unable to retreive HttpContext.User.Identity");
-            }
+            EnsureAuthenticated();
+            return HttpContext.User.IsInRole(role: "Admin");
         }
+    }
 
-        public bool IsAuthenticated => HttpContext?.User?.Identity?.IsAuthenticated == true;
+    public bool IsAuthenticatedAndAdmin => IsAuthenticated && IsAdminOrThrow;
 
-        public bool IsAdminRequired
+    public void EnsureAuthenticated()
+    {
+        if (!IsAuthenticated)
         {
-            get
-            {
-                EnsureAuthenticated();
-                return HttpContext.User.IsInRole(role: "Admin");
-            }
+            throw new PublicWarningException("Not authenticated");
         }
+    }
 
-        public bool IsAuthenticatedAndAdmin => IsAuthenticated && IsAdminRequired;
+    public void EnsureAuthenticatedAndAdmin()
+    {
+        if (!IsAuthenticatedAndAdmin)
+        {
+            throw new PublicErrorException("Not authorized");
+        }
+    }
+
+    public async Task SetClaim(string claimKey, string claimValue)
+    {
+        // Ensure user is authenticated
+        EnsureAuthenticated();
+
+        // Modify claims
+        ClaimsIdentity identity = HttpContext.User.Identity as ClaimsIdentity ?? throw new Exception("User identity is not a ClaimsIdentity");
+        Claim? existingClaim = identity.FindFirst(claimKey);
+        if (existingClaim != null)
+            identity.RemoveClaim(existingClaim);
+        identity.AddClaim(claim: new Claim(type: claimKey, value: claimValue));
+
+        // Re-issue authentication cookie with updated claims
+        ClaimsPrincipal principal = new(identity);
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties { IsPersistent = true });
     }
 }

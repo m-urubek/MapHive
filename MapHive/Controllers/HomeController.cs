@@ -1,17 +1,21 @@
-namespace MapHive.Controllers
+namespace MapHive.Controllers;
+
+using Microsoft.AspNetCore.Mvc;
+
+public class HomeController : Controller
 {
-    using Microsoft.AspNetCore.Mvc;
-
-    public class HomeController : Controller
+    public IActionResult Index()
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
+        return RedirectToAction(actionName: "Index", controllerName: "Map");
+    }
 
-        public IActionResult Privacy()
-        {
-            return View();
-        }
+    public IActionResult About()
+    {
+        return View();
+    }
+
+    public IActionResult Privacy()
+    {
+        return View();
     }
 }
