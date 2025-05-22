@@ -72,7 +72,7 @@ public class UserContextService(IHttpContextAccessor httpContextAccessor) : IUse
         Claim? existingClaim = identity.FindFirst(claimKey);
         if (existingClaim != null)
             identity.RemoveClaim(existingClaim);
-        identity.AddClaim(new Claim(claimKey, claimValue));
+        identity.AddClaim(claim: new Claim(type: claimKey, value: claimValue));
 
         // Re-issue authentication cookie with updated claims
         ClaimsPrincipal principal = new(identity);
