@@ -62,11 +62,11 @@ public class DatabaseUpdaterSingleton(ISqlClientSingleton sqlClientSingleton, IL
 
             if (updatesApplied)
             {
-                string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id_Logs";
+                string query = "UPDATE VersionNumber SET Value = @Value WHERE Id_VersionNumber = @Id";
                 SQLiteParameter[] parameters =
                 [
                     new("@Value", lastUpdateNumber),
-                    new("@Id_Logs", versionRawData.Rows[0]["Id_VersionNumber"])
+                    new("@Id", versionRawData.Rows[0]["Id_VersionNumber"])
                 ];
                 _ = await _sqlClientSingleton.UpdateOrThrowAsync(query: query, parameters: parameters);
                 _ = _logManagerSingleton.LogAsync(severity: LogSeverity.Information, message: $"Database Updater: Database version updated to {lastUpdateNumber}.");

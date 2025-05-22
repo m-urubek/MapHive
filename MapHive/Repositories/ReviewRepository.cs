@@ -107,8 +107,8 @@ public class ReviewRepository(
     public async Task DeleteReviewOrThrowAsync(int id)
     {
         // Consider adding user ID check if only owners can delete
-        string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id_Logs";
-        SQLiteParameter[] parameters = [new("@Id_Logs", id)];
+        string query = "DELETE FROM Reviews WHERE Id_Reviews = @Id";
+        SQLiteParameter[] parameters = [new("@Id", id)];
         // Use injected _sqlClientSingleton
         int rowsAffected = await _sqlClientSingleton.DeleteAsync(query: query, parameters: parameters);
         if (rowsAffected == 0)
