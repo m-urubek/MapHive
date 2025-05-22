@@ -1,11 +1,12 @@
 # MapHive
+### [Showcase website](https://maphive.azurewebsites.net/)
+
 
 MapHive is a feature-rich ASP.NET Core 8 MVC application designed for creating and managing a collaborative world map. Users can add places of interest, which are displayed as pins on an interactive map. Each pin links to a detailed page where users can find more information, participate in discussions, and leave reviews.
 
 I created this project to learn to work with .net core mvc razor pages, to have something into my career portfolio, to experiment with AI driven programming (about 50% of the code is written by AI) and because me and my friends want to use this app.
 
 ## Key Features
-
 - **Interactive Map Display**: Utilizes Leaflet.js to show an interactive world map where users can explore and add locations.
 - **User-Managed Places**:
     - Registered users can add new places to the map.
