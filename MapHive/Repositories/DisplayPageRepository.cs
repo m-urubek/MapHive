@@ -79,16 +79,15 @@ public partial class DisplayPageRepository(ISqlClientSingleton sqlClientSingleto
         // If Id_{tableName} not found, return the first column name (usually the PK)
         if (schemaTable.Rows.Count > 0 && schemaTable.Rows[0]["pk"] != DBNull.Value && Convert.ToInt32(value: schemaTable.Rows[0]["pk"]) > 0)
         {
-            return schemaTable.Rows[0]["name"].ToString() ?? "Id_Logs";
+            return schemaTable.Rows[0]["name"].ToString() ?? "Id";
         }
         // Fallback if no explicit PK or specific Id_ pattern found
         else if (schemaTable.Rows.Count > 0)
         {
-            return schemaTable.Rows[0]["name"].ToString() ?? "Id_Logs";
+            return schemaTable.Rows[0]["name"].ToString() ?? "Id";
         }
 
-        // Default to "Id_Logs" if no columns found (should ideally not happen for existing tables)
-        return "Id_Logs";
+        return "Id";
     }
 
     private static Dictionary<string, string> ConvertDataRowToDictionary(DataRow row, DataColumnCollection columns)
