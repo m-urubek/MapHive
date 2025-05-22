@@ -1,15 +1,22 @@
 using MapHive.Middleware;
+using MapHive.ModelBinding;
 using MapHive.Repositories;
 using MapHive.Services;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc.Razor;
 using reCAPTCHA.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
-builder.Services.AddAutoMapper(assemblies: typeof(MapHive.Models.BusinessModels.MappingProfile).Assembly);
+builder.Services.AddControllersWithViews(options => options.ModelMetadataDetailsProviders.Add(new DefaultRequiredErrorMessageProvider()));
+
+builder.Services.Configure<RazorViewEngineOptions>(options =>
+{
+    options.ViewLocationFormats.Add("/Views/Shared/Partials/{0}" + RazorViewEngine.ViewExtension);
+    options.AreaViewLocationFormats.Add("/Areas/{2}/Views/Shared/Partials/{0}" + RazorViewEngine.ViewExtension);
+});
 
 // Register HttpContextAccessor first
 builder.Services.AddHttpContextAccessor();
@@ -17,7 +24,6 @@ builder.Services.AddHttpContextAccessor();
 // Add repository services
 builder.Services.AddScoped<IMapLocationRepository, MapLocationRepository>();
 builder.Services.AddScoped<IAccountsRepository, AccountsRepository>();
-builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
@@ -30,10 +36,7 @@ builder.Services.AddSingleton<ILogRepository, LogRepository>(); //LogRepository 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
-builder.Services.AddScoped<IDataGridService, DataGridService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IIpBansService, IpBansService>();
-builder.Services.AddScoped<IAccountBansService, AccountBansService>();
 
 builder.Services.AddSingleton<IDatabaseUpdaterSingleton, DatabaseUpdaterSingleton>();
 
@@ -67,8 +70,7 @@ builder.Services.AddSession(configure: options =>
     options.Cookie.IsEssential = true;
 });
 
-// Register ConfigService as Singleton (responsible for loading/caching DB settings)
-builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddSingleton<IConfigurationSingleton, ConfigurationSingleton>();
 
 // Register FileLoggerService as Singleton
 builder.Services.AddSingleton<IFileLoggerSingleton, FileLoggerSingleton>();
@@ -79,14 +81,18 @@ builder.Services.AddSingleton<ILogManagerSingleton, LogManagerSingleton>();
 builder.Services.AddScoped<IDisplayPageService, DisplayPageService>();
 
 // Register application services for MVC controllers
-builder.Services.AddScoped<IMapService, MapLocationService>();
+builder.Services.AddScoped<IMapLocationService, MapLocationService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IRequestContextService, RequestContextService>();
 builder.Services.AddScoped<IUserFriendlyExceptionService, UserFriendlyExceptionService>();
+builder.Services.AddScoped<IUsernamesService, UsernamesService>();
 
 // Register DatabaseUpdaterSingleton as Singleton
+
+// Register DatabaseResetService as a Hosted Service
+builder.Services.AddHostedService<DatabaseResetService>();
 
 WebApplication app = builder.Build();
 
@@ -113,7 +119,7 @@ app.MapControllerRoute(
 // Default conventional route
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Map}/{action=Index}/{id?}");
 
 // Run the DatabaseUpdaterSingleton to apply any pending updates
 IDatabaseUpdaterSingleton dbUpdaterService = app.Services.GetService<IDatabaseUpdaterSingleton>() ?? throw new Exception($"{nameof(IDatabaseUpdaterSingleton)} not found!");
@@ -122,8 +128,8 @@ await dbUpdaterService.RunAsync();
 // Use the injected ConfigService to check DevelopmentMode
 using (IServiceScope scope = app.Services.CreateScope())
 {
-    IConfigurationService configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
-    if (!await configService.GetDevelopmentModeAsync())
+    IConfigurationSingleton configService = scope.ServiceProvider.GetRequiredService<IConfigurationSingleton>();
+    if (!await configService.DevelopmentModeAsync())
     {
         _ = app.UseExceptionHandler(errorHandlingPath: "/Home/Error");
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.

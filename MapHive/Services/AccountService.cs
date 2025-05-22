@@ -1,147 +1,211 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+using System.Data;
+using MapHive.Models.BusinessModels;
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Enums;
+using MapHive.Models.Exceptions;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+
+public class AccountService(
+    IAuthService _authService,
+    ILogManagerService _logManagerService,
+    IAccountsRepository _accountsRepository,
+    IRequestContextService _requestContextService,
+    IAccountBansRepository _accountBansRepository,
+    IIpBansRepository _ipBansRepository,
+    IUserContextService _userContextService) : IAccountService
 {
-    using AutoMapper;
-    using MapHive.Models;
-    using MapHive.Models.BusinessModels;
-    using MapHive.Models.Enums;
-    using MapHive.Models.Exceptions;
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Repositories;
 
-    public class AccountService(
-        IAuthService authService,
-        ILogManagerService logManager,
-        IAccountsRepository userRepository,
-        IMapper mapper,
-        IRequestContextService requestContextService,
-        IAccountBansRepository accountBansRepository,
-        IIpBansRepository ipBansRepository) : IAccountService
+    public async Task<AuthResponse> LoginAsync(LoginPageModel pageModel)
     {
-        private readonly IAuthService _authService = authService;
-        private readonly ILogManagerService _logManagerService = logManager;
-        private readonly IAccountsRepository _userRepository = userRepository;
-        private readonly IMapper _mapper = mapper;
-        private readonly IRequestContextService _requestContextService = requestContextService;
-        private readonly IAccountBansRepository _accountBansRepository = accountBansRepository;
-        private readonly IIpBansRepository _ipBansRepository = ipBansRepository;
+        ArgumentNullException.ThrowIfNull(pageModel);
 
-        public async Task<AuthResponse> LoginAsync(LoginRequest request)
+        if (string.IsNullOrEmpty(value: _requestContextService.HashedIpAddress))
+            throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
+
+        AuthResponse response = await _authService.LoginAsync(pageModel: pageModel);
+        _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {pageModel.Username} successfully logged in.");
+        return response;
+    }
+
+    public async Task<AuthResponse> RegisterAsync(RegisterPageModel pageModel)
+    {
+        ArgumentNullException.ThrowIfNull(pageModel);
+
+        if (string.IsNullOrEmpty(value: _requestContextService.HashedIpAddress))
+            throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
+
+        AuthResponse response = await _authService.RegisterAsync(pageModel: pageModel);
+        _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {pageModel.Username} successfully registered and logged in.");
+        return response;
+    }
+
+    public Task LogoutAsync()
+    {
+        _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "User logged out.");
+        return _authService.LogoutAsync();
+    }
+
+    public bool VerifyPassword(string password, string storedHash)
+    {
+        return _authService.VerifyPassword(password: password, storedHash: storedHash);
+    }
+
+    public string HashPassword(string password)
+    {
+        return _authService.HashPassword(password: password);
+    }
+
+    public async Task ChangeUsernameAsync(string newUsername)
+    {
+        // Retrieve user
+        AccountAtomic accountGet = await _accountsRepository.GetAccountByIdOrThrowAsync(id: _userContextService.AccountIdOrThrow);
+
+        // Check username availability
+        if (await _accountsRepository.CheckUsernameExistsAsync(username: newUsername)
+            && !accountGet.Username.Equals(value: newUsername, comparisonType: StringComparison.OrdinalIgnoreCase))
         {
-            ArgumentNullException.ThrowIfNull(request);
-
-            if (string.IsNullOrEmpty(value: _requestContextService.HashedIpAddress))
-                throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
-
-            AuthResponse response = await _authService.LoginAsync(request: request);
-            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {request.Username} successfully logged in.");
-            return response;
+            throw new OrangeUserException("Username already exists");
         }
 
-        public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+        // Update username
+        accountGet.Username = newUsername;
+        await _accountsRepository.UpdateAccountOrThrowAsync(
+            id: accountGet.Id,
+            username: DynamicValue<string>.Set(newUsername),
+            passwordHash: DynamicValue<string>.Unassigned(),
+            tier: DynamicValue<AccountTier>.Unassigned(),
+            ipAddressHistory: DynamicValue<string>.Unassigned());
+    }
+
+    public async Task ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        // Retrieve user
+        AccountAtomic accountGet = await _accountsRepository.GetAccountByIdOrThrowAsync(id: _userContextService.AccountIdOrThrow);
+
+        // Verify current password
+        if (!VerifyPassword(password: currentPassword, storedHash: accountGet.PasswordHash))
         {
-            ArgumentNullException.ThrowIfNull(request);
-
-            if (string.IsNullOrEmpty(value: _requestContextService.HashedIpAddress))
-                throw new PublicWarningException("Unable to retrieve your IP address. Login cannot proceed.");
-
-            AuthResponse response = await _authService.RegisterAsync(request: request);
-            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"User {request.Username} successfully registered and logged in.");
-            return response;
+            throw new OrangeUserException("Current password is incorrect");
         }
 
-        public Task LogoutAsync()
-        {
-            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: "User logged out.");
-            return _authService.LogoutAsync();
-        }
+        // Update password hash
+        await _accountsRepository.UpdateAccountOrThrowAsync(
+            id: accountGet.Id,
+            username: DynamicValue<string>.Unassigned(),
+            passwordHash: DynamicValue<string>.Set(HashPassword(password: newPassword)),
+            tier: DynamicValue<AccountTier>.Unassigned(),
+            ipAddressHistory: DynamicValue<string>.Unassigned()
+        );
+    }
 
-        public bool VerifyPassword(string password, string storedHash)
+    public async Task<BanOnProfilePageModel?> GetActiveBanPageModelAsync(int accountId)
+    {
+        AccountBanExtended? accountBanGet = await _accountBansRepository.GetActiveAccountBanByAccountIdAsync(accountId: accountId);
+        if (accountBanGet != null)
         {
-            return _authService.VerifyPassword(password: password, storedHash: storedHash);
-        }
-
-        public string HashPassword(string password)
-        {
-            return _authService.HashPassword(password: password);
-        }
-
-        public async Task ChangeUsernameAsync(int accountId, string newUsername)
-        {
-            // Retrieve user
-            AccountGet? accountGet = await _userRepository.GetAccountByIdAsync(id: accountId) ?? throw new RedUserException("User not found");
-
-            // Check username availability
-            if (await _userRepository.CheckUsernameExistsAsync(username: newUsername)
-                && !accountGet.Username.Equals(value: newUsername, comparisonType: StringComparison.OrdinalIgnoreCase))
+            return new()
             {
-                throw new OrangeUserException("Username already exists");
-            }
-
-            // Update username
-            accountGet.Username = newUsername;
-            UserUpdate updateDto = _mapper.Map<UserUpdate>(source: accountGet);
-            _ = await _userRepository.UpdateAccountAsync(updateDto: updateDto);
+                BanType = BanType.Account,
+                Reason = accountBanGet.Reason,
+                BannedByUsername = accountBanGet.BannedByUsername,
+                BannedById = accountBanGet.BannedByAccountId,
+                CreatedDateTime = accountBanGet.CreatedDateTime.ToString("g"),
+                ExpiresAt = accountBanGet.ExpiresAt
+            };
         }
-
-        public async Task ChangePasswordAsync(int accountId, string currentPassword, string newPassword)
+        else
         {
-            // Retrieve user
-            AccountGet? accountGet = await _userRepository.GetAccountByIdAsync(id: accountId) ?? throw new RedUserException("User not found");
-
-            // Verify current password
-            if (!VerifyPassword(password: currentPassword, storedHash: accountGet.PasswordHash))
+            IpBanExtended? ipBanGet = await _ipBansRepository.GetActiveIpBanByIpAddressAsync(hashedIpAddress: _requestContextService.HashedIpAddress);
+            if (ipBanGet != null)
             {
-                throw new OrangeUserException("Current password is incorrect");
-            }
-
-            // Update password hash
-            UserUpdate updateDto = _mapper.Map<UserUpdate>(source: accountGet);
-            updateDto.PasswordHash = HashPassword(password: newPassword);
-            _ = await _userRepository.UpdateAccountAsync(updateDto: updateDto);
-        }
-
-        public async Task<BanViewModel?> GetActiveBanViewModelAsync(int accountId)
-        {
-            BanViewModel? banViewModel = null;
-            AccountBanGet? AccountBan = await _accountBansRepository.GetActiveAccountBanByAccountIdAsync(accountId: accountId);
-            if (AccountBan != null)
-            {
-                banViewModel = _mapper.Map<BanViewModel>(AccountBan);
-                banViewModel.BanType = BanType.Account;
-            }
-            else
-            {
-                IpBanGet? IpBan = await _ipBansRepository.GetActiveIpBanByIpAddressAsync(hashedIpAddress: _requestContextService.HashedIpAddress);
-                if (IpBan != null)
+                return new()
                 {
-                    banViewModel = _mapper.Map<BanViewModel>(IpBan);
-                    banViewModel.BanType = BanType.IpAddress;
-                }
+                    BanType = BanType.IpAddress,
+                    Reason = ipBanGet.Reason,
+                    BannedByUsername = ipBanGet.BannedByUsername,
+                    BannedById = ipBanGet.BannedByAccountId,
+                    CreatedDateTime = ipBanGet.CreatedDateTime.ToString("g"),
+                    ExpiresAt = ipBanGet.ExpiresAt
+                };
             }
-            return banViewModel;
         }
+        return null;
+    }
 
-        /// <summary>
-        /// Removes the active ban for the specified account ID or, if none, the active IP ban for the current request.
-        /// </summary>
-        public async Task<bool> UnbanAccountAsync(int accountId)
+    /// <summary>
+    /// Removes the active ban for the specified account ID or, if none, the active IP ban for the current request.
+    /// </summary>
+    public async Task UnbanUserAsync(int accountId)
+    {
+        // Try to remove an active account ban first
+        AccountBanExtended? activeAccountBan = await _accountBansRepository.GetActiveAccountBanByAccountIdAsync(accountId: accountId);
+        if (activeAccountBan != null)
         {
-            // Try to remove an active account ban first
-            AccountBanGet? activeAccountBan = await _accountBansRepository.GetActiveAccountBanByAccountIdAsync(accountId: accountId);
-            if (activeAccountBan != null)
-            {
-                return await _accountBansRepository.RemoveAccountBanAsync(banId: activeAccountBan.Id);
-            }
-
-            // If no account ban, try to remove an active IP ban for this request
-            var activeIpBan = await _ipBansRepository.GetActiveIpBanByIpAddressAsync(hashedIpAddress: _requestContextService.HashedIpAddress);
-            if (activeIpBan != null)
-            {
-                return await _ipBansRepository.RemoveIpBanAsync(banId: activeIpBan.Id);
-            }
-
-            return false;
+            await _accountBansRepository.RemoveAccountBanAsync(banId: activeAccountBan.Id);
+            return;
         }
+        // If no account ban, try to remove an active IP ban for this request
+        IpBanExtended? activeIpBan = await _ipBansRepository.GetActiveIpBanByIpAddressAsync(hashedIpAddress: _requestContextService.HashedIpAddress) ?? throw new PublicWarningException("No ban found.");
+
+        await _ipBansRepository.RemoveIpBanAsync(banId: activeIpBan.Id);
+    }
+
+    /// <summary>
+    /// Gets data for rendering the Ban User page from Profiles.
+    /// </summary>
+    public async Task<BanUserUpdatePageModel> GetBanUserPagePageModelAsync(int userBeingBannedId)
+    {
+        AccountAtomic userBeingBannedGet = await _accountsRepository.GetAccountByIdOrThrowAsync(id: userBeingBannedId);
+
+        return new BanUserUpdatePageModel
+        {
+            BanType = BanType.Account,
+            Reason = null,
+            IsPermanent = false,
+            BanDurationDays = null,
+            Username = userBeingBannedGet.Username,
+            AccountTier = userBeingBannedGet.Tier
+        };
+    }
+
+    public async Task<int> BanAsync(int accountId, BanUserUpdatePageModel banPageModel)
+    {
+        AccountAtomic accountGet = await _accountsRepository.GetAccountByIdOrThrowAsync(id: accountId);
+        return accountGet.Tier == AccountTier.Admin
+            ? throw new PublicErrorException("You cannot ban an admin account.")
+            : banPageModel.BanType == BanType.Account
+            ? await _accountBansRepository.CreateAccountBanAsync(
+                accountId: accountId,
+                banCreatedDateTime: DateTime.UtcNow,
+                expiresAt: banPageModel.IsPermanent ? null : DateTime.UtcNow.AddDays(banPageModel.BanDurationDays ?? throw new NoNullAllowedException(nameof(banPageModel.BanDurationDays))),
+                reason: banPageModel.Reason,
+                bannedByAccountId: _userContextService.AccountIdOrThrow
+            )
+            : await _ipBansRepository.CreateIpBanAsync(
+                hashedIpAddress: accountGet.IpAddressHistory.Split(separator: Environment.NewLine, options: StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? throw new Exception("Unable to read last login IP of an account from database"),
+                banCreatedDateTime: DateTime.UtcNow,
+                expiresAt: banPageModel.IsPermanent ? null : DateTime.UtcNow.AddDays(banPageModel.BanDurationDays ?? throw new NoNullAllowedException(nameof(banPageModel.BanDurationDays))),
+                reason: banPageModel.Reason,
+                bannedByAccountId: _userContextService.AccountIdOrThrow
+            );
+    }
+
+    public async Task SetDarkModePreferenceAsync(bool enabled)
+    {
+        int userId = _userContextService.AccountIdOrThrow;
+        await _accountsRepository.UpdateDarkModePreferenceAsync(userId, enabled);
+        // Update claim for dark mode in authentication
+        await _userContextService.SetClaim(claimKey: "DarkModeEnabled", claimValue: enabled.ToString());
+    }
+
+    public async Task<bool> GetDarkModePreferenceAsync()
+    {
+        int userId = _userContextService.AccountIdOrThrow;
+        AccountAtomic account = await _accountsRepository.GetAccountByIdOrThrowAsync(userId);
+        return account.DarkModeEnabled;
     }
 }

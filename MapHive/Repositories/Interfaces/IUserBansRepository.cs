@@ -1,16 +1,12 @@
-namespace MapHive.Repositories
-{
-    using System.Collections.Generic;
-    using System.Threading.Tasks;
-    using MapHive.Models.RepositoryModels;
+namespace MapHive.Repositories;
 
-    public interface IAccountBansRepository
-    {
-        Task<int> BanAccountAsync(AccountBanCreate banDto);
-        Task<bool> RemoveAccountBanAsync(int banId);
-        Task<AccountBanGet?> GetActiveAccountBanByAccountIdAsync(int accountId);
-        Task<AccountBanGet?> GetActiveAccountBanByUsernameAsync(string username);
-        Task<IEnumerable<AccountBanGet>> GetAllActiveBansAsync();
-        Task<IEnumerable<AccountBanGet>> GetAllBansAsync(string searchTerm = "", int page = 1, int pageSize = 20, string sortColumnName = "", string sortDirection = "asc");
-    }
+using System.Threading.Tasks;
+using MapHive.Models.Data.DbTableModels;
+
+public interface IAccountBansRepository
+{
+    Task<int> CreateAccountBanAsync(int accountId, int bannedByAccountId, string? reason, DateTime banCreatedDateTime, DateTime? expiresAt);
+    Task RemoveAccountBanAsync(int banId);
+    Task<AccountBanExtended?> GetActiveAccountBanByAccountIdAsync(int accountId);
+    Task<AccountBanExtended?> GetActiveAccountBanByUsernameAsync(string username);
 }

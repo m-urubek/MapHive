@@ -1,34 +1,35 @@
-namespace MapHive.Services
+namespace MapHive.Services;
+
+/// <summary>
+/// Provides access to the current user's context within a request scope.
+/// </summary>
+public interface IUserContextService
 {
     /// <summary>
-    /// Provides access to the current user's context within a request scope.
+    /// Gets the current authenticated user's ID, or null if not authenticated.
     /// </summary>
-    public interface IUserContextService
-    {
-        /// <summary>
-        /// Gets the current authenticated user's ID, or null if not authenticated.
-        /// </summary>
-        int AccountIdRequired { get; }
+    int AccountIdOrThrow { get; }
 
-        /// <summary>
-        /// Gets the current authenticated user's username, or null if not authenticated.
-        /// </summary>
-        string UsernameRequired { get; }
+    /// <summary>
+    /// Gets the current authenticated user's username, or null if not authenticated.
+    /// </summary>
+    string UsernameOrThrow { get; }
 
-        /// <summary>
-        /// Gets a value indicating whether the current user is authenticated.
-        /// </summary>
-        bool IsAuthenticated { get; }
+    /// <summary>
+    /// Gets a value indicating whether the current user is authenticated.
+    /// </summary>
+    bool IsAuthenticated { get; }
 
-        /// <summary>
-        /// Gets a value indicating whether the current user is an admin.
-        /// </summary>
-        bool IsAdminRequired { get; }
+    /// <summary>
+    /// Gets a value indicating whether the current user is an admin.
+    /// </summary>
+    bool IsAdminOrThrow { get; }
 
-        bool IsAuthenticatedAndAdmin { get; }
+    bool IsAuthenticatedAndAdmin { get; }
 
-        void EnsureAuthenticated();
-        
-        void EnsureAuthenticatedAndAdmin();
-    }
+    void EnsureAuthenticated();
+
+    void EnsureAuthenticatedAndAdmin();
+
+    Task SetClaim(string claimKey, string claimValue);
 }

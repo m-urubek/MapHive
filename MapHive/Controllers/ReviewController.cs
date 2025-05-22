@@ -1,70 +1,69 @@
-namespace MapHive.Controllers
+namespace MapHive.Controllers;
+
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+using MapHive.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+public class ReviewController(
+    IReviewService _reviewService,
+    IMapLocationRepository _mapRepository
+) : Controller
 {
-    using MapHive.Models.ViewModels;
-    using MapHive.Services;
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-
-    public class ReviewController(IReviewService reviewService, IUserContextService userContextService) : Controller
+    [HttpGet("Review/Create/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Create(int id)
     {
-        private readonly IReviewService _reviewService = reviewService;
-        private readonly IUserContextService _userContextService = userContextService;
-
-        [Authorize]
-        public async Task<IActionResult> Create(int id)
+        return View(new ReviewUpdatePageModel
         {
-            ReviewViewModel model = await _reviewService.GetCreateModelAsync(locationId: id);
-            return View(model: model);
-        }
+            LocationName = (await _mapRepository.GetLocationByIdOrThrowAsync(id: id)).Name,
+            Rating = 0,
+            ReviewText = string.Empty,
+            IsAnonymous = false,
+        });
+    }
 
-        // POST: Review/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Create(ReviewViewModel reviewViewModel)
-        {
-            if (ModelState.IsValid)
-            {
-                int accountId = _userContextService.AccountIdRequired;
-                _ = await _reviewService.CreateReviewAsync(model: reviewViewModel, accountId: accountId);
-                return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
-            }
-            return View(model: reviewViewModel);
-        }
+    // POST: Review/Create
+    [HttpPost("Review/Create/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Create(int id, ReviewUpdatePageModel reviewPageModel)
+    {
+        if (!ModelState.IsValid)
+            return View(model: reviewPageModel);
+        _ = await _reviewService.CreateReviewAsync(locationId: id, model: reviewPageModel);
+        return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id });
+    }
 
-        // GET: Review/Edit/5
-        [Authorize]
-        public async Task<IActionResult> Edit(int id)
-        {
-            int accountId = _userContextService.AccountIdRequired;
-            ReviewViewModel model = await _reviewService.GetEditModelAsync(reviewId: id, accountId: accountId);
-            return View(model: model);
-        }
+    [HttpGet("Review/Edit/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id)
+    {
+        ReviewUpdatePageModel model = await _reviewService.GetEditModelAsync(reviewId: id);
+        return View(model: model);
+    }
 
-        // POST: Review/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Edit(int id, ReviewViewModel reviewViewModel)
+    [HttpPost("Review/Edit/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id, ReviewUpdatePageModel reviewPageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            if (ModelState.IsValid)
-            {
-                int accountId = _userContextService.AccountIdRequired;
-                await _reviewService.EditReviewAsync(id: id, model: reviewViewModel, accountId: accountId);
-                return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = reviewViewModel.LocationId });
-            }
-            return View(model: reviewViewModel);
+            return View(model: reviewPageModel);
         }
+        int locationId = await _reviewService.EditReviewAsync(id: id, model: reviewPageModel);
+        return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
 
-        // POST: Review/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Delete(int id)
-        {
-            int accountId = _userContextService.AccountIdRequired;
-            int locationId = await _reviewService.DeleteReviewAsync(id: id, accountId: accountId);
-            return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
-        }
+    }
+
+    [HttpPost("Review/Delete/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Delete(int id)
+    {
+        int locationId = await _reviewService.DeleteReviewAsync(id: id);
+        return RedirectToAction(actionName: "Details", controllerName: "Map", routeValues: new { id = locationId });
     }
 }

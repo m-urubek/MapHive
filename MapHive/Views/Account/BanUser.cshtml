@@ -1,6 +1,6 @@
 @using MapHive.Models.Enums
-@using MapHive.Models.ViewModels
-@model BanUserPageViewModel
+@using MapHive.Models.PageModels
+@model BanUserUpdatePageModel
 
 <h2>Ban User: @Model.Username</h2>
 
@@ -13,18 +13,26 @@
     <div class="alert alert-warning" role="alert">
         Cannot ban an administrator.
     </div>
-    <a asp-action="PublicProfileById" asp-route-accountId="@Model.AccountId" class="btn btn-secondary">Back to Profile</a>
+    <a asp-controller="Account"
+       asp-action="PublicProfileById"
+       asp-route-id="@(ViewContext.IdOrThrow())"
+       class="btn btn-secondary">
+        Back to Profile
+    </a>
 }
 else
 {
-    <form asp-action="Ban" method="post">
-        <input type="hidden" name="username" value="@Model.Username" />
-
+    <form asp-controller="Account"
+          asp-action="Ban"
+          asp-route-id="@(ViewContext.IdOrThrow())"
+          method="post">
+        <input type="hidden" asp-for="Username" />
+        <input type="hidden" asp-for="AccountTier" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="form-group mb-3">
             <label for="BanType" class="control-label">Ban Type</label>
-            <select id="BanType" name="BanType" class="form-control">
+            <select asp-for="BanType" class="form-control">
                 <option value="@MapHive.Models.Enums.BanType.Account">Account Ban</option>
                 <option value="@MapHive.Models.Enums.BanType.IpAddress">IP Address Ban</option>
             </select>
@@ -32,22 +40,22 @@ else
 
         <div class="form-group mb-3">
             <label for="Reason" class="control-label">Reason</label>
-            <textarea id="Reason" name="Reason" class="form-control" rows="3"></textarea>
+            <textarea asp-for="Reason" class="form-control" rows="3"></textarea>
         </div>
 
         <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="IsPermanent" name="IsPermanent" checked="checked" />
+            <input class="form-check-input" type="checkbox" asp-for="IsPermanent" />
             <label class="form-check-label" for="IsPermanent">Permanent Ban</label>
         </div>
 
         <div class="form-group mb-3" id="banDurationGroup">
             <label for="BanDurationDays" class="control-label">Ban Duration (Days)</label>
-            <input id="BanDurationDays" name="BanDurationDays" class="form-control" type="number" min="1" />
+            <input asp-for="BanDurationDays" class="form-control" type="number" min="1" />
         </div>
 
         <div class="form-group">
             <button type="submit" class="btn btn-danger">Confirm Ban</button>
-            <a asp-action="PublicProfileById" asp-route-accountId="@Model.AccountId" class="btn btn-secondary">Cancel</a>
+            <a asp-action="PublicProfileById" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 }

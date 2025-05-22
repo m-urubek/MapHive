@@ -1,4 +1,0 @@
-namespace MapHive.Utilities.Extensions
-{
-
-}

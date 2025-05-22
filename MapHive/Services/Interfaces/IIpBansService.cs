@@ -1,11 +1,8 @@
-namespace MapHive.Services
-{
-    using System.Collections.Generic;
-    using System.Threading.Tasks;
-    using MapHive.Models.RepositoryModels;
+namespace MapHive.Services;
 
-    public interface IIpBansService
-    {
-        Task<int> BanIpAddressAsync(string hashedIpAddress, bool isPermanent, int? durationInDays, string? reason);
-    }
+using System.Threading.Tasks;
+
+public interface IIpBansService
+{
+    Task<int> BanIpAddressAsync(string hashedIpAddress, bool isPermanent, int? durationInDays, string? reason);
 }

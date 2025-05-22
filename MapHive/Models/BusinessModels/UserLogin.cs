@@ -1,11 +1,10 @@
-namespace MapHive.Models.BusinessModels
-{
-    using MapHive.Models.Enums;
+namespace MapHive.Models.BusinessModels;
 
-    public class UserLogin
-    {
-        public int Id { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public AccountTier Tier { get; set; }
-    }
+using MapHive.Models.Enums;
+
+public class UserLogin
+{
+    public required int Id { get; set; }
+    public required string Username { get; set; }
+    public required AccountTier Tier { get; set; }
 }

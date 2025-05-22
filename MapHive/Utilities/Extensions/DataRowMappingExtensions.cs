@@ -1,75 +1,56 @@
-namespace MapHive.Utilities.Extensions
+namespace MapHive;
+
+using System;
+using System.Data;
+using MapHive.Utilities;
+
+public static class DataRowMappingExtensions
 {
-    using System;
-    using System.Data;
-    using MapHive.Models.Enums;
-    using MapHive.Services;
-
-    public static class DataRowMappingExtensions
+    public static T GetValueThrowNotPresentOrNull<T>(this DataRow row, string columnName)
     {
-        public static T? GetValueNullable<T>(this DataRow row, string columnName) where T : struct
+        row.EnsureExists(columnName);
+        object? value = row[columnName];
+        return value == null || value == DBNull.Value
+            ? throw new NoNullAllowedException($"Value for column \"{columnName}\" in table \"{row.Table.TableName}\" cannot be null")
+            : row.GetValueThrowNotPresent<T>(columnName) ?? throw new Exception($"{nameof(DataRowMappingExtensions)}.{nameof(GetValueThrowNotPresentOrNull)}: Value of type {typeof(T).Name} for column \"{columnName}\" in table \"{row.Table.TableName}\" is not a {typeof(T).Name}");
+    }
+
+    public static T? GetValueThrowNotPresent<T>(this DataRow row, string columnName)
+    {
+        row.EnsureExists(columnName);
+        object? value = row[columnName];
+        if (value == null || value == DBNull.Value)
         {
-            return GetValueNullableInternal<T>(row: row, columnName: columnName);
+            return default!;
         }
-
-        public static string? GetAsNullableString(this DataRow row, string columnName)
+        else
         {
-            return GetValueNullableInternal<string?>(row: row, columnName: columnName);
+            value = ConvertSpecific<T>(value);
+            return value is not T ? throw new Exception($"{nameof(DataRowMappingExtensions)}.{nameof(GetValueThrowNotPresent)}: Value of type {typeof(T).Name} for column \"{columnName}\" in table \"{row.Table.TableName}\" is not a {typeof(T).Name}")
+            : (T)value;
         }
+    }
 
-        public static string? ToNullableString(this DataRow row, string columnName)
+    public static T ConvertSpecific<T>(object value)
+    {
+        switch (value)
         {
-            return !row.Table.Columns.Contains(columnName)
-                ? throw new Exception($"Column \"{columnName}\" not found in table \"{row.Table.TableName}\"")
-                : row[columnName].ToString();
+            case long valueAsLong:
+                int valueAsInt = Convert.ToInt32(valueAsLong);
+                return typeof(T) == typeof(bool)
+                    ? (T)(object)BooleanParser.Parse(valueAsInt.ToString())
+                    : (T)(object)valueAsInt;
+            case string valueAsString:
+                return (T)(DateTime.TryParse(valueAsString, out DateTime valueAsDateTime) ? valueAsDateTime : value);
+            default:
+                return (T)value;
         }
+        ;
+    }
 
-        private static T? GetValueNullableInternal<T>(this DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-                throw new Exception($"Column \"{columnName}\" not found in table \"{row.Table.TableName}\"");
-
-            object value = row[columnName];
-
-            if (value == null || value == DBNull.Value)
-            {
-                return default;
-            }
-            else
-            {
-                value = ConvertSpecific(value);
-                return value is T typedValue
-                ? (T?)typedValue
-                : throw new Exception($"{nameof(GetValueNullable)}: Value of type {value.GetType().Name} for column \"{columnName}\" is not a {typeof(T).Name}");
-            }
-        }
-
-        public static T GetValueOrThrow<T>(this DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-                throw new Exception($"Column \"{columnName}\" not found in table \"{row.Table.TableName}\"");
-
-            object value = row[columnName];
-
-            if (value == null || value == DBNull.Value)
-            {
-                throw new Exception($"Value for column \"{columnName}\" in table \"{row.Table.TableName}\" cannot be null");
-            }
-            else
-            {
-                value = ConvertSpecific(value);
-                return value is not T ? throw new Exception($"{nameof(DataRowMappingExtensions)}.{nameof(GetValueOrThrow)}: Value of type {typeof(T).Name} for column \"{columnName}\" in table \"{row.Table.TableName}\" is not a {typeof(T).Name}")
-                : (T)value;
-            }
-        }
-
-        public static object ConvertSpecific(object value) {
-            return value switch
-            {
-                long => Convert.ToInt32(value),
-                string valueAsString => DateTime.TryParse(valueAsString, out DateTime valueAsDateTime) ? valueAsDateTime : value,
-                _ => value,
-            };
-        }
+    public static void EnsureExists(this DataRow row, string columnName)
+    {
+        if (!row.Table.Columns.Contains(columnName))
+            throw new Exception($"Column \"{columnName}\" not found in table \"{row.Table.TableName}\"");
     }
 }

@@ -1,4 +1,4 @@
-﻿################################################################################
+################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
@@ -14,3 +14,40 @@
 
 .fake
 /MapHive/maphive.db.sql
+
+# Added by Claude Task Master
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+# Dependency directories
+node_modules/
+# Environment variables
+.env
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+.DS_Store
+# Task files
+tasks.json
+tasks/ 
+/.roo/rules/context.md
+/.roo/rules/dev_workflow.md
+/.roo/rules/general.md
+/.roo/rules/map-hive-context.md
+/.roo/rules/roo_rules.md
+/.roo/rules/self_improve.md
+/.roo/rules/taskmaster.md
+/.roo
+/.cursor/mcp.json
+/CommonAnalyzers/CommonAnalyzers/obj
+/CommonAnalyzers/CommonAnalyzers/bin

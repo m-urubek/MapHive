@@ -1,26 +1,34 @@
-namespace MapHive.Repositories
+namespace MapHive.Repositories;
+
+using MapHive.Models.Data;
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.Enums;
+
+public interface IAccountsRepository
 {
-    using MapHive.Models.RepositoryModels;
+    public Task<int> CreateAccountAsync(
+        string username,
+        string passwordHash,
+        DateTime registrationDate,
+        AccountTier tier,
+        string ipAddressHistory
+    );
 
-    public interface IAccountsRepository
-    {
-        /// <summary>
-        /// Create a new user
-        /// </summary>
-        Task<int> CreateAccountAsync(UserCreate createDto);
+    // Basic user lookup
+    Task<AccountAtomic?> GetAccountByUsernameAsync(string username);
+    Task<AccountAtomic> GetAccountByUsernameOrThrowAsync(string username);
+    Task<bool> CheckUsernameExistsAsync(string username);
+    Task<AccountAtomic?> GetAccountByIdAsync(int id);
+    Task<AccountAtomic> GetAccountByIdOrThrowAsync(int id);
 
-        // Basic user lookup
-        Task<string> GetUsernameByIdAsync(int accountId);
-        Task<AccountGet?> GetAccountByUsernameAsync(string username);
-        Task<AccountGet> GetAccountByUsernameOrThrowAsync(string username);
-        Task<bool> CheckUsernameExistsAsync(string username);
-        Task<AccountGet?> GetAccountByIdAsync(int id);
-        Task<AccountGet> GetAccountByIdOrThrowAsync(int id);
-
-        // Admin methods
-        Task<IEnumerable<AccountGet>> GeAccountsAsync(string searchTerm, int page, int pageSize, string sortColumnName = "", string sortDirection = "asc");
-        Task<int> GetTotalAccountsCountAsync(string searchTerm);
-        Task<bool> UpdateAccountTierAsync(AccountTierUpdate tierDto);
-        Task<int> UpdateAccountAsync(UserUpdate updateDto);
-    }
+    // Admin methods
+    Task<IEnumerable<AccountAtomic>> GeAccountsAsync(string searchTerm, int page, int pageSize, string sortColumnName = "", string sortDirection = "asc");
+    Task<int> GetTotalAccountsCountAsync(string searchTerm);
+    Task UpdateAccountOrThrowAsync(
+        int id,
+        DynamicValue<string> username,
+        DynamicValue<string> passwordHash,
+        DynamicValue<AccountTier> tier,
+        DynamicValue<string> ipAddressHistory);
+    Task UpdateDarkModePreferenceAsync(int id, bool enabled);
 }

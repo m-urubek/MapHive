@@ -1,22 +1,33 @@
-namespace MapHive.Repositories
+namespace MapHive.Repositories;
+
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.PageModels;
+
+public interface IDiscussionRepository
 {
-    using MapHive.Models.RepositoryModels;
+    Task DeleteThreadOrThrowAsync(int id);
+    Task<List<ThreadInitialMessageDbModel>> GetInitialMessageThreadsByAccountIdAsync(int accountId);
+    Task<List<ThreadInitialMessageDbModel>> GetInitialMessageThreadsByLocationIdAsync(int locationId);
+    Task<ThreadDisplayPageModel> GetThreadByReviewIdOrThrowAsync(int reviewId);
+    Task<ThreadDisplayPageModel> GetThreadByIdOrThrowAsync(int id);
 
-    public interface IDiscussionRepository
-    {
-        // Thread operations
-        Task<List<DiscussionThreadGet>?> GetAllDiscussionThreadsByLocationIdAsync(int locationId);
-        Task<DiscussionThreadGet?> GetThreadByIdAsync(int id);
-        Task<DiscussionThreadGet> CreateDiscussionThreadAsync(DiscussionThreadCreate thread, string initialMessage);
-        Task<DiscussionThreadGet> CreateReviewThreadAsync(ReviewThreadCreate threadCreate);
-        Task<bool> DeleteThreadAsync(int id);
-        Task<List<DiscussionThreadGet>> GetThreadsByAccountIdAsync(int accountId);
+    Task<int> CreateDiscussionThreadAsync(
+        int locationId,
+        int accountId,
+        string threadName,
+        int? reviewId,
+        bool isAnonymous
+    );
 
-        // Message operations
-        Task<List<ThreadMessageGet>> GetMessagesByThreadIdAsync(int threadId);
-        Task<ThreadMessageGet?> GetMessageByIdAsync(int id);
-        Task<ThreadMessageGet> AddMessageAsync(ThreadMessageCreate message);
-        Task<bool> DeleteMessageAsync(int id, int deletedByAccountId);
-        Task<bool> ConvertReviewThreadToDiscussionAsync(int threadId, string initialMessage);
-    }
+    // Message operations
+    Task<List<ThreadMessageExtended>> GetMessagesByThreadIdAsync(int threadId);
+    Task<ThreadMessageExtended> GetMessageByIdOrThrowAsync(int id);
+    Task<int> CreateMessageAsync(
+        int threadId,
+        int authorId,
+        string messageText,
+        bool isInitialMessage
+    );
+    Task DeleteMessageOrThrowAsync(int id, int deletedByAccountId);
+    Task ConvertReviewThreadToDiscussionOrThrowAsync(int threadId);
 }

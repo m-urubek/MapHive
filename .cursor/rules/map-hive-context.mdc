@@ -32,7 +32,7 @@ Those surrounded by * are finished
 
 *- Public Places: All places are visible to everyone.*
 *- User Registration: Only registered users can add new places.*
-- IP Blacklisting:
+*- IP Blacklisting:*
   *- The database stores the registration IP.*
   *- Anonymous Submissions: Users can choose to anonymize themselves as the author of a place.*
 - Admin Approval:
@@ -49,9 +49,9 @@ Those surrounded by * are finished
   *- Discussions can be started from published reviews.*
   *- Reviews can also be anonymous.*
 
-Admin UI:
+*Admin UI:*
 
-The website will include an Admin Panel to manage:
+*The website will include an Admin Panel to manage:*
 *- Categories for places (Add, Delete, Update)*
 *- See grid of users and filter in it*
 *- Perform direct sql commands with option to view results of the commands*
@@ -72,7 +72,7 @@ Configuration:
   - Text in footer
 
 Technical notes:
-- always use SqlClient from CurrentRequest to access database
+
 
 End of project context
 **********************************************************

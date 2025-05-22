@@ -1,133 +1,127 @@
-namespace MapHive.Controllers
+namespace MapHive.Controllers;
+
+using MapHive.Models.Data.DbTableModels;
+using MapHive.Models.PageModels;
+using MapHive.Repositories;
+using MapHive.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+public class MapController(
+    IMapLocationService _mapService,
+    IUserContextService _userContextService,
+    IMapLocationRepository _mapRepository) : Controller
 {
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Services;
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-
-    public class MapController(IMapService mapService, IUserContextService userContextService) : Controller
+    public async Task<IActionResult> Index()
     {
-        private readonly IMapService _mapService = mapService;
-        private readonly IUserContextService _userContextService = userContextService;
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetAllLocationsAsync();
+        return View(model: locations);
+    }
 
-        // GET: Map
-        public async Task<IActionResult> Index()
+    [HttpGet("Map/Add")]
+    [Authorize]
+    public async Task<IActionResult> Add()
+    {
+        LocationUpdatePageModel vm = await _mapService.GetAddLocationPagePageModelAsync();
+        return View(model: vm);
+    }
+
+    // POST: Map/Add
+    [HttpPost("Map/Add")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Add(LocationUpdatePageModel addLocationPageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            IEnumerable<MapLocationGet> locations = await _mapService.GetAllLocationsAsync();
-            return View(model: locations);
+            return View(model: addLocationPageModel);
         }
+        int locationId = await _mapRepository.CreateLocationAsync(
+            name: addLocationPageModel.Name!,
+            description: addLocationPageModel.Description,
+            latitude: addLocationPageModel.Latitude!.Value,
+            longitude: addLocationPageModel.Longitude!.Value,
+            address: addLocationPageModel.Address,
+            website: addLocationPageModel.Website,
+            phoneNumber: addLocationPageModel.PhoneNumber,
+            isAnonymous: addLocationPageModel.IsAnonymous,
+            categoryId: addLocationPageModel.CategoryId!.Value,
+            ownerId: _userContextService.AccountIdOrThrow
+        );
+        return RedirectToAction(actionName: nameof(Details), new { id = locationId });
+    }
 
-        // GET: Map/Add
-        [Authorize]
-        public async Task<IActionResult> Add()
+    [HttpGet("Map/Edit/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id)
+    {
+        LocationUpdatePageModel vm = await _mapService.GetLocationUpdatePageModelAsync(id: id);
+        return View(model: vm);
+    }
+
+    [HttpPost("Map/Edit/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> Edit(int id, LocationUpdatePageModel locationUpdatePageModel)
+    {
+        if (!ModelState.IsValid)
         {
-            // Prepare Add page data
-            AddLocationPageViewModel vm = await _mapService.GetAddLocationPageViewModelAsync();
-            return View(model: vm);
+            return View(model: locationUpdatePageModel);
         }
+        await _mapService.UpdateLocationOrThrowAsync(id: id, locationUpdatePageModel: locationUpdatePageModel);
+        return RedirectToAction(actionName: nameof(Details), new { id });
+    }
 
-        // POST: Map/Add
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Add(MapLocationCreate mapLocationCreate)
+    [HttpGet("Map/Delete/{id:int:required}")]
+    [Authorize]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
         {
-            if (!ModelState.IsValid)
-            {
-                // Re-populate categories on validation failure
-                int accountId = _userContextService.AccountIdRequired;
-                AddLocationPageViewModel fallback = await _mapService.GetAddLocationPageViewModelAsync();
-                return View(model: fallback);
-            }
-            _ = await _mapService.AddLocationAsync(mapLocationCreate: mapLocationCreate);
+            LocationExtended location = await _mapService.GetLocationByIdOrThrowAsync(id: id);
+            return View(model: location);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPost("Map/Delete/{id:int:required}")]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        try
+        {
+            _ = await _mapService.DeleteLocationAsync(id: id);
             return RedirectToAction(actionName: nameof(Index));
         }
-
-        // GET: Map/Edit/5
-        [Authorize]
-        public async Task<IActionResult> Edit(int id)
+        catch (KeyNotFoundException)
         {
-            try
-            {
-                EditLocationPageViewModel vm = await _mapService.GetEditLocationPageViewModelAsync(id: id);
-                return View(model: vm);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            return NotFound();
         }
+    }
 
-        // POST: Map/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> Edit(EditLocationPageViewModel editLocationPageViewModel)
+    [HttpGet("Map/Details/{id:int:required}")]
+    public async Task<IActionResult> Details(int id)
+    {
+        try
         {
-            if (!ModelState.IsValid)
-            {
-                EditLocationPageViewModel fallback = await _mapService.GetEditLocationPageViewModelAsync(id: editLocationPageViewModel.UpdateModel.Id);
-                fallback.UpdateModel = editLocationPageViewModel.UpdateModel;
-                return View(model: fallback);
-            }
-            _ = await _mapService.UpdateLocationAsync(id: editLocationPageViewModel.UpdateModel.Id, updateDto: editLocationPageViewModel.UpdateModel);
-            return RedirectToAction(actionName: nameof(Index));
+            // Retrieve all details via service
+            LocationDisplayPageModel pageModel = await _mapService.GetLocationDetailsAsync(id: id);
+            return View(model: pageModel);
         }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 
-        // GET: Map/Delete/5
-        [Authorize]
-        public async Task<IActionResult> Delete(int id)
-        {
-            try
-            {
-                MapLocationGet location = await _mapService.GetLocationByIdOrThrowAsync(id: id);
-                return View(model: location);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        // POST: Map/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            try
-            {
-                _ = await _mapService.DeleteLocationAsync(id: id);
-                return RedirectToAction(actionName: nameof(Index));
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        // GET: Map/Details/5
-        public async Task<IActionResult> Details(int id)
-        {
-            try
-            {
-                // Retrieve all details via service
-                MapLocationViewModel viewModel = await _mapService.GetLocationDetailsAsync(id: id);
-                return View(model: viewModel);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        // API endpoint to get all locations as JSON
-        [HttpGet]
-        public async Task<IActionResult> GetLocations()
-        {
-            IEnumerable<MapLocationGet> locations = await _mapService.GetAllLocationsAsync();
-            return Json(data: locations);
-        }
+    [HttpGet("Map/GetLocations")]
+    public async Task<IActionResult> GetLocations()
+    {
+        IEnumerable<LocationExtended> locations = await _mapRepository.GetAllLocationsAsync();
+        return Json(data: locations);
     }
 }

@@ -1,22 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+@{
+    var isDark = User.Identity?.IsAuthenticated == true && User.HasClaim("DarkModeEnabled", "True");
+}
+<html lang="en" class='@(isDark ? "dark-mode" : "")'>
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - MapHive</title>
+    <!-- Preload stored theme to prevent flash -->
+    <script>
+      (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') document.documentElement.classList.add('dark-mode');
+        else if (theme === 'light') document.documentElement.classList.add('light-mode');
+      })();
+    </script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    @await RenderSectionAsync("Styles", required: false)
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MapHive.styles.css" asp-append-version="true" />
-    @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
+<body data-authenticated='@(User.Identity?.IsAuthenticated == true ? "true" : "false")'>
     @await Component.InvokeAsync("UserFriendlyExceptionMessage")
     
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MapHive</a>
+                <a class="navbar-brand" asp-area="" asp-controller="Map" asp-action="Index">MapHive</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -24,15 +35,12 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Map" asp-action="Index">Map</a>
                         </li>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Map" asp-action="Add">Add Place</a>
+                                <a class="nav-link" style="font-weight: bold; color: #000;" asp-area="" asp-controller="Map" asp-action="Add">Add Place</a>
                             </li>
                             @if (User.IsInRole("Admin") || User.IsInRole("2"))
                             {
@@ -42,9 +50,15 @@
                             }
                         }
                         <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="About">About</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
+                    <div class="alert alert-warning py-1 px-2 mb-0 ms-auto me-2 d-none d-md-block" role="alert" style="font-size: 0.8rem;">
+                        This is a showcase site. Not intended for real use. Environment and database reset every 30 minutes. Login as admin - nick: admin, pw: admin
+                    </div>
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
@@ -77,6 +91,9 @@
                                 <a class="nav-link text-dark" asp-controller="Account" asp-action="Register">Register</a>
                             </li>
                         }
+                        <li class="nav-item d-flex align-items-center">
+                            <button id="theme-toggle" class="btn nav-link p-0 ms-2" style="border:none; background:transparent;">🌙</button>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -90,7 +107,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2023 - MapHive - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; 2025 - Martin Urubek - <a href="https://m-urubek.github.io/">Personal website</a> - Open source on <a href="https://github.com/m-urubek/MapHive">GitHub</a>, MIT license - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

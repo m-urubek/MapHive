@@ -1,10 +1,9 @@
-namespace MapHive.Models.Enums
+namespace MapHive.Models.Enums;
+
+public enum LogSeverity
 {
-    public enum LogSeverity
-    {
-        Information = 1,
-        Warning = 2,
-        Error = 3,
-        Critical = 4
-    }
+    Information = 1,
+    Warning = 2,
+    Error = 3,
+    Critical = 4
 }

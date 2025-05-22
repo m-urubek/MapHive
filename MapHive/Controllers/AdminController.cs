@@ -1,266 +1,49 @@
-namespace MapHive.Controllers
+namespace MapHive.Controllers;
+
+using MapHive.Models.PageModels;
+using MapHive.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+[Authorize]
+public class AdminController(
+    IAdminService _adminService) : Controller
 {
-    using AutoMapper;
-    using MapHive.Models.Enums;
-    using MapHive.Models.RepositoryModels;
-    using MapHive.Models.ViewModels;
-    using MapHive.Services;
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-    using MapHive.Repositories;
-
-    [Authorize]
-    public class AdminController(IAdminService adminService, IMapper mapper, IDataGridService dataGridService, IUserContextService userContextService, IAccountBansRepository accountBansRepository) : Controller
+    [HttpGet("AdminPanel")]
+    [Authorize(Roles = "Admin,2")]
+    public IActionResult Index()
     {
-        private readonly IAdminService _adminService = adminService;
-        private readonly IMapper _mapper = mapper;
-        private readonly IDataGridService _dataGridService = dataGridService;
-        private readonly IUserContextService _userContextService = userContextService;
-        private readonly IAccountBansRepository _accountBansRepository = accountBansRepository;
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public IActionResult Index()
-        {
-            return View();
-        }
-
-        #region Categories Management
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Categories()
-        {
-            IEnumerable<CategoryGet> categories = await _adminService.GetAllCategoriesAsync();
-            return View(model: categories);
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public IActionResult AddCategory()
-        {
-            return View(model: new CategoryCreate { Name = string.Empty, Description = string.Empty, Icon = string.Empty });
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> AddCategory(CategoryCreate categoryCreate)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: categoryCreate);
-            }
-
-            await _adminService.AddCategoryAsync(createDto: categoryCreate);
-            return RedirectToAction(actionName: "Categories");
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditCategory(int id)
-        {
-            CategoryGet? categoryGet = await _adminService.GetCategoryByIdAsync(id: id);
-            if (categoryGet == null)
-            {
-                return NotFound();
-            }
-            CategoryUpdate categoryDto = _mapper.Map<CategoryUpdate>(source: categoryGet);
-            return View(model: categoryDto);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditCategory(CategoryUpdate categoryUpdate)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: categoryUpdate);
-            }
-
-            await _adminService.UpdateCategoryAsync(updateDto: categoryUpdate);
-            return RedirectToAction(actionName: "Categories");
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> DeleteCategory(int id)
-        {
-            await _adminService.DeleteCategoryAsync(id: id);
-            return RedirectToAction(actionName: "Categories");
-        }
-
-        #endregion
-
-        #region Accounts Management
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Accounts()
-        {
-            DataGridViewModel viewModel = new()
-            {
-                Title = "Manage Accounts",
-                TableName = "Accounts",
-                ColumnNames = new List<string>(),
-                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Accounts")
-            };
-            return View("_DataGrid", viewModel);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> UpdateAccountTier(int accountId, AccountTier AccountTier)
-        {
-            await _adminService.UpdateAccountTierAsync(accountId: accountId, tier: AccountTier);
-            return RedirectToAction(actionName: "Accounts");
-        }
-        #endregion
-        #region Bans
-        /// <summary>
-        /// Unbans the specified user account.
-        /// </summary>
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> UnbanAccount(int id)
-        {
-            _userContextService.EnsureAuthenticatedAndAdmin();
-            bool success = await _accountBansRepository.RemoveAccountBanAsync(banId: id);
-            if (success)
-            {
-                TempData["SuccessMessage"] = "User account unbanned successfully.";
-            }
-            else
-            {
-                TempData["ErrorMessage"] = "Failed to unban user account.";
-            }
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Ban(BanViewModel banViewModel)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: banViewModel);
-            }
-            _ = await _adminService.BanAsync(banViewModel: banViewModel);
-            return RedirectToAction(actionName: "PublicProfileById", controllerName: "Account", routeValues: new { accountId = banViewModel.AccountId });
-        }
-
-        #endregion
-
-        #region SQL Execution
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public IActionResult SqlQuery()
-        {
-            return View(model: new SqlQueryViewModel());
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> SqlQuery(SqlQueryViewModel sqlQueryViewModel)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: sqlQueryViewModel);
-            }
-
-            SqlQueryViewModel resultModel = await _adminService.ExecuteSqlQueryAsync(query: sqlQueryViewModel.Query);
-            return View(model: resultModel);
-        }
-
-        #endregion
-
-        #region Configuration Management
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Configuration()
-        {
-            List<ConfigurationItem> configurations = await _adminService.GetAllConfigurationItemsAsync();
-            return View(model: configurations);
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public IActionResult AddConfiguration()
-        {
-            return View(model: new ConfigurationItem());
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> AddConfiguration(ConfigurationItem configurationItem)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: configurationItem);
-            }
-
-            await _adminService.AddConfigurationItemAsync(item: configurationItem);
-            return RedirectToAction(actionName: "Configuration");
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditConfiguration(string key)
-        {
-            ConfigurationItem? configItem = await _adminService.GetConfigurationItemAsync(key: key);
-            return configItem == null ? NotFound() : View(model: configItem);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> EditConfiguration(ConfigurationItem configurationItem)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model: configurationItem);
-            }
-
-            await _adminService.UpdateConfigurationItemAsync(item: configurationItem);
-            return RedirectToAction(actionName: "Configuration");
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> DeleteConfiguration(string key)
-        {
-            await _adminService.DeleteConfigurationItemAsync(key: key);
-            return RedirectToAction(actionName: "Configuration");
-        }
-
-        #endregion
-
-        #region Logs Management
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,2")]
-        public async Task<IActionResult> Logs()
-        {
-            DataGridViewModel viewModel = new()
-            {
-                Title = "System Logs",
-                TableName = "Logs",
-                ColumnNames = new List<string> { "Id_Log", "Timestamp", "SeverityId", "Message", "AccountId", "RequestPath", "Source", "AdditionalData" },
-                Columns = await _dataGridService.GetColumnsForTableAsync(tableName: "Logs")
-            };
-            return View("_DataGrid", viewModel);
-        }
-
-        #endregion
+        return View();
     }
+
+    #region SQL Execution
+
+    [HttpGet("AdminPanel/SqlQuery")]
+    [Authorize(Roles = "Admin,2")]
+    public IActionResult SqlQuery()
+    {
+        return View(new SqlQueryPageModel()
+        {
+            Query = "",
+            RowsAffected = null,
+            DataTable = null,
+            Message = null
+        });
+    }
+
+    [HttpPost("AdminPanel/SqlQuery")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,2")]
+    public async Task<IActionResult> SqlQuery(SqlQueryPageModel sqlQueryPageModel)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model: sqlQueryPageModel);
+        }
+
+        SqlQueryPageModel resultModel = await _adminService.ExecuteSqlQueryAsync(query: sqlQueryPageModel.Query!);
+        return View(model: resultModel);
+    }
+
+    #endregion
 }

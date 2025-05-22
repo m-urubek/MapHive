@@ -1,10 +1,8 @@
-namespace MapHive.Services
-{
-    using MapHive.Models.ViewModels;
+namespace MapHive.Services;
 
-    public interface IDisplayPageService
-    {
-        Task<bool> TableExistsAsync(string tableName);
-        Task<DisplayItemViewModel> GetItemAsync(string tableName, int id);
-    }
+using MapHive.Models.PageModels;
+
+public interface IDisplayPageService
+{
+    public Task<DisplayItemPageModel> GetItemAsync(string tableName, int id);
 }
