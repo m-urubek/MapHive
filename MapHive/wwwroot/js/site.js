@@ -101,6 +101,47 @@ window.onerror = function (message, source, lineno, colno, error) {
 ;(function() {
   const html = document.documentElement;
   const isAuthenticated = document.body.dataset.authenticated === 'true';
+  
+  // Helper function to update all theme toggle icons
+  const updateThemeIcons = function() {
+    const appThemeToggle = document.getElementById('theme-toggle');
+    const mapThemeToggle = document.getElementById('map-theme-toggle');
+    
+    if (appThemeToggle) {
+      appThemeToggle.textContent = html.classList.contains('dark-mode') ? '☀️' : '🌙';
+    }
+    
+    if (mapThemeToggle) {
+      const getMapTheme = function() {
+        const stored = localStorage.getItem('mapTheme');
+        if (stored === 'dark' || stored === 'light') {
+          return stored === 'dark';
+        }
+        // Default to app theme if map theme not set
+        return html.classList.contains('dark-mode');
+      };
+      const currentMapTheme = getMapTheme();
+      mapThemeToggle.textContent = currentMapTheme ? '☀️' : '🌙';
+    }
+  };
+
+  // Helper function to detect system theme preference
+  const getSystemTheme = function() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+
+  // Helper function to get current app theme (considering system preference if not explicitly set)
+  const getCurrentAppTheme = function() {
+    if (html.classList.contains('dark-mode')) {
+      return true;
+    }
+    if (html.classList.contains('light-mode')) {
+      return false;
+    }
+    // If neither class is set, check system preference
+    return getSystemTheme();
+  };
+
   if (isAuthenticated) {
     // Fetch user preference from server
     fetch('/Account/GetDarkModePreference', { credentials: 'same-origin' })
@@ -114,6 +155,20 @@ window.onerror = function (message, source, lineno, colno, error) {
           html.classList.add('light-mode');
         }
         localStorage.setItem('theme', data.enabled ? 'dark' : 'light');
+        // Update icons after theme is set
+        updateThemeIcons();
+      })
+      .catch(() => {
+        // On error, fall back to stored preference
+        const stored = localStorage.getItem('theme');
+        if (stored === 'dark') {
+          html.classList.add('dark-mode');
+          html.classList.remove('light-mode');
+        } else if (stored === 'light') {
+          html.classList.remove('dark-mode');
+          html.classList.add('light-mode');
+        }
+        updateThemeIcons();
       });
   } else {
     // Not authenticated: respect stored preference or system
@@ -126,29 +181,74 @@ window.onerror = function (message, source, lineno, colno, error) {
       html.classList.add('light-mode');
     }
     // else default to system preference via CSS media query
+    // But we need to ensure classes are set for JavaScript detection
+    if (!html.classList.contains('dark-mode') && !html.classList.contains('light-mode')) {
+      const systemDark = getSystemTheme();
+      if (systemDark) {
+        html.classList.add('dark-mode');
+      } else {
+        html.classList.add('light-mode');
+      }
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
+    // App theme toggle (navbar button)
     const toggle = document.getElementById('theme-toggle');
-    if (!toggle) return;
-    // Set initial toggle icon based on current theme
-    toggle.textContent = html.classList.contains('dark-mode') ? '☀️' : '🌙';
-    // Center the toggle icon
-    toggle.classList.add('d-flex', 'align-items-center', 'justify-content-center');
-    toggle.addEventListener('click', function() {
-      // Update toggle icon after theme change
-      const isDark = html.classList.toggle('dark-mode');
-      html.classList.toggle('light-mode', !isDark);
-      // Correctly update toggle icon after theme change
-      toggle.textContent = isDark ? '☀️' : '🌙';
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      if (isAuthenticated) {
-        fetch('/Account/SetDarkModePreference?enabled=' + isDark, { credentials: 'same-origin' });
-      }
-      // Dispatch a themeChanged event for subscribers
-      const themeChangedEvent = new CustomEvent('themeChanged', { detail: { dark: isDark } });
-      html.dispatchEvent(themeChangedEvent);
-    });
+    if (toggle) {
+      // Set initial toggle icon based on current theme
+      updateThemeIcons();
+      // Center the toggle icon
+      toggle.classList.add('d-flex', 'align-items-center', 'justify-content-center');
+      toggle.addEventListener('click', function() {
+        // Update toggle icon after theme change
+        const isDark = html.classList.toggle('dark-mode');
+        html.classList.toggle('light-mode', !isDark);
+        // Correctly update toggle icon after theme change
+        toggle.textContent = isDark ? '☀️' : '🌙';
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        if (isAuthenticated) {
+          fetch('/Account/SetDarkModePreference?enabled=' + isDark, { credentials: 'same-origin' });
+        }
+        // Note: App theme changes no longer affect map theme
+      });
+    }
+
+    // Map theme toggle (inside map)
+    const mapThemeToggle = document.getElementById('map-theme-toggle');
+    if (mapThemeToggle) {
+      // Initialize map theme from localStorage or default to app theme
+      const getMapTheme = function() {
+        const stored = localStorage.getItem('mapTheme');
+        if (stored === 'dark' || stored === 'light') {
+          return stored === 'dark';
+        }
+        // Default to app theme if map theme not set
+        return getCurrentAppTheme();
+      };
+
+      const setMapTheme = function(isDark) {
+        localStorage.setItem('mapTheme', isDark ? 'dark' : 'light');
+        const mapThemeChangedEvent = new CustomEvent('mapThemeChanged', { detail: { dark: isDark } });
+        html.dispatchEvent(mapThemeChangedEvent);
+      };
+
+      // Set initial map theme and toggle icon
+      const initialMapTheme = getMapTheme();
+      mapThemeToggle.textContent = initialMapTheme ? '☀️' : '🌙';
+      mapThemeToggle.classList.add('d-flex', 'align-items-center', 'justify-content-center');
+      
+      // Dispatch initial map theme event
+      setMapTheme(initialMapTheme);
+
+      mapThemeToggle.addEventListener('click', function() {
+        const currentMapTheme = getMapTheme();
+        const newMapTheme = !currentMapTheme;
+        mapThemeToggle.textContent = newMapTheme ? '☀️' : '🌙';
+        setMapTheme(newMapTheme);
+      });
+    }
+
     // Trigger fade-in once DOM is ready
     document.body.classList.add('loaded');
   });

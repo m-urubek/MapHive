@@ -65,7 +65,9 @@
                     <h4>Map Location</h4>
                 </div>
                 <div class="card-body">
-                    <div id="map" style="width: 100%; height: 400px;"></div>
+                    <div id="map" style="width: 100%; height: 400px; position: relative;">
+                        <button id="map-theme-toggle" title="Toggle map theme">🌙</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,6 +84,37 @@
             border-radius: 5px;
             border: 1px solid #ccc;
         }
+        /* Map theme toggle button */
+        #map-theme-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,0,0,0.2);
+            background-color: rgba(255,255,255,0.9);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        #map-theme-toggle:hover {
+            background-color: rgba(255,255,255,1);
+            transform: scale(1.1);
+        }
+        .dark-mode #map-theme-toggle {
+            background-color: rgba(18,18,18,0.9);
+            border-color: rgba(255,255,255,0.2);
+            color: var(--text-color);
+        }
+        .dark-mode #map-theme-toggle:hover {
+            background-color: rgba(18,18,18,1);
+        }
     </style>
 }
 
@@ -94,8 +127,7 @@
             // Initialize the map
             var map = L.map('map').setView([@Model.Latitude, @Model.Longitude], 13);
             
-            // Add tiles based on current theme (authenticated fetch or localStorage)
-            const isAuthenticated = document.body.dataset.authenticated === 'true';
+            // Add tiles based on map theme (stored in localStorage)
             const darkUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@@2x.png';
             const lightUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
             const darkAttrib = '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
@@ -105,18 +137,32 @@
                 const attrib = enabled ? darkAttrib : lightAttrib;
                 L.tileLayer(url, { maxZoom: 19, attribution: attrib }).addTo(map);
             };
-            if (isAuthenticated) {
-                fetch('/Account/GetDarkModePreference', { credentials: 'same-origin' })
-                    .then(res => res.json())
-                    .then(data => loadTiles(data.enabled))
-                    .catch(() => loadTiles(false));
-            } else {
-                const themeDark = document.documentElement.classList.contains('dark-mode');
-                loadTiles(themeDark);
-            }
             
-            // React to theme changes via custom event
-            document.documentElement.addEventListener('themeChanged', function(e) {
+            // Get initial map theme from localStorage or default to app theme
+            const getMapTheme = function() {
+                const stored = localStorage.getItem('mapTheme');
+                if (stored === 'dark' || stored === 'light') {
+                    return stored === 'dark';
+                }
+                // Default to app theme if map theme not set
+                const html = document.documentElement;
+                if (html.classList.contains('dark-mode')) {
+                    return true;
+                }
+                if (html.classList.contains('light-mode')) {
+                    return false;
+                }
+                // If neither class is set, check system preference
+                return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            };
+            
+            // Wait a bit to ensure theme classes are set before loading tiles
+            setTimeout(function() {
+                loadTiles(getMapTheme());
+            }, 100);
+
+            // React to map theme changes via custom event
+            document.documentElement.addEventListener('mapThemeChanged', function(e) {
                 loadTiles(e.detail.dark);
             });
             
