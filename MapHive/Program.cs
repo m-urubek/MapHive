@@ -8,11 +8,36 @@ using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.Razor;
 using reCAPTCHA.AspNetCore;
+using Serilog;
+using Serilog.Sinks.Grafana.Loki;
 
 // Load .env file
 Env.Load();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
+
+// Configure Serilog with Grafana Loki
+string lokiUrl = builder.Configuration["Serilog:Loki:Url"] ?? "http://localhost:3100";
+bool lokiEnabled = builder.Configuration.GetValue<bool>("Serilog:Loki:Enabled", defaultValue: true);
+
+LoggerConfiguration loggerConfig = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("MachineName", Environment.MachineName)
+    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+    .WriteTo.Console();
+
+if (lokiEnabled)
+{
+    loggerConfig = loggerConfig.WriteTo.GrafanaLoki(
+        uri: lokiUrl,
+        labels: [new LokiLabel { Key = "app", Value = "MapHive" }],
+        propertiesAsLabels: ["level", "source"]);
+}
+
+Log.Logger = loggerConfig.CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews(options => options.ModelMetadataDetailsProviders.Add(new DefaultRequiredErrorMessageProvider()));
@@ -35,7 +60,7 @@ builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 builder.Services.AddScoped<IDisplayPageRepository, DisplayPageRepository>();
 builder.Services.AddScoped<IIpBansRepository, IpBansRepository>();
 builder.Services.AddScoped<IAccountBansRepository, AccountBansRepository>();
-builder.Services.AddSingleton<ILogRepository, LogRepository>(); //LogRepository cannot be scoped because it cannot log to avoid circular reference
+// ILogRepository removed - logging now uses Serilog with Grafana Loki
 
 // Add application services
 builder.Services.AddScoped<IAuthService, AuthService>();
