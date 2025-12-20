@@ -58,6 +58,8 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 builder.Services.AddScoped<IDisplayPageRepository, DisplayPageRepository>();
+builder.Services.AddScoped<IEditPageRepository, EditPageRepository>();
+builder.Services.AddScoped<ICreatePageRepository, CreatePageRepository>();
 builder.Services.AddScoped<IIpBansRepository, IpBansRepository>();
 builder.Services.AddScoped<IAccountBansRepository, AccountBansRepository>();
 // ILogRepository removed - logging now uses Serilog with Grafana Loki

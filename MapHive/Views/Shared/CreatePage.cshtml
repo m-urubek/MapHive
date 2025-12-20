@@ -1,0 +1,173 @@
+@model MapHive.Models.PageModels.CreateItemPageModel
+
+@{
+    ViewData["Title"] = $"Create {Model.TableName}";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3>Create @Model.TableName</h3>
+                    </div>
+                    <div>
+                        <a asp-controller="DataGrid"
+                           asp-action="Index"
+                           asp-route-tableName="@Model.TableName"
+                           class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Grid
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @{
+                        var editableFields = Model.Fields.Where(f => !f.Value.IsPrimaryKey).ToList();
+                    }
+                    @if (editableFields.Count > 0)
+                    {
+                        <form asp-controller="Create"
+                              asp-action="Save"
+                              asp-route-tableName="@Model.TableName"
+                              method="post">
+                            <div class="create-page-container">
+                                @foreach (var field in editableFields)
+                                {
+                                    <div class="create-item mb-3">
+                                        <label class="form-label create-title">
+                                            @field.Value.DisplayName
+                                            @if (field.Value.IsForeignKey)
+                                            {
+                                                <span class="badge bg-info ms-2">Foreign Key</span>
+                                            }
+                                            @if (!field.Value.IsNullable)
+                                            {
+                                                <span class="required-asterisk">*</span>
+                                            }
+                                        </label>
+
+                                        @* Determine input type based on data type *@
+                                        @if (field.Value.DataType.Contains("TEXT", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            @if (field.Value.ColumnName.Contains("Description", StringComparison.OrdinalIgnoreCase) ||
+                                                 field.Value.ColumnName.Contains("Content", StringComparison.OrdinalIgnoreCase) ||
+                                                 field.Value.ColumnName.Contains("Body", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <textarea name="field_@field.Key"
+                                                          class="form-control"
+                                                          rows="4"
+                                                          required="@(field.Value.IsNullable ? null : "required")">@field.Value.DefaultValue</textarea>
+                                            }
+                                            else
+                                            {
+                                                <input type="text"
+                                                       name="field_@field.Key"
+                                                       class="form-control"
+                                                       value="@field.Value.DefaultValue"
+                                                       required="@(field.Value.IsNullable ? null : "required")" />
+                                            }
+                                        }
+                                        else if (field.Value.DataType.Contains("INT", StringComparison.OrdinalIgnoreCase) ||
+                                                 field.Value.DataType.Contains("REAL", StringComparison.OrdinalIgnoreCase) ||
+                                                 field.Value.DataType.Contains("NUMERIC", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <input type="number"
+                                                   name="field_@field.Key"
+                                                   class="form-control"
+                                                   value="@field.Value.DefaultValue"
+                                                   step="any"
+                                                   required="@(field.Value.IsNullable ? null : "required")" />
+                                        }
+                                        else if (field.Value.ColumnName.Contains("Date", StringComparison.OrdinalIgnoreCase) ||
+                                                 field.Value.ColumnName.Contains("Time", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <input type="datetime-local"
+                                                   name="field_@field.Key"
+                                                   class="form-control"
+                                                   value="@(string.IsNullOrEmpty(field.Value.DefaultValue) ? DateTime.Now.ToString("yyyy-MM-ddTHH:mm") : (DateTime.TryParse(field.Value.DefaultValue, out var dt) ? dt.ToString("yyyy-MM-ddTHH:mm") : field.Value.DefaultValue))"
+                                                   required="@(field.Value.IsNullable ? null : "required")" />
+                                        }
+                                        else
+                                        {
+                                            <input type="text"
+                                                   name="field_@field.Key"
+                                                   class="form-control"
+                                                   value="@field.Value.DefaultValue"
+                                                   required="@(field.Value.IsNullable ? null : "required")" />
+                                        }
+
+                                        <small class="text-muted">
+                                            Column: @field.Key | Type: @field.Value.DataType
+                                            @if (!field.Value.IsNullable)
+                                            {
+                                                <span>| Required</span>
+                                            }
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="mt-4 d-flex gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-plus-lg"></i> Create
+                                </button>
+                                <a asp-controller="DataGrid"
+                                   asp-action="Index"
+                                   asp-route-tableName="@Model.TableName"
+                                   class="btn btn-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            No editable fields found for this table.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .create-page-container {
+        margin: 20px 0;
+    }
+
+    .create-item {
+        padding: 15px;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .create-title {
+        font-weight: bold;
+        font-size: 1rem;
+        color: var(--link-color);
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .create-item input,
+    .create-item textarea {
+        margin-bottom: 5px;
+    }
+
+    .create-item small {
+        display: block;
+        font-size: 0.75rem;
+    }
+
+    .required-asterisk {
+        color: #dc3545;
+        font-weight: bold;
+        margin-left: 2px;
+    }
+</style>
+
