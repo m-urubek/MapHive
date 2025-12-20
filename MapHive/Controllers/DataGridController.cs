@@ -17,6 +17,12 @@ public class DataGridController(IDataGridRepository _dataGridRepository) : Contr
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // Tables that allow creating new items via the grid
+    private static readonly HashSet<string> TablesWithCreateEnabled = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Categories"
+    };
+
     [HttpGet("DataGrid/{tableName:required}")]
     public async Task<IActionResult> Index(string tableName)
     {
@@ -24,7 +30,8 @@ public class DataGridController(IDataGridRepository _dataGridRepository) : Contr
         {
             Title = tableName,
             ColumnNames = new List<string>(),
-            Columns = await _dataGridRepository.GetColumnsForTableAsync(tableName: tableName)
+            Columns = await _dataGridRepository.GetColumnsForTableAsync(tableName: tableName),
+            ShowCreateButton = TablesWithCreateEnabled.Contains(tableName)
         };
         return View("DataGrid", pageModel);
     }

@@ -1,13 +1,43 @@
+using DotNetEnv;
 using MapHive.Middleware;
 using MapHive.ModelBinding;
+using MapHive.Models.Configuration;
 using MapHive.Repositories;
 using MapHive.Services;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.Razor;
 using reCAPTCHA.AspNetCore;
+using Serilog;
+using Serilog.Sinks.Grafana.Loki;
+
+// Load .env file
+Env.Load();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
+
+// Configure Serilog with Grafana Loki
+string lokiUrl = builder.Configuration["Serilog:Loki:Url"] ?? "http://localhost:3100";
+bool lokiEnabled = builder.Configuration.GetValue<bool>("Serilog:Loki:Enabled", defaultValue: true);
+
+LoggerConfiguration loggerConfig = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("MachineName", Environment.MachineName)
+    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+    .WriteTo.Console();
+
+if (lokiEnabled)
+{
+    loggerConfig = loggerConfig.WriteTo.GrafanaLoki(
+        uri: lokiUrl,
+        labels: [new LokiLabel { Key = "app", Value = "MapHive" }],
+        propertiesAsLabels: ["level", "source"]);
+}
+
+Log.Logger = loggerConfig.CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews(options => options.ModelMetadataDetailsProviders.Add(new DefaultRequiredErrorMessageProvider()));
@@ -28,9 +58,11 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IDiscussionRepository, DiscussionRepository>();
 builder.Services.AddScoped<IDataGridRepository, DataGridRepository>();
 builder.Services.AddScoped<IDisplayPageRepository, DisplayPageRepository>();
+builder.Services.AddScoped<IEditPageRepository, EditPageRepository>();
+builder.Services.AddScoped<ICreatePageRepository, CreatePageRepository>();
 builder.Services.AddScoped<IIpBansRepository, IpBansRepository>();
 builder.Services.AddScoped<IAccountBansRepository, AccountBansRepository>();
-builder.Services.AddSingleton<ILogRepository, LogRepository>(); //LogRepository cannot be scoped because it cannot log to avoid circular reference
+// ILogRepository removed - logging now uses Serilog with Grafana Loki
 
 // Add application services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -50,6 +82,9 @@ builder.Services.Configure<RecaptchaSettings>(config: builder.Configuration.GetS
 builder.Services.AddTransient<RecaptchaService>();
 builder.Services.AddTransient<IRecaptchaService, RecaptchaService>();
 
+// Add Discord OAuth settings
+builder.Services.Configure<DiscordOAuthSettings>(config: builder.Configuration.GetSection(key: "DiscordOAuth"));
+
 // Add authentication
 builder.Services.AddAuthentication(defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(configureOptions: options =>
@@ -60,6 +95,12 @@ builder.Services.AddAuthentication(defaultScheme: CookieAuthenticationDefaults.A
         options.LogoutPath = "/Account/Logout";
         options.AccessDeniedPath = "/Account/AccessDenied";
     });
+
+// Add HttpClient for Discord OAuth API calls
+builder.Services.AddHttpClient("Discord", client =>
+{
+    client.BaseAddress = new Uri("https://discord.com/api/");
+});
 
 // Add session state services
 builder.Services.AddDistributedMemoryCache();

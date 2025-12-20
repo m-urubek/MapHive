@@ -38,6 +38,32 @@ public class AccountsRepository(ISqlClientSingleton sqlClientSingleton) : IAccou
         return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
     }
 
+    // Create a new user with Discord OAuth (no password)
+    public async Task<int> CreateAccountWithDiscordAsync(
+        string username,
+        string discordId,
+        DateTime registrationDate,
+        AccountTier tier,
+        string ipAddressHistory
+    )
+    {
+        string query = @"
+                INSERT into Accounts (Username, PasswordHash, RegistrationDate, Tier, IpAddressHistory, DiscordId)
+                VALUES (@Username, @PasswordHash, @RegistrationDate, @Tier, @IpAddressHistory, @DiscordId);";
+
+        SQLiteParameter[] parameters =
+        [
+            new("@Username", username),
+            new("@PasswordHash", ""), // Empty password hash for Discord-only accounts
+            new("@RegistrationDate", registrationDate),
+            new("@Tier", tier),
+            new("@IpAddressHistory", ipAddressHistory),
+            new("@DiscordId", discordId)
+        ];
+
+        return await _sqlClientSingleton.InsertAsync(query: query, parameters: parameters);
+    }
+
     // Basic user lookup
     public async Task<AccountAtomic?> GetAccountByIdAsync(int id)
     {
@@ -81,6 +107,25 @@ public class AccountsRepository(ISqlClientSingleton sqlClientSingleton) : IAccou
         SQLiteParameter[] parameters = [new("@Username", username)];
         DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
         return result.Rows.Count > 0;
+    }
+
+    public async Task<AccountAtomic?> GetAccountByDiscordIdAsync(string discordId)
+    {
+        string query = "SELECT * FROM Accounts WHERE DiscordId = @DiscordId";
+        SQLiteParameter[] parameters = [new("@DiscordId", discordId)];
+        DataTable result = await _sqlClientSingleton.SelectAsync(query: query, parameters: parameters);
+        return result.Rows.Count > 0 ? MapDataRowToaccountGet(row: result.Rows[0]) : null;
+    }
+
+    public async Task LinkDiscordAccountAsync(int accountId, string discordId)
+    {
+        string query = "UPDATE Accounts SET DiscordId = @DiscordId WHERE Id_Accounts = @Id";
+        SQLiteParameter[] parameters =
+        [
+            new("@DiscordId", discordId),
+            new("@Id", accountId)
+        ];
+        _ = await _sqlClientSingleton.UpdateOrThrowAsync(query: query, parameters: parameters);
     }
 
     public async Task<bool> IsIpBannedAsync(string hashedIpAddress)
@@ -179,7 +224,10 @@ public class AccountsRepository(ISqlClientSingleton sqlClientSingleton) : IAccou
             Tier = (AccountTier)row.GetValueThrowNotPresentOrNull<int>(columnName: "Tier"),
             RegistrationDate = row.GetValueThrowNotPresentOrNull<DateTime>(columnName: "RegistrationDate"),
             IpAddressHistory = row.GetValueThrowNotPresentOrNull<string>(columnName: "IpAddressHistory"),
-            DarkModeEnabled = row.GetValueThrowNotPresentOrNull<bool>(columnName: "DarkModeEnabled")
+            DarkModeEnabled = row.GetValueThrowNotPresentOrNull<bool>(columnName: "DarkModeEnabled"),
+            DiscordId = row.Table.Columns.Contains("DiscordId") && row["DiscordId"] != DBNull.Value
+                ? row["DiscordId"].ToString()
+                : null
         };
     }
 

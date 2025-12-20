@@ -184,11 +184,4 @@ public class DatabaseUpdaterSingleton(ISqlClientSingleton sqlClientSingleton, IL
         Console.WriteLine("Database Updater V1: Finished initial data setup.");
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(category: "Style", checkId: "IDE0051:Remove unused private members")]
-    private async Task V2()
-    {
-        _fileLoggerSingleton.LogToFile(message: "Database Updater V2: Adding DarkModeEnabled column to Accounts.");
-        Console.WriteLine("Database Updater V2: Adding DarkModeEnabled column to Accounts.");
-        _ = await _sqlClientSingleton.AlterAsync("ALTER TABLE Accounts ADD COLUMN DarkModeEnabled INTEGER NOT NULL DEFAULT 1;");
-    }
 }

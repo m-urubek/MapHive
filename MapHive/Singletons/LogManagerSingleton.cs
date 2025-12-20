@@ -1,19 +1,15 @@
 namespace MapHive.Services;
 
-using System.Text;
-
 using MapHive.Models.Enums;
-using MapHive.Repositories;
 using MapHive.Singletons;
-using Newtonsoft.Json;
+using Serilog;
+using Serilog.Events;
 
-public class LogManagerSingleton(IFileLoggerSingleton fileLogger,
-    ILogRepository logRepository) : ILogManagerSingleton
+public class LogManagerSingleton(IFileLoggerSingleton fileLogger) : ILogManagerSingleton
 {
     private readonly IFileLoggerSingleton _fileLogger = fileLogger;
-    private readonly ILogRepository _logRepository = logRepository;
 
-    public async Task<int> LogAsync(
+    public Task<int> LogAsync(
         LogSeverity severity,
         string message,
         Exception? exception = null,
@@ -22,87 +18,44 @@ public class LogManagerSingleton(IFileLoggerSingleton fileLogger,
         int? accountId = null,
         string? requestPath = null)
     {
-        int logId = 0;
         try
         {
-            StringBuilder sb = new();
-            _ = sb.AppendLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
-            _ = sb.AppendLine(handler: $"SEVERITY: {severity}");
-            _ = sb.AppendLine(handler: $"MESSAGE: {message}");
-            sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {source}");
-            _ = sb.AppendLine(handler: $"USER: {accountId?.ToString() ?? "system"}");
-            sb.AppendLineIfNotNullOrWhitespace(value: $"SOURCE: {requestPath}");
-            sb.AppendLineIfNotNullOrWhitespace(value: $"EXCEPTION: {exception?.ToString()}");
-            sb.AppendLineIfNotNullOrWhitespace(value: $"ADDITIONAL: {TryFormatAdditionalData(data: additionalData)}");
-            _ = sb.AppendLine(value: new string('-', 80));
+            LogEventLevel serilogLevel = MapSeverityToSerilog(severity: severity);
 
-            try
-            {
-                _fileLogger.LogToFile(sb.ToString());
-            }
-            catch (Exception exFile)
-            {
-                Console.WriteLine($"Failed to log to file {exFile}");
-                Console.WriteLine(sb);
-            }
-            try
-            {
-                logId = await _logRepository.CreateLogRowAsync(
-                    timestamp: DateTime.UtcNow,
-                    severity: severity,
-                    message: message,
-                    source: source,
-                    exception: exception,
-                    accountId: accountId,
-                    requestPath: requestPath,
-                    additionalData: additionalData);
-            }
-            catch (Exception exDb)
-            {
-                _fileLogger.LogToFile("Failed to log to database: " + exDb);
-            }
+            // Create structured log with all context
+            Log.ForContext("Source", source ?? "Unknown")
+               .ForContext("AccountId", accountId)
+               .ForContext("RequestPath", requestPath ?? "N/A")
+               .ForContext("AdditionalData", additionalData)
+               .ForContext("Severity", severity.ToString())
+               .Write(level: serilogLevel, exception: exception, messageTemplate: message);
         }
         catch (Exception ex)
         {
+            // Fallback to file logging if Serilog fails
             try
             {
-                logId = await _logRepository.CreateLogRowAsync(
-                    timestamp: DateTime.UtcNow,
-                    severity: LogSeverity.Critical,
-                    message: "Failed to log: " + ex,
-                    source: null,
-                    exception: ex,
-                    accountId: null,
-                    requestPath: null,
-                    additionalData: null);
+                _fileLogger.LogToFile($"Serilog failed, fallback log: {message} | Exception: {exception} | Error: {ex}");
             }
-            catch { }
-            try
+            catch
             {
-                _fileLogger.LogToFile("Failed to log: " + ex);
+                Console.WriteLine($"Failed to log: {ex}");
             }
-            catch { }
-            Console.WriteLine($"Failed to log: {ex}");
         }
-        return logId;
+
+        // Return 0 since we no longer generate SQL IDs
+        return Task.FromResult(result: 0);
     }
 
-    private static string? TryFormatAdditionalData(string? data)
+    private static LogEventLevel MapSeverityToSerilog(LogSeverity severity)
     {
-        if (string.IsNullOrWhiteSpace(value: data))
+        return severity switch
         {
-            return null;
-        }
-
-        try
-        {
-            return data.TrimStart().StartsWith(value: '{') || data.TrimStart().StartsWith(value: '[')
-                ? data
-                : JsonConvert.SerializeObject(value: new { data });
-        }
-        catch
-        {
-            return JsonConvert.SerializeObject(value: new { error = "format", data });
-        }
+            LogSeverity.Information => LogEventLevel.Information,
+            LogSeverity.Warning => LogEventLevel.Warning,
+            LogSeverity.Error => LogEventLevel.Error,
+            LogSeverity.Critical => LogEventLevel.Fatal,
+            _ => LogEventLevel.Information
+        };
     }
 }
