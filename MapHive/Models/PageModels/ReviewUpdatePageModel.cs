@@ -14,6 +14,7 @@ public class ReviewUpdatePageModel
 
     [Required]
     [StringLength(500)]
+    [NoHtml]
     public required string? ReviewText { get; set; }
 
     [BindRequired]
