@@ -13,9 +13,11 @@ public class LocationUpdatePageModel
 {
     [Required]
     [StringLength(100)]
+    [NoHtml]
     public required string? Name { get; set; }
 
     [StringLength(500)]
+    [NoHtml]
     public required string? Description { get; set; }
 
     [Required]
@@ -27,13 +29,16 @@ public class LocationUpdatePageModel
     public required double? Longitude { get; set; }
 
     [StringLength(200)]
+    [NoHtml]
     public required string? Address { get; set; }
 
     [DataType(DataType.Url)]
     [StringLength(255)]
+    [NoHtml]
     public required string? Website { get; set; }
 
     [StringLength(50)]
+    [NoHtml]
     public required string? PhoneNumber { get; set; }
 
     [BindRequired]

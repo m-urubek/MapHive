@@ -1,0 +1,85 @@
+<context_and_rules>
+<general>
+Don't stop a request to ask me a question or confirmation unless I specifically ask for it. I pay for every request start. All changes you make can be reverted so you can do risky operations and I can always revert them later if I dont like it later and you just include information about doing something risky in summary at the end.
+</general>
+<maphive_context>
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Oftentimes, I run automatic code cleanup from Visual Studio. So between our interactions, the code might change but not functionally. If that happens, keep the formating from Visual Studio and use that style in your future suggestions.
+
+When a database change is needed, create new update method in file MapHive\Utilities\DatabaseUpdater.cs .
+
+Name IDs of new database tables by this pattern "Id_{table name}".
+
+Always run dotnet build after your suggested changes in .cs files to check whether you caused any compilations errors.
+
+Never run "dotnet run".
+
+**********************************************************
+Beggining of project context
+
+ASP.NET Core 8 MVC Solution with SQLite Database
+
+This project is currently in development, so not all features are complete. 
+**Do NOT attempt to finish features stated in this project context unless explicitly prompted.**
+
+Goal:
+The project aims to create a world map where users can add places. These 
+places are displayed as pins on the map, and each pin contains a link to 
+a detail page about the place.
+
+Key Features:
+
+Those surrounded by * are finished
+
+*- Public Places: All places are visible to everyone.*
+*- User Registration: Only registered users can add new places.*
+*- IP Blacklisting:*
+  *- The database stores the registration IP.*
+  *- Anonymous Submissions: Users can choose to anonymize themselves as the author of a place.*
+- Admin Approval:
+  - Each place must be approved by an admin before being added to the map.
+  - Admins can mark a user as trusted, allowing their places to be added 
+    without approval.
+
+*Discussion & Reviews:*
+
+*- Discussion Threads:*
+  *- Logged-in users can discuss each place in a thread-based system.*
+*- Review System:*
+  *- Each place has a 5-star rating system.*
+  *- Discussions can be started from published reviews.*
+  *- Reviews can also be anonymous.*
+
+*Admin UI:*
+
+*The website will include an Admin Panel to manage:*
+*- Categories for places (Add, Delete, Update)*
+*- See grid of users and filter in it*
+*- Perform direct sql commands with option to view results of the commands*
+*- Manage configuration*
+*- Manage bans*
+
+
+Design:
+- Dark/light theme
+- Clean bootsrap design
+- Responsive design
+- Phone friendly
+
+Configuration:
+- The database contains a table for configurations which is read on API initialization
+- Configuration values:
+  - Title of the web app
+  - Text in footer
+
+Technical notes:
+
+
+End of project context
+**********************************************************
+</maphive_context>
+</context_and_rules>
