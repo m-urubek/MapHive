@@ -1,6 +1,7 @@
 namespace MapHive.Models.PageModels;
 
 using System.ComponentModel.DataAnnotations;
+using MapHive.Attributes;
 using MapHive.Models.Data.DbTableModels;
 using MapHive.Models.Enums;
 
@@ -36,6 +37,8 @@ public class ChangeUsernamePageModel
 {
     [Required]
     [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+    [NoHtml]
+    [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores.")]
     public string? NewUsername { get; set; }
 }
 

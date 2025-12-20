@@ -8,6 +8,7 @@ public class ThreadMessagePageModel
 {
     [Required]
     [StringLength(4000)]
+    [NoHtml]
     public required string? MessageText { get; set; }
 
     [Repopulated("Partials/_ReplyFormPartial")]

@@ -322,9 +322,9 @@
                           if (item.valuesByColumnNames && item.valuesByColumnNames[columnName] !== undefined) {
                               cellValue = item.valuesByColumnNames[columnName];
                           }
-                          // Render the cell
+                          // Render the cell (use textContent to prevent XSS)
                           cellElement.style.flex = column.flex;
-                          cellElement.innerHTML = cellValue;
+                          cellElement.textContent = cellValue;
 
                           rowElement.appendChild(cellElement);
                       });
