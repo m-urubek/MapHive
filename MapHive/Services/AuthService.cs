@@ -158,6 +158,119 @@ public class AuthService(IAccountsRepository _userRepository,
         return MapHive.Utilities.HashingUtility.VerifyPassword(password: password, storedHash: storedHash);
     }
 
+    public async Task<AuthResponse> LoginOrRegisterWithDiscordAsync(string discordId, string discordUsername)
+    {
+        // Check if IP is banned
+        if (await _ipBansRepository.IsIpBannedAsync(hashedIpAddress: _requestContextService.HashedIpAddress))
+        {
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Discord login attempt from banned IP: {_requestContextService.HashedIpAddress}");
+            throw new OrangeUserException("Login failed due to security reasons.");
+        }
+
+        // Check if user exists with this Discord ID
+        AccountAtomic? existingAccount = await _userRepository.GetAccountByDiscordIdAsync(discordId: discordId);
+
+        if (existingAccount != null)
+        {
+            // Check if the user is banned
+            AccountBanExtended? activeBan = await _accountBansRepository.GetActiveAccountBanByAccountIdAsync(accountId: existingAccount.Id);
+            if (activeBan != null)
+            {
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Banned Discord user login attempt: {existingAccount.Username} (Ban ID: {activeBan.Id})");
+                string banMessage = "Your account is currently banned.";
+                if (activeBan.ExpiresAt.HasValue)
+                {
+                    banMessage += $" Ban expires on: {activeBan.ExpiresAt.Value:yyyy-MM-dd HH:mm} UTC.";
+                }
+                if (!string.IsNullOrWhiteSpace(value: activeBan.Reason))
+                {
+                    banMessage += $" Reason: {activeBan.Reason}";
+                }
+                throw new RedUserException(banMessage);
+            }
+
+            // Sign in existing user
+            await SignInUserAsync(user: new UserLogin()
+            {
+                Id = existingAccount.Id,
+                Username = existingAccount.Username,
+                Tier = existingAccount.Tier
+            });
+
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"Discord login: {existingAccount.Username}", additionalData: $"IP: {_requestContextService.HashedIpAddress}");
+
+            // Update IP history if necessary
+            if (!existingAccount.IpAddressHistory.Contains(value: _requestContextService.HashedIpAddress))
+            {
+                await _userRepository.UpdateAccountOrThrowAsync(
+                    id: existingAccount.Id,
+                    username: DynamicValue<string>.Unassigned(),
+                    passwordHash: DynamicValue<string>.Unassigned(),
+                    tier: DynamicValue<AccountTier>.Unassigned(),
+                    ipAddressHistory: DynamicValue<string>.Set(_requestContextService.HashedIpAddress)
+                );
+            }
+
+            return new AuthResponse
+            {
+                Success = true,
+                Message = "Login successful",
+                User = existingAccount
+            };
+        }
+        else
+        {
+            // Create new account with Discord
+            string username = discordUsername;
+            int suffix = 1;
+
+            // Ensure unique username
+            while (await _userRepository.CheckUsernameExistsAsync(username: username))
+            {
+                username = $"{discordUsername}_{suffix}";
+                suffix++;
+            }
+
+            int accountId = await _userRepository.CreateAccountWithDiscordAsync(
+                username: username,
+                discordId: discordId,
+                registrationDate: DateTime.UtcNow,
+                tier: AccountTier.Normal,
+                ipAddressHistory: _requestContextService.HashedIpAddress
+            );
+
+            AccountAtomic? newAccount = await _userRepository.GetAccountByIdAsync(id: accountId)
+                ?? throw new InvalidOperationException("Unable to retrieve newly created Discord user.");
+
+            await SignInUserAsync(user: new UserLogin()
+            {
+                Id = newAccount.Id,
+                Username = newAccount.Username,
+                Tier = newAccount.Tier
+            });
+
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Information, message: $"New Discord user registered: {accountId}",
+                additionalData: $"Hashed IP: {_requestContextService.HashedIpAddress}");
+
+            return new AuthResponse
+            {
+                Success = true,
+                Message = "Registration successful",
+                User = newAccount
+            };
+        }
+    }
+
+    public async Task SignInUserDirectAsync(AccountAtomic account)
+    {
+        await SignInUserAsync(user: new UserLogin()
+        {
+            Id = account.Id,
+            Username = account.Username,
+            Tier = account.Tier
+        });
+    }
+
     // Helper method to sign in the user
     private async Task SignInUserAsync(UserLogin user)
     {

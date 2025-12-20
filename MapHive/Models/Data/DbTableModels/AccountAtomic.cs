@@ -11,4 +11,5 @@ public class AccountAtomic
     public required DateTime RegistrationDate { get; set; }
     public required string IpAddressHistory { get; set; }
     public required bool DarkModeEnabled { get; set; }
+    public string? DiscordId { get; set; }
 }

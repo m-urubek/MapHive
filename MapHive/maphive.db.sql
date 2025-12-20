@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS "Accounts" (
 	"RegistrationDate"	TEXT NOT NULL,
 	"Tier"	INTEGER NOT NULL DEFAULT 0,
 	"IpAddressHistory"	TEXT DEFAULT '',
+	"DarkModeEnabled"	INTEGER NOT NULL DEFAULT 1,
+	"DiscordId"	TEXT,
 	PRIMARY KEY("Id_Accounts" AUTOINCREMENT)
 );
 CREATE TABLE IF NOT EXISTS "VersionNumber" (

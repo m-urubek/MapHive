@@ -1,11 +1,16 @@
+using DotNetEnv;
 using MapHive.Middleware;
 using MapHive.ModelBinding;
+using MapHive.Models.Configuration;
 using MapHive.Repositories;
 using MapHive.Services;
 using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.Razor;
 using reCAPTCHA.AspNetCore;
+
+// Load .env file
+Env.Load();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
 
@@ -50,6 +55,9 @@ builder.Services.Configure<RecaptchaSettings>(config: builder.Configuration.GetS
 builder.Services.AddTransient<RecaptchaService>();
 builder.Services.AddTransient<IRecaptchaService, RecaptchaService>();
 
+// Add Discord OAuth settings
+builder.Services.Configure<DiscordOAuthSettings>(config: builder.Configuration.GetSection(key: "DiscordOAuth"));
+
 // Add authentication
 builder.Services.AddAuthentication(defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(configureOptions: options =>
@@ -60,6 +68,12 @@ builder.Services.AddAuthentication(defaultScheme: CookieAuthenticationDefaults.A
         options.LogoutPath = "/Account/Logout";
         options.AccessDeniedPath = "/Account/AccessDenied";
     });
+
+// Add HttpClient for Discord OAuth API calls
+builder.Services.AddHttpClient("Discord", client =>
+{
+    client.BaseAddress = new Uri("https://discord.com/api/");
+});
 
 // Add session state services
 builder.Services.AddDistributedMemoryCache();
