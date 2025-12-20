@@ -8,7 +8,7 @@
         <form asp-action="ChangeUsername" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
             <div class="mb-3">
-                <label asp-for="NewUsername" class="form-label">New Username</label>
+                <label asp-for="NewUsername" class="form-label required-indicator">New Username</label>
                 <input asp-for="NewUsername" class="form-control" />
                 <span asp-validation-for="NewUsername" class="text-danger"></span>
             </div>

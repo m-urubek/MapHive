@@ -15,7 +15,7 @@
                 <input type="hidden" asp-for="Categories" />
                 
                 <div class="form-group mb-3">
-                    <label asp-for="@Model.Name" class="control-label"></label>
+                    <label asp-for="@Model.Name" class="control-label required-indicator"></label>
                     <input asp-for="@Model.Name" class="form-control" />
                     <span asp-validation-for="@Model.Name" class="text-danger"></span>
                 </div>
@@ -27,7 +27,7 @@
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="@Model.CategoryId" class="control-label">Category</label>
+                    <label asp-for="@Model.CategoryId" class="control-label required-indicator">Category</label>
                     <select asp-for="@Model.CategoryId" class="form-select">
                         <option value="">-- Select Category --</option>
                         @foreach (var category in Model.Categories)
@@ -40,14 +40,14 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="@Model.Latitude" class="control-label"></label>
+                            <label asp-for="@Model.Latitude" class="control-label required-indicator"></label>
                             <input asp-for="@Model.Latitude" class="form-control" id="latitude" />
                             <span asp-validation-for="@Model.Latitude" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="@Model.Longitude" class="control-label"></label>
+                            <label asp-for="@Model.Longitude" class="control-label required-indicator"></label>
                             <input asp-for="@Model.Longitude" class="form-control" id="longitude" />
                             <span asp-validation-for="@Model.Longitude" class="text-danger"></span>
                         </div>

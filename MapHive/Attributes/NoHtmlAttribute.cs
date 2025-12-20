@@ -39,14 +39,11 @@ public class NoHtmlAttribute : ValidationAttribute
         string encoded = HtmlEncoder.Default.Encode(str);
 
         // If the encoded version differs from the original, it contains HTML-sensitive characters
-        if (!string.Equals(a: str, b: encoded, comparisonType: StringComparison.Ordinal))
-        {
-            return new ValidationResult(
+        return !string.Equals(a: str, b: encoded, comparisonType: StringComparison.Ordinal)
+            ? new ValidationResult(
                 ErrorMessage ?? "HTML tags and scripts are not allowed in this field.",
-                validationContext.MemberName != null ? [validationContext.MemberName] : null);
-        }
-
-        return ValidationResult.Success;
+                validationContext.MemberName != null ? [validationContext.MemberName] : null)
+            : ValidationResult.Success;
     }
 }
 
