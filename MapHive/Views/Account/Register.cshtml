@@ -18,19 +18,19 @@
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     
                     <div class="mb-3">
-                        <label asp-for="Username" class="form-label"></label>
+                        <label asp-for="Username" class="form-label required-indicator"></label>
                         <input asp-for="Username" class="form-control" />
                         <span asp-validation-for="Username" class="text-danger"></span>
                     </div>
                     
                     <div class="mb-3">
-                        <label asp-for="Password" class="form-label"></label>
+                        <label asp-for="Password" class="form-label required-indicator"></label>
                         <input asp-for="Password" class="form-control" type="password" />
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
                     
                     <div class="mb-3">
-                        <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                        <label asp-for="ConfirmPassword" class="form-label required-indicator">Confirm Password</label>
                         <input asp-for="ConfirmPassword" class="form-control" type="password" />
                         <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
                     </div>

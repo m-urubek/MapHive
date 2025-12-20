@@ -5,6 +5,7 @@
     <form asp-controller="Discussion" asp-action="AddMessage" asp-route-id="@(ViewContext.IdOrThrow())" method="post">
         <input type="hidden" asp-for="ThreadName" />
         <div class="mb-3">
+            <label asp-for="MessageText" class="form-label required-indicator">Message</label>
             <textarea asp-for="MessageText" class="form-control" rows="3" placeholder="Write your message here..." required></textarea>
             <span asp-validation-for="MessageText" class="text-danger"></span>
         </div>

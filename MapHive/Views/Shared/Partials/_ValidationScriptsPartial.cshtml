@@ -1,2 +1,68 @@
 ﻿<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
 <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    // Enhanced validation behavior
+    $(document).ready(function () {
+        // Override default jQuery validation behavior for better UX
+        $('form').each(function () {
+            var form = $(this);
+            var validator = form.data('validator');
+            
+            if (validator) {
+                // Store original invalid handler
+                var originalInvalidHandler = validator.settings.invalidHandler;
+                
+                // Custom invalid handler for better scrolling and focus
+                validator.settings.invalidHandler = function (event, validatorObj) {
+                    // Call original handler if exists
+                    if (originalInvalidHandler) {
+                        originalInvalidHandler.call(this, event, validatorObj);
+                    }
+                    
+                    // Find the first invalid element
+                    var firstError = $(validatorObj.errorList[0]?.element);
+                    if (firstError.length) {
+                        // Smooth scroll to the element with offset
+                        var scrollTarget = firstError.offset().top - 100;
+                        $('html, body').animate({
+                            scrollTop: Math.max(0, scrollTarget)
+                        }, 400, function () {
+                            // Focus after scroll completes
+                            firstError.focus();
+                        });
+                    }
+                };
+                
+                // Enhanced highlight function
+                var originalHighlight = validator.settings.highlight;
+                validator.settings.highlight = function (element, errorClass, validClass) {
+                    // Call original highlight
+                    if (originalHighlight) {
+                        originalHighlight.call(this, element, errorClass, validClass);
+                    }
+                    
+                    // Add extra visual feedback
+                    $(element).addClass('input-validation-error');
+                    
+                    // Re-trigger animation by removing and re-adding class
+                    $(element).css('animation', 'none');
+                    setTimeout(function() {
+                        $(element).css('animation', '');
+                    }, 10);
+                };
+                
+                // Enhanced unhighlight function
+                var originalUnhighlight = validator.settings.unhighlight;
+                validator.settings.unhighlight = function (element, errorClass, validClass) {
+                    // Call original unhighlight
+                    if (originalUnhighlight) {
+                        originalUnhighlight.call(this, element, errorClass, validClass);
+                    }
+                    
+                    // Remove visual feedback
+                    $(element).removeClass('input-validation-error');
+                };
+            }
+        });
+    });
+</script>

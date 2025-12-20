@@ -31,7 +31,7 @@ else
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="form-group mb-3">
-            <label for="BanType" class="control-label">Ban Type</label>
+            <label for="BanType" class="control-label required-indicator">Ban Type</label>
             <select asp-for="BanType" class="form-control">
                 <option value="@MapHive.Models.Enums.BanType.Account">Account Ban</option>
                 <option value="@MapHive.Models.Enums.BanType.IpAddress">IP Address Ban</option>

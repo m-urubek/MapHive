@@ -17,13 +17,13 @@
                         <input type="hidden" asp-for="LocationName" />
 
                         <div class="mb-3">
-                            <label asp-for="ThreadName" class="form-label">Discussion Title</label>
+                            <label asp-for="ThreadName" class="form-label required-indicator">Discussion Title</label>
                             <input asp-for="ThreadName" class="form-control" placeholder="Enter a title for your discussion" />
                             <span asp-validation-for="ThreadName" class="text-danger"></span>
                         </div>
                         
                         <div class="mb-3">
-                            <label asp-for="InitialMessage" class="form-label">Initial Message</label>
+                            <label asp-for="InitialMessage" class="form-label required-indicator">Initial Message</label>
                             <textarea asp-for="InitialMessage" class="form-control" rows="5" placeholder="Write your message here..."></textarea>
                             <span asp-validation-for="InitialMessage" class="text-danger"></span>
                         </div>
