@@ -155,13 +155,7 @@ public class AuthService(IAccountsRepository _userRepository,
 
     public bool VerifyPassword(string password, string storedHash)
     {
-        if (string.IsNullOrEmpty(value: password) || string.IsNullOrEmpty(value: storedHash))
-        {
-            return false;
-        }
-        string hashedPassword = HashPassword(password: password);
-        // Use case-insensitive comparison for hashes
-        return string.Equals(a: hashedPassword, b: storedHash, comparisonType: StringComparison.OrdinalIgnoreCase);
+        return MapHive.Utilities.HashingUtility.VerifyPassword(password: password, storedHash: storedHash);
     }
 
     // Helper method to sign in the user
