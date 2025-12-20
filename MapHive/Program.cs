@@ -1,3 +1,4 @@
+using DotNetEnv;
 using MapHive.Middleware;
 using MapHive.ModelBinding;
 using MapHive.Models.Configuration;
@@ -7,6 +8,9 @@ using MapHive.Singletons;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.Razor;
 using reCAPTCHA.AspNetCore;
+
+// Load .env file
+Env.Load();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args: args);
 
