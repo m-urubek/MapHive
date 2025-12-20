@@ -14,12 +14,21 @@ public interface IAccountsRepository
         string ipAddressHistory
     );
 
+    public Task<int> CreateAccountWithDiscordAsync(
+        string username,
+        string discordId,
+        DateTime registrationDate,
+        AccountTier tier,
+        string ipAddressHistory
+    );
+
     // Basic user lookup
     Task<AccountAtomic?> GetAccountByUsernameAsync(string username);
     Task<AccountAtomic> GetAccountByUsernameOrThrowAsync(string username);
     Task<bool> CheckUsernameExistsAsync(string username);
     Task<AccountAtomic?> GetAccountByIdAsync(int id);
     Task<AccountAtomic> GetAccountByIdOrThrowAsync(int id);
+    Task<AccountAtomic?> GetAccountByDiscordIdAsync(string discordId);
 
     // Admin methods
     Task<IEnumerable<AccountAtomic>> GeAccountsAsync(string searchTerm, int page, int pageSize, string sortColumnName = "", string sortDirection = "asc");
@@ -31,4 +40,5 @@ public interface IAccountsRepository
         DynamicValue<AccountTier> tier,
         DynamicValue<string> ipAddressHistory);
     Task UpdateDarkModePreferenceAsync(int id, bool enabled);
+    Task LinkDiscordAccountAsync(int accountId, string discordId);
 }

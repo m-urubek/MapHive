@@ -1,7 +1,11 @@
 namespace MapHive.Controllers;
 
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Web;
 using MapHive.Filters;
+using MapHive.Models.Configuration;
 using MapHive.Models.Enums;
 using MapHive.Models.Exceptions;
 using MapHive.Models.PageModels;
@@ -22,7 +26,10 @@ public class AccountController(
     IRecaptchaService _recaptchaService,
     IUserContextService _userContextService,
     IConfigurationSingleton _configurationSingleton,
-    IOptions<RecaptchaSettings> _recaptchaOptions) : Controller
+    IOptions<RecaptchaSettings> _recaptchaOptions,
+    IOptions<DiscordOAuthSettings> _discordOAuthOptions,
+    IHttpClientFactory _httpClientFactory,
+    IAuthService _authService) : Controller
 {
 
     [HttpGet("Login")]
@@ -296,6 +303,143 @@ public class AccountController(
     {
         return View();
     }
+
+    #region Discord OAuth
+
+    [HttpGet("Login/Discord")]
+    [OnlyAnonymous]
+    public IActionResult DiscordLogin()
+    {
+        DiscordOAuthSettings discordSettings = _discordOAuthOptions.Value;
+
+        if (string.IsNullOrEmpty(value: discordSettings.ClientId) || discordSettings.ClientId == "YOUR_DISCORD_CLIENT_ID")
+        {
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: "Discord OAuth is not configured properly.");
+            TempData["ErrorMessage"] = "Discord login is not available at this time.";
+            return RedirectToAction(actionName: "Login");
+        }
+
+        // Build the Discord OAuth URL
+        string redirectUri = $"{Request.Scheme}://{Request.Host}/Discord/Callback";
+        string scope = "identify";
+        string state = Guid.NewGuid().ToString("N"); // CSRF protection
+
+        // Store state in session for validation
+        HttpContext.Session.SetString(key: "DiscordOAuthState", value: state);
+
+        string discordAuthUrl = $"https://discord.com/api/oauth2/authorize?" +
+            $"client_id={HttpUtility.UrlEncode(discordSettings.ClientId)}" +
+            $"&redirect_uri={HttpUtility.UrlEncode(redirectUri)}" +
+            $"&response_type=code" +
+            $"&scope={HttpUtility.UrlEncode(scope)}" +
+            $"&state={HttpUtility.UrlEncode(state)}";
+
+        return Redirect(url: discordAuthUrl);
+    }
+
+    [HttpGet("Discord/Callback")]
+    [OnlyAnonymous]
+    public async Task<IActionResult> DiscordCallback(string code, string state, string? error)
+    {
+        // Check for OAuth error
+        if (!string.IsNullOrEmpty(value: error))
+        {
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: $"Discord OAuth error: {error}");
+            TempData["ErrorMessage"] = "Discord login was cancelled or failed.";
+            return RedirectToAction(actionName: "Login");
+        }
+
+        // Validate state to prevent CSRF
+        string? storedState = HttpContext.Session.GetString(key: "DiscordOAuthState");
+        if (string.IsNullOrEmpty(value: storedState) || storedState != state)
+        {
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Warning, message: "Discord OAuth state mismatch - possible CSRF attempt.");
+            TempData["ErrorMessage"] = "Login session expired. Please try again.";
+            return RedirectToAction(actionName: "Login");
+        }
+
+        // Clear the state from session
+        HttpContext.Session.Remove(key: "DiscordOAuthState");
+
+        if (string.IsNullOrEmpty(value: code))
+        {
+            TempData["ErrorMessage"] = "Discord login failed - no authorization code received.";
+            return RedirectToAction(actionName: "Login");
+        }
+
+        try
+        {
+            DiscordOAuthSettings discordSettings = _discordOAuthOptions.Value;
+            string redirectUri = $"{Request.Scheme}://{Request.Host}/Discord/Callback";
+
+            // Exchange code for access token
+            using HttpClient httpClient = _httpClientFactory.CreateClient(name: "Discord");
+
+            using FormUrlEncodedContent tokenRequestContent = new(new Dictionary<string, string>
+            {
+                { "client_id", discordSettings.ClientId },
+                { "client_secret", discordSettings.ClientSecret },
+                { "grant_type", "authorization_code" },
+                { "code", code },
+                { "redirect_uri", redirectUri }
+            });
+
+            HttpResponseMessage tokenResponse = await httpClient.PostAsync(requestUri: "oauth2/token", content: tokenRequestContent);
+
+            if (!tokenResponse.IsSuccessStatusCode)
+            {
+                string errorContent = await tokenResponse.Content.ReadAsStringAsync();
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: $"Discord token exchange failed: {errorContent}");
+                TempData["ErrorMessage"] = "Failed to authenticate with Discord.";
+                return RedirectToAction(actionName: "Login");
+            }
+
+            string tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+            using JsonDocument tokenDoc = JsonDocument.Parse(json: tokenJson);
+            string accessToken = tokenDoc.RootElement.GetProperty(propertyName: "access_token").GetString()
+                ?? throw new InvalidOperationException("No access token in Discord response");
+
+            // Get user info from Discord
+            using HttpRequestMessage userRequest = new(method: HttpMethod.Get, requestUri: "users/@me");
+            userRequest.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+
+            HttpResponseMessage userResponse = await httpClient.SendAsync(request: userRequest);
+
+            if (!userResponse.IsSuccessStatusCode)
+            {
+                string errorContent = await userResponse.Content.ReadAsStringAsync();
+                _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: $"Discord user info request failed: {errorContent}");
+                TempData["ErrorMessage"] = "Failed to get user information from Discord.";
+                return RedirectToAction(actionName: "Login");
+            }
+
+            string userJson = await userResponse.Content.ReadAsStringAsync();
+            using JsonDocument userDoc = JsonDocument.Parse(json: userJson);
+
+            string discordId = userDoc.RootElement.GetProperty(propertyName: "id").GetString()
+                ?? throw new InvalidOperationException("No Discord user ID in response");
+            string discordUsername = userDoc.RootElement.GetProperty(propertyName: "username").GetString()
+                ?? throw new InvalidOperationException("No Discord username in response");
+
+            // Login or register the user
+            _ = await _authService.LoginOrRegisterWithDiscordAsync(discordId: discordId, discordUsername: discordUsername);
+
+            return RedirectToAction(actionName: "Index", controllerName: "Home");
+        }
+        catch (UserFriendlyExceptionBase ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+            return RedirectToAction(actionName: "Login");
+        }
+        catch (Exception ex)
+        {
+            _ = _logManagerService.LogAsync(severity: LogSeverity.Error, message: "Discord OAuth callback error", exception: ex);
+            TempData["ErrorMessage"] = "An unexpected error occurred during Discord login.";
+            return RedirectToAction(actionName: "Login");
+        }
+    }
+
+    #endregion
 
     private static void AddAdminRoleClaim(List<Claim> claims, AccountTier tier)
     {
