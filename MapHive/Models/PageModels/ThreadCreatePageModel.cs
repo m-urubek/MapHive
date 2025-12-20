@@ -8,10 +8,12 @@ public class ThreadCreatePageModel
 {
     [Required]
     [StringLength(100)]
+    [NoHtml]
     public required string? ThreadName { get; set; }
 
     [Required]
     [StringLength(1000)]
+    [NoHtml]
     public required string? InitialMessage { get; set; }
 
     [Repopulated("Discussion/Create")]

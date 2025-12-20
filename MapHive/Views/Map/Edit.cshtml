@@ -14,7 +14,7 @@
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="Name" class="control-label"></label>
+                    <label asp-for="Name" class="control-label required-indicator"></label>
                     <input asp-for="Name" class="form-control" />
                     <span asp-validation-for="Name" class="text-danger"></span>
                 </div>
@@ -26,7 +26,7 @@
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label asp-for="CategoryId" class="control-label">Category</label>
+                    <label asp-for="CategoryId" class="control-label required-indicator">Category</label>
                     <select asp-for="CategoryId" class="form-select">
                         <option value="">-- Select Category --</option>
                         @foreach (var category in Model.Categories)
@@ -46,14 +46,14 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Latitude" class="control-label"></label>
+                            <label asp-for="Latitude" class="control-label required-indicator"></label>
                             <input asp-for="Latitude" class="form-control" id="latitude" />
                             <span asp-validation-for="Latitude" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Longitude" class="control-label"></label>
+                            <label asp-for="Longitude" class="control-label required-indicator"></label>
                             <input asp-for="Longitude" class="form-control" id="longitude" />
                             <span asp-validation-for="Longitude" class="text-danger"></span>
                         </div>

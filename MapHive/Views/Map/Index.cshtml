@@ -120,18 +120,40 @@
             loadTiles(e.detail.dark);
         });
         
+        // Helper function to escape HTML and prevent XSS
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            var div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+        
+        // Helper function to safely encode URLs
+        function safeUrl(url) {
+            if (!url) return '';
+            try {
+                // Validate URL format and prevent javascript: URLs
+                var parsed = new URL(url, window.location.origin);
+                if (parsed.protocol === 'javascript:') return '';
+                return parsed.href;
+            } catch (e) {
+                return '';
+            }
+        }
+        
         // Add markers for each location
         var locations = @Html.Raw(Json.Serialize(Model));
         
         locations.forEach(function(location) {
             var marker = L.marker([location.latitude, location.longitude]).addTo(map);
             
+            var websiteLink = location.website ? safeUrl(location.website) : '';
             marker.bindPopup(
-                '<strong><a href="/Map/Details/' + location.id + '">' + location.name + '</a></strong><br>' +
-                (location.description ? location.description + '<br>' : '') +
-                (location.address ? location.address + '<br>' : '') +
-                (location.website ? '<a href="' + location.website + '" target="_blank">Website</a><br>' : '') +
-                (location.phoneNumber ? 'Phone: ' + location.phoneNumber : '')
+                '<strong><a href="/Map/Details/' + location.id + '">' + escapeHtml(location.name) + '</a></strong><br>' +
+                (location.description ? escapeHtml(location.description) + '<br>' : '') +
+                (location.address ? escapeHtml(location.address) + '<br>' : '') +
+                (websiteLink ? '<a href="' + websiteLink + '" target="_blank" rel="noopener noreferrer">Website</a><br>' : '') +
+                (location.phoneNumber ? 'Phone: ' + escapeHtml(location.phoneNumber) : '')
             );
         });
         
